@@ -81,7 +81,7 @@ define(['./workbox-27418b2a'], (function (workbox) { 'use strict';
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "163441bea88b1b7f293fa93be5f6113d"
+    "revision": "0ac9c5e4d2c3bfcbff2571bba52a8b3f"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -89,10 +89,10 @@ define(['./workbox-27418b2a'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/useMutation-CmwDKOCg.js",
+    "url": "assets/useMutation-kxzxgxXB.js",
     "revision": null
   }, {
-    "url": "assets/useDomainSituation-pAJHR7g7.js",
+    "url": "assets/useDomainSituation-D8Z-hOeg.js",
     "revision": null
   }, {
     "url": "assets/unavailableKpis-CVWt1YY1.js",
@@ -101,16 +101,16 @@ define(['./workbox-27418b2a'], (function (workbox) { 'use strict';
     "url": "assets/typography-D6WISFyv.js",
     "revision": null
   }, {
-    "url": "assets/surgery-CmGS5lYX.js",
+    "url": "assets/surgery-BCJtWvhz.js",
     "revision": null
   }, {
     "url": "assets/situationFromKpis-ffeP0NXL.js",
     "revision": null
   }, {
-    "url": "assets/radiology-C_P9PT-K.js",
+    "url": "assets/radiology-CYIAR1Lo.js",
     "revision": null
   }, {
-    "url": "assets/pwa-CxqollrA.js",
+    "url": "assets/pwa-soRmuryB.js",
     "revision": null
   }, {
     "url": "assets/plus-jakarta-sans-vietnamese-700-normal-CV6qDkkj.woff2",
@@ -185,313 +185,313 @@ define(['./workbox-27418b2a'], (function (workbox) { 'use strict';
     "url": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
     "revision": null
   }, {
-    "url": "assets/patients-D4LWOBDB.js",
+    "url": "assets/patients-oCYud8qk.js",
     "revision": null
   }, {
-    "url": "assets/opsDemo-NeoFx5AJ.js",
+    "url": "assets/opsDemo-BdBmED5f.js",
     "revision": null
   }, {
-    "url": "assets/laboratory-xsKQX2Gx.js",
+    "url": "assets/laboratory-DjFkCcNQ.js",
     "revision": null
   }, {
-    "url": "assets/index-DOHCCaye.js",
+    "url": "assets/index-DCpKeLA7.js",
     "revision": null
   }, {
-    "url": "assets/index-CNVhQg1p.js",
+    "url": "assets/index-CnSYMkEc.js",
     "revision": null
   }, {
-    "url": "assets/index-C6PJkJAZ.css",
+    "url": "assets/index-BwHfm2jk.js",
     "revision": null
   }, {
-    "url": "assets/index-BTO_e-qP.js",
+    "url": "assets/index-BWOzYDk7.css",
     "revision": null
   }, {
-    "url": "assets/format-D_3kuBCI.js",
+    "url": "assets/format-BNjnU6or.js",
     "revision": null
   }, {
-    "url": "assets/executive-Lo90xbi5.js",
+    "url": "assets/executive-BHADC04L.js",
     "revision": null
   }, {
-    "url": "assets/emergency-Bz46bEVv.js",
+    "url": "assets/emergency-CfyXCoIg.js",
     "revision": null
   }, {
-    "url": "assets/dataPlatform-D40x8czl.js",
+    "url": "assets/dataPlatform-BzV-rPFP.js",
     "revision": null
   }, {
     "url": "assets/chartHeadlines-CdzseCym.js",
     "revision": null
   }, {
-    "url": "assets/beds-DOKZpPW1.js",
+    "url": "assets/beds-CZRUG0Oz.js",
     "revision": null
   }, {
-    "url": "assets/alerts-DgrwGFqO.js",
+    "url": "assets/alerts-BI0AHvXy.js",
     "revision": null
   }, {
-    "url": "assets/ai-QN5B9ij3.js",
+    "url": "assets/ai-BRHyUPMy.js",
     "revision": null
   }, {
-    "url": "assets/WorkforceStatusChip-Dv0rND8v.js",
+    "url": "assets/WorkforceStatusChip-DjD_wi0j.js",
     "revision": null
   }, {
-    "url": "assets/WorkforceEmployeeProfilePage-BmTlPDNJ.js",
+    "url": "assets/WorkforceEmployeeProfilePage-e5ekBVoY.js",
     "revision": null
   }, {
-    "url": "assets/WorkforceDashboard-C4MoY7c5.js",
+    "url": "assets/WorkforceDashboard-DSwwV8jx.js",
     "revision": null
   }, {
-    "url": "assets/VitalSignsGrid-DTda7pwx.js",
+    "url": "assets/VitalSignsGrid-CtB700C5.js",
     "revision": null
   }, {
-    "url": "assets/TableRow-NctH7TRB.js",
+    "url": "assets/TableRow-BLUgEyTd.js",
     "revision": null
   }, {
-    "url": "assets/TablePagination-Cff2Yl43.js",
+    "url": "assets/TablePagination-D2LUB94P.js",
     "revision": null
   }, {
-    "url": "assets/SurgeryDashboard-BTOUSiHe.js",
+    "url": "assets/SurgeryDashboard-Dl_WIeu1.js",
     "revision": null
   }, {
-    "url": "assets/StatusBadge-DEqMNSpo.js",
+    "url": "assets/StatusBadge-z6Cfz6dT.js",
     "revision": null
   }, {
-    "url": "assets/Skeleton-BnWLCmjj.js",
+    "url": "assets/Skeleton-B2FGQPZe.js",
     "revision": null
   }, {
-    "url": "assets/SituationSummary-CUx8vp3C.js",
+    "url": "assets/SituationSummary-O2c2lb1p.js",
     "revision": null
   }, {
-    "url": "assets/RcmDashboard-CpRldP5U.js",
+    "url": "assets/RcmDashboard-CQVAhqFb.js",
     "revision": null
   }, {
-    "url": "assets/RadiologyDashboard-Bzwv0LUE.js",
+    "url": "assets/RadiologyDashboard-Bq1P4ZvF.js",
     "revision": null
   }, {
-    "url": "assets/PharmacyDashboard-3OQ2eIbk.js",
+    "url": "assets/PharmacyDashboard-D88c28Fu.js",
     "revision": null
   }, {
-    "url": "assets/PatientsPage-BEczebwY.js",
+    "url": "assets/PatientsPage-CpLRfrLV.js",
     "revision": null
   }, {
-    "url": "assets/PatientRiskCard-CDybdIgc.js",
+    "url": "assets/PatientRiskCard-XCb_WSBz.js",
     "revision": null
   }, {
-    "url": "assets/Patient360Page-xD0X8-Dr.js",
+    "url": "assets/Patient360Page-BDelKsSa.js",
     "revision": null
   }, {
-    "url": "assets/PageIntroduction-DOwFqX5c.js",
+    "url": "assets/PageIntroduction-DSsR-nHf.js",
     "revision": null
   }, {
-    "url": "assets/PageHeader-BfZO6-zM.js",
+    "url": "assets/PageHeader-DpUsIY9i.js",
     "revision": null
   }, {
-    "url": "assets/OverrideDialog-DfAQjm2O.js",
+    "url": "assets/OverrideDialog-B4w3zXma.js",
     "revision": null
   }, {
-    "url": "assets/OutpatientDashboard-CnMNBhkc.js",
+    "url": "assets/OutpatientDashboard-BaS6ZkHp.js",
     "revision": null
   }, {
-    "url": "assets/OutcomeRiskPage-CBB-kXfk.js",
+    "url": "assets/OutcomeRiskPage-DPUfKLa0.js",
     "revision": null
   }, {
-    "url": "assets/OrchestrationPage-BGtgF7hp.js",
+    "url": "assets/OrchestrationPage-Co7r4iL6.js",
     "revision": null
   }, {
-    "url": "assets/MoreVert-X5S-UjNU.js",
+    "url": "assets/MoreVert-DHinXRdH.js",
     "revision": null
   }, {
-    "url": "assets/ModelPerformancePanel-lYQVXoRW.js",
+    "url": "assets/ModelPerformancePanel-C-ijxDkd.js",
     "revision": null
   }, {
-    "url": "assets/ModelMonitoringPage-hRa6SDrg.js",
+    "url": "assets/ModelMonitoringPage-CRlVS5mD.js",
     "revision": null
   }, {
-    "url": "assets/ModelLimitationsPanel-b6mnils1.js",
+    "url": "assets/ModelLimitationsPanel-DCRWkfDn.js",
     "revision": null
   }, {
-    "url": "assets/MissingDataPanel-Bw9guiSp.js",
+    "url": "assets/MissingDataPanel-wFbgJb10.js",
     "revision": null
   }, {
-    "url": "assets/MiniListTable-SfKf-peC.js",
+    "url": "assets/MiniListTable-Bw06N4Vf.js",
     "revision": null
   }, {
-    "url": "assets/MetricBand-Cs9prXk7.js",
+    "url": "assets/MetricBand-DxgQKren.js",
     "revision": null
   }, {
-    "url": "assets/MedicationSafetyPage-DrF4nE3I.js",
+    "url": "assets/MedicationSafetyPage-C1VPBU60.js",
     "revision": null
   }, {
-    "url": "assets/LoginPage-CQ2zqWWL.js",
+    "url": "assets/LoginPage-L-IeFr2N.js",
     "revision": null
   }, {
-    "url": "assets/LoadingSkeleton-DnjGQPtC.js",
+    "url": "assets/LoadingSkeleton-CB6LLhvt.js",
     "revision": null
   }, {
-    "url": "assets/LightbulbOutlined-B_j_h7cM.js",
+    "url": "assets/LightbulbOutlined-C5p97fmE.js",
     "revision": null
   }, {
-    "url": "assets/LaboratoryDashboard-GjySxKIx.js",
+    "url": "assets/LaboratoryDashboard-bwAytJU6.js",
     "revision": null
   }, {
-    "url": "assets/KPICard-D0cCnFZv.js",
+    "url": "assets/KPICard-D3ZHOnCs.js",
     "revision": null
   }, {
-    "url": "assets/InpatientDashboard-CR28xOwe.js",
+    "url": "assets/InpatientDashboard-kxfRBDln.js",
     "revision": null
   }, {
-    "url": "assets/InfoOutlined-CoRDtlYh.js",
+    "url": "assets/InfoOutlined-Dwu2qNTo.js",
     "revision": null
   }, {
-    "url": "assets/ImagingPage-D3DHfqaI.js",
+    "url": "assets/ImagingPage-CYjB_e5Y.js",
     "revision": null
   }, {
-    "url": "assets/Grid-wQuGR2Pm.js",
+    "url": "assets/Grid-BvNiJpzY.js",
     "revision": null
   }, {
-    "url": "assets/GovernancePage-DtZvghnK.js",
+    "url": "assets/GovernancePage-CM_xyxDr.js",
     "revision": null
   }, {
-    "url": "assets/FutureCapabilitiesPage-BPUnTvfz.js",
+    "url": "assets/FutureCapabilitiesPage-x15tymjC.js",
     "revision": null
   }, {
-    "url": "assets/Fullscreen-BzZsmdyG.js",
+    "url": "assets/Fullscreen-D99WTdCF.js",
     "revision": null
   }, {
-    "url": "assets/ExecutiveDashboard-Co01FDpM.js",
+    "url": "assets/ExecutiveDashboard-TuRzbq2R.js",
     "revision": null
   }, {
-    "url": "assets/ErrorState-ry2kk3Y9.js",
+    "url": "assets/ErrorState-Rdkm8qr8.js",
     "revision": null
   }, {
-    "url": "assets/ErrorOutline-D7uxx3I9.js",
+    "url": "assets/ErrorOutline-BPLkIbH4.js",
     "revision": null
   }, {
-    "url": "assets/EmptyState-CnvkwX88.js",
+    "url": "assets/EmptyState-BTQ0qUOJ.js",
     "revision": null
   }, {
-    "url": "assets/EmergencyDashboard-tuqfShod.js",
+    "url": "assets/EmergencyDashboard-0u8-6QVd.js",
     "revision": null
   }, {
-    "url": "assets/EChart-BlXwQuEf.js",
+    "url": "assets/EChart-CUQicKR1.js",
     "revision": null
   }, {
-    "url": "assets/DownloadOutlined-RhGU8M5B.js",
+    "url": "assets/DownloadOutlined-CHA4lkRW.js",
     "revision": null
   }, {
-    "url": "assets/DomainPageHeader-cHd-fhr3.js",
+    "url": "assets/DomainPageHeader-DDZjzo62.js",
     "revision": null
   }, {
-    "url": "assets/DialogTitle-B0X_wxjp.js",
+    "url": "assets/DialogTitle-BCWJ5Pyf.js",
     "revision": null
   }, {
-    "url": "assets/DiagnosisSupportPage-HdpArwh6.js",
+    "url": "assets/DiagnosisSupportPage-Cb7dVE-6.js",
     "revision": null
   }, {
-    "url": "assets/DiagnosesDashboard-Dl0B1GXs.js",
+    "url": "assets/DiagnosesDashboard-CTGT63Se.js",
     "revision": null
   }, {
-    "url": "assets/DeteriorationPage-DHDgpdFd.js",
+    "url": "assets/DeteriorationPage-DA314i4P.js",
     "revision": null
   }, {
-    "url": "assets/DetailDataTable-CP55xZaN.js",
+    "url": "assets/DetailDataTable-CDLox57A.js",
     "revision": null
   }, {
-    "url": "assets/DemoStoryPage-BNfy976h.js",
+    "url": "assets/DemoStoryPage-D8XacQQ1.js",
     "revision": null
   }, {
-    "url": "assets/DecisionPriorityList-BXymFrfr.js",
+    "url": "assets/DecisionPriorityList-xIrsvYMt.js",
     "revision": null
   }, {
-    "url": "assets/DataQualityOpsPage-C2uhgxO5.js",
+    "url": "assets/DataQualityOpsPage-DDK8IjWK.js",
     "revision": null
   }, {
-    "url": "assets/DataPlatformPage-B1FPyWA0.js",
+    "url": "assets/DataPlatformPage-Cm8qMb-X.js",
     "revision": null
   }, {
-    "url": "assets/DataPipelinesPage-DMYuRGHV.js",
+    "url": "assets/DataPipelinesPage-Dgmnyxck.js",
     "revision": null
   }, {
-    "url": "assets/DataFreshnessIndicator-CB86Tli1.js",
+    "url": "assets/DataFreshnessIndicator-BEQAdDpC.js",
     "revision": null
   }, {
-    "url": "assets/DashboardShell-DNz2rm_5.js",
+    "url": "assets/DashboardShell-KbGiuAOm.js",
     "revision": null
   }, {
-    "url": "assets/CopilotPage-CzXnqSsd.js",
+    "url": "assets/CopilotPage-CYO25Djf.js",
     "revision": null
   }, {
-    "url": "assets/CompactPageHeader-Bu0KuR28.js",
+    "url": "assets/CompactPageHeader-CAUYTxsy.js",
     "revision": null
   }, {
-    "url": "assets/CommandCenterPage-Bqj8tc2-.js",
+    "url": "assets/CommandCenterPage-CzjoXlLX.js",
     "revision": null
   }, {
-    "url": "assets/ClinicalReviewForm-CT_37fYG.js",
+    "url": "assets/ClinicalReviewForm-D0jN1-RO.js",
     "revision": null
   }, {
-    "url": "assets/ClinicalAIPageHeader-DFdBLinz.js",
+    "url": "assets/ClinicalAIPageHeader-DrIOYJdA.js",
     "revision": null
   }, {
-    "url": "assets/CheckCircleOutline-CycHjUPt.js",
+    "url": "assets/CheckCircleOutline-DE-UEoy_.js",
     "revision": null
   }, {
-    "url": "assets/ChartSection-DCcVFONn.js",
+    "url": "assets/ChartSection-ConwLzXN.js",
     "revision": null
   }, {
-    "url": "assets/CardHeader-CKyaFAf1.js",
+    "url": "assets/CardHeader-hdD6K93E.js",
     "revision": null
   }, {
-    "url": "assets/CardContent-CjPyxpi9.js",
+    "url": "assets/CardContent-DDgtH13f.js",
     "revision": null
   }, {
-    "url": "assets/BedsDashboard-D4KxfhHG.js",
+    "url": "assets/BedsDashboard-C-eDHw3I.js",
     "revision": null
   }, {
-    "url": "assets/AutoAwesomeOutlined-BB_5Ewcb.js",
+    "url": "assets/AutoAwesomeOutlined-DTf8t0Li.js",
     "revision": null
   }, {
-    "url": "assets/AssetPage-BJ7X-guI.js",
+    "url": "assets/AssetPage-BGr_AcD1.js",
     "revision": null
   }, {
-    "url": "assets/ArrowBack-D3Ta3nCa.js",
+    "url": "assets/ArrowBack-CluLzLTR.js",
     "revision": null
   }, {
-    "url": "assets/AppointmentsDashboard-BASXIm5p.js",
+    "url": "assets/AppointmentsDashboard-yWTtgJpj.js",
     "revision": null
   }, {
-    "url": "assets/AnimatedSection-DKOqLXTK.js",
+    "url": "assets/AnimatedSection-DCjgtCgj.js",
     "revision": null
   }, {
-    "url": "assets/AnimatedNumber-R0sQPvVO.js",
+    "url": "assets/AnimatedNumber-DqgNOV7R.js",
     "revision": null
   }, {
-    "url": "assets/AlertsDashboard-DtHIsne7.js",
+    "url": "assets/AlertsDashboard-sGPLFqjH.js",
     "revision": null
   }, {
-    "url": "assets/AiInsightsPage-BerXa4Nw.js",
+    "url": "assets/AiInsightsPage-MqAcnmWI.js",
     "revision": null
   }, {
-    "url": "assets/AiEmergencyIntelligencePage-OTG27-6O.js",
+    "url": "assets/AiEmergencyIntelligencePage-SiGRtXmi.js",
     "revision": null
   }, {
-    "url": "assets/AiDataQualityAgentPage-BzRR3J9b.js",
+    "url": "assets/AiDataQualityAgentPage-BIWxquC2.js",
     "revision": null
   }, {
-    "url": "assets/AiClaimPreventionPage-CyBVgeGO.js",
+    "url": "assets/AiClaimPreventionPage-C4A6QZld.js",
     "revision": null
   }, {
-    "url": "assets/AiBedForecastPage-D6tU7lwC.js",
+    "url": "assets/AiBedForecastPage-D2ixTW8V.js",
     "revision": null
   }, {
-    "url": "assets/AiAppointmentOptimizerPage-CHN4XaV9.js",
+    "url": "assets/AiAppointmentOptimizerPage-B54tm1eQ.js",
     "revision": null
   }, {
-    "url": "assets/AccordionSummary-B39XDQAa.js",
+    "url": "assets/AccordionSummary-pajnTbs8.js",
     "revision": null
   }, {
-    "url": "assets/AccessTime-DUNOyPNG.js",
+    "url": "assets/AccessTime-FDi6_O3c.js",
     "revision": null
   }, {
-    "url": "assets/AIExecutiveBrief-BDlm4cIG.js",
+    "url": "assets/AIExecutiveBrief-CvcLhMno.js",
     "revision": null
   }, {
     "url": "favicon.svg",

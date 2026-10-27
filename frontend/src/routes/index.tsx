@@ -4,6 +4,7 @@ import { lazy, Suspense, type ComponentType } from 'react';
 import { Box, CircularProgress } from '@mui/material';
 import AppLayout from '@/layouts/AppLayout';
 import { PermissionRoute, ProtectedRoute, PublicRoute } from '@/routes/AuthGuards';
+import { ShowcaseApp, AssistantPage, CatalogPage, ComparePage, CoveragePage, ExperiencePage, KpiPage, ScreenPage, TourPage, HomePage } from '@/showcase/ShowcaseApp';
 
 function lazyPage(loader: () => Promise<{ default: ComponentType }>) {
   const Page = lazy(loader);
@@ -62,6 +63,24 @@ const WorkforceEmployeeProfilePage = () => lazyPage(() => import('@/pages/Workfo
 const OmAssetPage = () => lazyPage(() => import('@/pages/openmetadata/AssetPage'));
 
 export const routes = [
+  { path: '/', element: <Navigate to="/showcase" replace /> },
+  {
+    path: '/showcase',
+    element: <ShowcaseApp />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'tour', element: <TourPage /> },
+      { path: 'screens/:screenId', element: <ScreenPage source="screen" /> },
+      { path: 'extensions/:screenId', element: <ScreenPage source="extension" /> },
+      { path: 'kpis/:metricKey', element: <KpiPage /> },
+      { path: 'experience', element: <ExperiencePage /> },
+      { path: 'compare', element: <ComparePage /> },
+      { path: 'catalog', element: <CatalogPage /> },
+      { path: 'assistant', element: <AssistantPage /> },
+      { path: 'coverage', element: <CoveragePage /> },
+      { path: '*', element: <Navigate to="/showcase" replace /> },
+    ],
+  },
   {
     element: <PublicRoute />,
     children: [{ path: '/login', element: <LoginPage /> }],
@@ -72,7 +91,6 @@ export const routes = [
       {
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: '/dashboard', element: <ExecutiveDashboard /> },
           { path: '/command-center', element: <CommandCenterPage /> },
           { path: '/demo', element: <DemoStoryPage /> },
