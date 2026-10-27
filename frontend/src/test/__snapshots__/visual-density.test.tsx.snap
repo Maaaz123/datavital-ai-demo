@@ -1,0 +1,76 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual regression viewports > documents LTR and RTL matrix snapshot 1`] = `
+[
+  {
+    "dir": "ltr",
+    "height": 844,
+    "width": 390,
+  },
+  {
+    "dir": "rtl",
+    "height": 844,
+    "width": 390,
+  },
+  {
+    "dir": "ltr",
+    "height": 1024,
+    "width": 768,
+  },
+  {
+    "dir": "rtl",
+    "height": 1024,
+    "width": 768,
+  },
+  {
+    "dir": "ltr",
+    "height": 768,
+    "width": 1024,
+  },
+  {
+    "dir": "rtl",
+    "height": 768,
+    "width": 1024,
+  },
+  {
+    "dir": "ltr",
+    "height": 800,
+    "width": 1280,
+  },
+  {
+    "dir": "rtl",
+    "height": 800,
+    "width": 1280,
+  },
+  {
+    "dir": "ltr",
+    "height": 900,
+    "width": 1440,
+  },
+  {
+    "dir": "rtl",
+    "height": 900,
+    "width": 1440,
+  },
+  {
+    "dir": "ltr",
+    "height": 1080,
+    "width": 1920,
+  },
+  {
+    "dir": "rtl",
+    "height": 1080,
+    "width": 1920,
+  },
+  {
+    "dir": "ltr",
+    "height": 1440,
+    "width": 2560,
+  },
+  {
+    "dir": "rtl",
+    "height": 1440,
+    "width": 2560,
+  },
+]
+`;

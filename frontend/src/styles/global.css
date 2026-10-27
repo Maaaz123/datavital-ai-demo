@@ -1,0 +1,115 @@
+:root {
+  --hap-teal-50: #eff8fc;
+  --hap-teal-100: #d9eef8;
+  --hap-teal-200: #b3ddf0;
+  --hap-teal-300: #7cc8e4;
+  --hap-teal-400: #2cc1e0;
+  --hap-teal-500: #2377d1;
+  --hap-teal-600: #1b5fa8;
+  --hap-teal-700: #0a2540;
+  --hap-teal-800: #0d2539;
+  --hap-teal-900: #081b2c;
+
+  --hap-slate-50: #f4f7fa;
+  --hap-slate-100: #f8fafc;
+  --hap-slate-200: #e2eaf0;
+  --hap-slate-300: #c5d4e0;
+  --hap-slate-400: #8298aa;
+  --hap-slate-500: #667e91;
+  --hap-slate-600: #526d82;
+  --hap-slate-700: #3d5166;
+  --hap-slate-800: #0d2539;
+  --hap-slate-900: #102a43;
+
+  --hap-healthy: #188a68;
+  --hap-warning: #c98316;
+  --hap-critical: #c94a5b;
+  --hap-info: #2377d1;
+  --hap-inactive: #667e91;
+  --hap-ai: #18a7a0;
+  --hap-accent-cyan: #2cc1e0;
+
+  /* Light-first commercial workspace (default) */
+  --hap-bg-default: #f4f7fa;
+  --hap-bg-paper: #ffffff;
+  --hap-bg-elevated: #f8fafc;
+  --hap-bg-sidebar: #081b2c;
+  --hap-text-primary: #102a43;
+  --hap-text-secondary: #526d82;
+  --hap-text-muted: #8298aa;
+  --hap-border: #e2eaf0;
+  --hap-primary: #2377d1;
+  --hap-primary-light: #2cc1e0;
+  --hap-shadow: 0 4px 24px -4px rgba(16, 42, 67, 0.08);
+  --hap-shadow-card: 0 8px 30px -8px rgba(16, 42, 67, 0.1);
+  --hap-font: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+[data-theme='dark'] {
+  --hap-bg-default: #081b2c;
+  --hap-bg-paper: #0d2539;
+  --hap-bg-elevated: #102a43;
+  --hap-bg-sidebar: #06141f;
+  --hap-text-primary: #f4f7fa;
+  --hap-text-secondary: #a9bed1;
+  --hap-text-muted: #8298aa;
+  --hap-border: rgba(148, 180, 204, 0.18);
+  --hap-primary: #2cc1e0;
+  --hap-primary-light: #2377d1;
+  --hap-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.35);
+  --hap-shadow-card: 0 8px 30px -8px rgba(0, 0, 0, 0.4);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--hap-font);
+  background-color: var(--hap-bg-default);
+  color: var(--hap-text-primary);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  font-feature-settings: 'tnum' 1;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  padding-top: var(--safe-area-top);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--hap-slate-300);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

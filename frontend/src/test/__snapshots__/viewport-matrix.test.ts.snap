@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`viewport test matrix > documents the viewport matrix for CI 1`] = `
+[
+  {
+    "height": 568,
+    "name": "iphone-se",
+    "width": 320,
+  },
+  {
+    "height": 667,
+    "name": "iphone-8",
+    "width": 375,
+  },
+  {
+    "height": 844,
+    "name": "iphone-12",
+    "width": 390,
+  },
+  {
+    "height": 932,
+    "name": "iphone-14-pro-max",
+    "width": 430,
+  },
+  {
+    "height": 1024,
+    "name": "ipad-portrait",
+    "width": 768,
+  },
+  {
+    "height": 1180,
+    "name": "ipad-air",
+    "width": 820,
+  },
+  {
+    "height": 768,
+    "name": "ipad-landscape",
+    "width": 1024,
+  },
+  {
+    "height": 800,
+    "name": "laptop",
+    "width": 1280,
+  },
+  {
+    "height": 900,
+    "name": "desktop",
+    "width": 1440,
+  },
+  {
+    "height": 1080,
+    "name": "fhd",
+    "width": 1920,
+  },
+  {
+    "height": 1440,
+    "name": "qhd",
+    "width": 2560,
+  },
+]
+`;
