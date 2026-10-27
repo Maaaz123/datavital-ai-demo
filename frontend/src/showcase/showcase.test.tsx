@@ -143,6 +143,38 @@ describe('marketing demo coverage', () => {
     }
   });
 
+  it('binds the comparison selector to the measure in the table', () => {
+    renderAt('/showcase/compare');
+    expect(screen.getByLabelText('Measure')).toHaveValue('kpi_bed_occupancy_rate');
+    expect(screen.getByRole('columnheader', { name: /Bed occupancy rate/ })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /80\.2%/ })).toBeInTheDocument();
+  });
+
+  it('opens the door-to-provider lifecycle from emergency and a denial lifecycle from claims', () => {
+    const emergency = renderAt('/showcase/screens/emergency');
+    expect(screen.getByRole('link', { name: /Open the wait lifecycle/ })).toHaveAttribute('href', '/showcase/kpis/kpi_ed_door_to_provider_median_minutes');
+    emergency.unmount();
+    renderAt('/showcase/screens/claims');
+    expect(screen.getByRole('link', { name: /Open the denial lifecycle/ })).toHaveAttribute('href', '/showcase/kpis/kpi_claim_denied_rate');
+  });
+
+  it('does not carry an approval into another hospital or year', () => {
+    renderAt('/showcase/kpis/kpi_bed_occupancy_rate');
+    fireEvent.click(screen.getByRole('tab', { name: /6\. Approval/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Approve simulated action/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /7\. Outcome/ }));
+    expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H2' } });
+    fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2024' } });
+    expect(screen.getByText(/Record an approval or rejection/i)).toBeInTheDocument();
+  });
+
+  it('starts the assistant from the claims workspace instead of the emergency queue', () => {
+    renderAt('/showcase/screens/claims');
+    fireEvent.click(screen.getByRole('button', { name: 'Assistant' }));
+    expect(screen.getByRole('heading', { level: 2, name: /Denials are highest/ })).toBeInTheDocument();
+  });
+
   it('keeps the workspace navigation to one group instead of all 53 links', () => {
     renderAt('/showcase/screens/command');
     const links = document.querySelectorAll('.sx-nav a');

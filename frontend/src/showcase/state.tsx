@@ -4,6 +4,10 @@ const STORAGE_KEY = 'datavital-demo-showcase';
 
 export type Approval = 'approved' | 'rejected';
 
+export function decisionKey(kpiKey: string, hospital: string, year: number, department: string) {
+  return `${kpiKey}|${hospital}|${year}|${department}`;
+}
+
 export type ExperienceKind = 'satisfaction' | 'complaint' | 'survey' | 'discharge' | 'followup' | 'recovery';
 
 export type ExperienceCase = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { problems, scenarioFor, wardRows } from './facts';
-import { findKpi } from './engine';
+import { HOSPITALS, KPIS, YEARS, findKpi } from './engine';
 import { formatDelta, formatMeasure, inspectSeries, measure } from './measures';
 
 describe('synthetic scenario', () => {
@@ -62,6 +62,75 @@ describe('synthetic scenario', () => {
     expect(inspectSeries([{ label: 'Jan', value: Number.NaN }])).toBe('invalid');
     expect(inspectSeries([{ label: 'Jan', value: 0 }])).toBe('zero');
     expect(inspectSeries([{ label: 'Jan', value: 3 }])).toBe('ok');
+  });
+
+  it('maps every catalog KPI onto the scenario without a hash fallback', () => {
+    const missing = KPIS.filter((kpi) => {
+      const item = measure(kpi, 'H1', 2026, 'All');
+      return !Number.isFinite(item.value) || item.note.includes('UNMAPPED');
+    }).map((kpi) => kpi.key);
+    expect(missing).toEqual([]);
+    expect(KPIS).toHaveLength(392);
+  });
+
+  it('matches catalog volumes to the workspace facts for every hospital and year', () => {
+    const pairs: [string, (fact: ReturnType<typeof scenarioFor>['focus']) => number][] = [
+      ['kpi_admission_volume', (fact) => fact.admissions],
+      ['kpi_discharge_volume', (fact) => fact.discharges],
+      ['kpi_encounter_volume', (fact) => fact.encounters],
+      ['kpi_bed_staffed_count', (fact) => fact.staffedBeds],
+      ['kpi_lab_order_volume', (fact) => fact.labOrders],
+      ['kpi_claim_volume', (fact) => fact.claimsSubmitted],
+      ['kpi_ed_esi1_share', (fact) => fact.acuity1 / fact.edArrivals],
+    ];
+    for (const hospital of HOSPITALS.map((item) => item.code)) {
+      for (const year of YEARS) {
+        const fact = scenarioFor(hospital, year).focus;
+        for (const [key, expected] of pairs) {
+          const item = measure(findKpi(key)!, hospital, year, 'All');
+          expect(item.value).toBe(expected(fact));
+        }
+      }
+    }
+  });
+
+  it('does not present a median as an average or reuse the wrong cohort', () => {
+    const fact = scenarioFor('H1', 2026).focus;
+    const avgDays = measure(findKpi('kpi_inpatient_avg_los_days')!, 'H1', 2026, 'All');
+    const medianDays = measure(findKpi('kpi_inpatient_median_los_days')!, 'H1', 2026, 'All');
+    const avgHours = measure(findKpi('kpi_inpatient_avg_los_hours')!, 'H1', 2026, 'All');
+    const edAvg = measure(findKpi('kpi_ed_avg_los_hours')!, 'H1', 2026, 'All');
+    const edMedian = measure(findKpi('kpi_ed_los_median_minutes')!, 'H1', 2026, 'All');
+    const labAvg = measure(findKpi('kpi_lab_tat_avg_minutes')!, 'H1', 2026, 'All');
+    const labMedian = measure(findKpi('kpi_lab_tat_median_minutes')!, 'H1', 2026, 'All');
+    expect(avgDays.value).toBeGreaterThan(medianDays.value);
+    expect(avgHours.value).toBeCloseTo(avgDays.value * 24, 8);
+    expect(edAvg.value).not.toBeCloseTo(edMedian.value / 60, 2);
+    expect(labAvg.value).toBeGreaterThan(labMedian.value);
+    expect(measure(findKpi('kpi_ed_mortality_rate')!, 'H1', 2026, 'All').denominator).toBe(fact.edArrivals);
+    expect(measure(findKpi('kpi_surg_30d_mortality_rate')!, 'H1', 2026, 'All').denominator).toBe(fact.surgCompleted);
+    expect(measure(findKpi('kpi_dx_in_hospital_mortality_rate')!, 'H1', 2026, 'All').denominator).toBe(fact.discharges);
+    expect(measure(findKpi('kpi_rad_no_show_rate')!, 'H1', 2026, 'All').denominator).toBe(fact.radOrders);
+    expect(measure(findKpi('kpi_ed_door_to_provider_median_minutes')!, 'H1', 2026, 'All').value).toBe(fact.edWaitMedianMin);
+  });
+
+  it('keeps rates equal to their integer facts and distinguishes a zero baseline', () => {
+    for (const hospital of ['H1', 'H2', 'H3', 'H4', 'H5', 'ALL']) {
+      for (const year of [2024, 2025, 2026]) {
+        for (const kpi of KPIS) {
+          const item = measure(kpi, hospital, year, 'All');
+          expect(Number.isFinite(item.value)).toBe(true);
+          if (item.kind === 'count') expect(Number.isInteger(item.value)).toBe(true);
+          if (item.kind === 'rate' && item.denominator > 0) {
+            expect(Math.abs(item.value - item.numerator / item.denominator)).toBeLessThan(1e-9);
+          }
+        }
+      }
+    }
+    const sample = measure(findKpi('kpi_admission_volume')!, 'H1', 2026, 'All');
+    expect(formatDelta({ ...sample, prior: 0, value: 5 })).toBe('New versus a zero baseline');
+    expect(formatDelta({ ...sample, prior: 0, value: 0 })).toBe('No change vs baseline');
+    expect(formatDelta({ ...sample, prior: 10, value: 12 })).toBe('+20.0%');
   });
 
   it('is deterministic for the same filters', () => {

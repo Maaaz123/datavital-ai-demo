@@ -29,6 +29,14 @@ function siteName(code: string, lang: Lang): string {
   return lang === 'ar' ? site.nameAr : site.name;
 }
 
+export function promptForPath(path: string): string {
+  if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
+  if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
+  if (/bed|inpatient|command/.test(path)) return ASSISTANT_PROMPTS[1].en;
+  if (/emergency|wait/.test(path)) return ASSISTANT_PROMPTS[0].en;
+  return ASSISTANT_PROMPTS[0].en;
+}
+
 export function answerQuestion(question: string, hospital: string, year: number, department: string, lang: Lang = 'en'): AssistantAnswer {
   const q = question.toLowerCase();
   const current = scenarioFor(hospital, year).focus;
@@ -89,14 +97,25 @@ export function answerQuestion(question: string, hospital: string, year: number,
       benefit: tx(lang, 'Illustrative only: a smaller write-off in the story, not a collected cash result.', 'توضيحي فقط: شطب أصغر في القصة، وليس نتيجة نقد محصل.'),
     });
   }
+  if (q.includes('delay') || q.includes('intervention') || q.includes('تأخير') || q.includes('تدخل')) {
+    return pack(lang, {
+      title: tx(lang, `Delays to review at ${name} in ${year}`, `تأخيرات للمراجعة في ${name} عام ${year}`),
+      observation: tx(lang, `ED median ${waitNow.toFixed(0)} minutes. Lab median ${current.labTatMedianMin.toFixed(0)} minutes. Imaging median ${(current.radTatMedianMin / 60).toFixed(1)} hours.`, `وسيط الطوارئ ${waitNow.toFixed(0)} دقيقة. وسيط المختبر ${current.labTatMedianMin.toFixed(0)} دقيقة. وسيط الأشعة ${(current.radTatMedianMin / 60).toFixed(1)} ساعة.`),
+      evidence: tx(lang, `Lab delayed orders ${current.labDelayed.toLocaleString('en-US')} of ${current.labOrders.toLocaleString('en-US')}. Theatre cancellations ${current.surgCancelled.toLocaleString('en-US')} of ${current.surgRequests.toLocaleString('en-US')}.`, `طلبات المختبر المتأخرة ${current.labDelayed.toLocaleString('en-US')} من ${current.labOrders.toLocaleString('en-US')}. إلغاءات العمليات ${current.surgCancelled.toLocaleString('en-US')} من ${current.surgRequests.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Hypothesis: delays cluster where occupancy and cancellation are already high. The factors are co-movement in the scenario, not a causal model.', 'فرضية: التأخير يتجمع حيث الإشغال والإلغاء مرتفعان أصلاً. العوامل حركة مشتركة في السيناريو، وليست نموذجاً سببياً.'),
+      action: tx(lang, 'Review one queue at a time: emergency midday coverage, then laboratory delayed orders.', 'راجع طابوراً واحداً في كل مرة: تغطية الطوارئ منتصف اليوم، ثم طلبات المختبر المتأخرة.'),
+      role: tx(lang, 'Hospital operations lead', 'قائد عمليات المستشفى'),
+      benefit: tx(lang, 'Illustrative only. Any shorter time on the outcome stage is not a measured hospital result.', 'توضيحي فقط. أي زمن أقصر في مرحلة النتيجة ليس نتيجة مستشفى مقيسة.'),
+    });
+  }
   return pack(lang, {
-    title: tx(lang, `Delays to review at ${name} in ${year}`, `تأخيرات للمراجعة في ${name} عام ${year}`),
-    observation: tx(lang, `ED median ${waitNow.toFixed(0)} minutes. Lab median ${current.labTatMedianMin.toFixed(0)} minutes. Imaging median ${(current.radTatMedianMin / 60).toFixed(1)} hours.`, `وسيط الطوارئ ${waitNow.toFixed(0)} دقيقة. وسيط المختبر ${current.labTatMedianMin.toFixed(0)} دقيقة. وسيط الأشعة ${(current.radTatMedianMin / 60).toFixed(1)} ساعة.`),
-    evidence: tx(lang, `Lab delayed orders ${current.labDelayed.toLocaleString('en-US')} of ${current.labOrders.toLocaleString('en-US')}. Theatre cancellations ${current.surgCancelled.toLocaleString('en-US')} of ${current.surgRequests.toLocaleString('en-US')}.`, `طلبات المختبر المتأخرة ${current.labDelayed.toLocaleString('en-US')} من ${current.labOrders.toLocaleString('en-US')}. إلغاءات العمليات ${current.surgCancelled.toLocaleString('en-US')} من ${current.surgRequests.toLocaleString('en-US')}.`),
-    explanation: tx(lang, 'Hypothesis: delays cluster where occupancy and cancellation are already high. The factors are co-movement in the scenario, not a causal model.', 'فرضية: التأخير يتجمع حيث الإشغال والإلغاء مرتفعان أصلاً. العوامل حركة مشتركة في السيناريو، وليست نموذجاً سببياً.'),
-    action: tx(lang, 'Review one queue at a time: emergency midday coverage, then laboratory delayed orders.', 'راجع طابوراً واحداً في كل مرة: تغطية الطوارئ منتصف اليوم، ثم طلبات المختبر المتأخرة.'),
-    role: tx(lang, 'Hospital operations lead', 'قائد عمليات المستشفى'),
-    benefit: tx(lang, 'Illustrative only. Any shorter time on the outcome stage is not a measured hospital result.', 'توضيحي فقط. أي زمن أقصر في مرحلة النتيجة ليس نتيجة مستشفى مقيسة.'),
+    title: tx(lang, 'This question is outside the simulated set', 'هذا السؤال خارج المجموعة المحاكاة'),
+    observation: tx(lang, 'The assistant did not match this wording to emergency wait, capacity, satisfaction, denials, or delay review.', 'لم يطابق المساعد هذه الصياغة مع انتظار الطوارئ أو الطاقة أو الرضا أو الرفض أو مراجعة التأخير.'),
+    evidence: tx(lang, `Current route context is kept, and the hospital is ${name} in ${year}. No generic queue answer is substituted.`, `يُحفظ سياق المسار الحالي، والمستشفى هو ${name} عام ${year}. لا يُستبدل جواب طابور عام.`),
+    explanation: tx(lang, 'Unsupported questions stay explicit. The simulation does not invent an answer.', 'الأسئلة غير المدعومة تبقى صريحة. المحاكاة لا تختلق جواباً.'),
+    action: tx(lang, 'Choose one of the prepared questions.', 'اختر أحد الأسئلة المعدة.'),
+    role: tx(lang, 'Demonstration guide', 'دليل العرض'),
+    benefit: tx(lang, 'No illustrative benefit is attached to an unsupported question.', 'لا فائدة توضيحية مربوطة بسؤال غير مدعوم.'),
   });
 }
 

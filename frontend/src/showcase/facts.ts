@@ -31,6 +31,7 @@ const ADDITIVE = [
   'surveysSent', 'surveysReturned', 'complaintsOpened', 'complaintsClosed',
   'dialysisSessions', 'haiEvents', 'births', 'eligibilityChecks', 'preauthRequested', 'preauthDenied',
   'overtimeHours', 'downtimeEvents', 'outbreakDeclarations', 'encounters', 'directAdmissions',
+  'edDeaths', 'surgDeaths', 'radNoShow', 'dxDeaths30',
 ] as const;
 
 export type AdditiveKey = (typeof ADDITIVE)[number];
@@ -57,6 +58,13 @@ export type MonthFact = Record<AdditiveKey, number> & {
   radTatP90Min: number;
   opWaitMedianMin: number;
   opWaitP90Min: number;
+  edWaitAvgMin: number;
+  edLosAvgMin: number;
+  ipLosAvgDays: number;
+  labTatAvgMin: number;
+  radTatAvgMin: number;
+  opWaitAvgMin: number;
+  freshnessHours: number;
   requiredFte: number;
   filledFte: number;
   satisfaction: number;
@@ -98,6 +106,67 @@ export function splitExact(total: number, weights: number[]): number[] {
     index += 1;
   }
   return raw;
+}
+
+const Z90 = 1.2815515655446004;
+
+export function skewedMean(median: number, p90: number): number {
+  const med = Math.max(median, 0.01);
+  const hi = Math.max(p90, med * 1.001);
+  const sigma = Math.log(hi / med) / Z90;
+  return med * Math.exp((sigma * sigma) / 2);
+}
+
+function erf(x: number): number {
+  const sign = Math.sign(x) || 1;
+  const a = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * a);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) * Math.exp(-a * a);
+  return sign * y;
+}
+
+function normalCdf(z: number): number {
+  return 0.5 * (1 + erf(z / Math.SQRT2));
+}
+
+function mixtureQuantile(parts: { median: number; p90: number; weight: number }[], q: number): number {
+  const rows = parts.filter((part) => part.weight > 0 && part.median > 0);
+  if (!rows.length) return 0;
+  const total = rows.reduce((sum, part) => sum + part.weight, 0);
+  const specs = rows.map((part) => {
+    const hi = Math.max(part.p90, part.median * 1.001);
+    const sigma = Math.log(hi / part.median) / Z90;
+    return { mu: Math.log(part.median), sigma: Math.max(sigma, 1e-6), weight: part.weight / total };
+  });
+  const cdf = (x: number) => specs.reduce((sum, spec) => sum + spec.weight * normalCdf((Math.log(Math.max(x, 1e-9)) - spec.mu) / spec.sigma), 0);
+  let lo = Math.min(...rows.map((part) => part.median)) * 0.25;
+  let hi = Math.max(...rows.map((part) => part.p90)) * 2.5;
+  for (let step = 0; step < 48; step += 1) {
+    const mid = (lo + hi) / 2;
+    if (cdf(mid) < q) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+function rollDuration(
+  parts: MonthFact[],
+  medianKey: keyof MonthFact,
+  p90Key: keyof MonthFact,
+  avgKey: keyof MonthFact,
+  weight: AdditiveKey,
+) {
+  const rows = parts.map((part) => ({
+    median: Number(part[medianKey]),
+    p90: Number(part[p90Key]),
+    avg: Number(part[avgKey]),
+    weight: part[weight],
+  }));
+  return {
+    median: mixtureQuantile(rows, 0.5),
+    p90: mixtureQuantile(rows, 0.9),
+    avg: weighted(rows.map((row) => ({ value: row.avg, weight: row.weight }))),
+  };
 }
 
 function weighted(items: { value: number; weight: number }[]): number {
@@ -157,6 +226,9 @@ export function buildMonth(code: SiteCode, year: number, month: number): MonthFa
   const surgRequests = Math.round(site.theatres * 2.35 * days * 0.72 * season * yf);
   const surgCancelled = Math.round(surgRequests * (0.068 + (code === 'H2' ? 0.018 : 0)));
   const surgCompleted = surgRequests - surgCancelled;
+  const edDeaths = Math.round(edArrivals * 0.00035);
+  const surgDeaths = Math.min(deaths, Math.round(surgCompleted * 0.004));
+  const dxDeaths30 = Math.round(discharges * 0.008);
 
   const labOrders = Math.round(site.beds * 13.5 * (days / 30) * season * yf);
   const labCancelled = Math.round(labOrders * 0.025);
@@ -167,7 +239,8 @@ export function buildMonth(code: SiteCode, year: number, month: number): MonthFa
 
   const radOrders = Math.round(site.beds * 6.2 * (days / 30) * season * yf);
   const radCancelled = Math.round(radOrders * 0.03);
-  const radReported = radOrders - radCancelled;
+  const radNoShow = Math.round(radOrders * 0.028);
+  const radReported = radOrders - radCancelled - radNoShow;
   const [radXr, radCt, radUs, radMr] = splitExact(radOrders, [0.46, 0.22, 0.2, 0.12]);
   const radTatMedianMin = Math.round(180 + site.pressure * 70);
   const radTatP90Min = Math.round(radTatMedianMin * 1.9);
@@ -238,13 +311,50 @@ export function buildMonth(code: SiteCode, year: number, month: number): MonthFa
     surveysSent, surveysReturned, complaintsOpened, complaintsClosed,
     dialysisSessions, haiEvents, births, eligibilityChecks, preauthRequested, preauthDenied,
     overtimeHours, downtimeEvents, outbreakDeclarations, encounters, directAdmissions,
+    edDeaths, surgDeaths, radNoShow, dxDeaths30,
     staffedBeds, occupiedBeds, blockedBeds, availableBeds,
     icuStaffed, icuOccupied, icuBlocked, icuAvailable, wardCount: site.wards,
     edWaitMedianMin, edWaitP90Min, edLosMedianMin, edLosP90Min,
     ipLosDays, ipLosP90Days, labTatMedianMin, labTatP90Min, radTatMedianMin, radTatP90Min,
-    opWaitMedianMin, opWaitP90Min, requiredFte, filledFte, satisfaction, equipmentUptime,
+    opWaitMedianMin, opWaitP90Min,
+    edWaitAvgMin: skewedMean(edWaitMedianMin, edWaitP90Min),
+    edLosAvgMin: skewedMean(edLosMedianMin, edLosP90Min),
+    ipLosAvgDays: skewedMean(ipLosDays, ipLosP90Days),
+    labTatAvgMin: skewedMean(labTatMedianMin, labTatP90Min),
+    radTatAvgMin: skewedMean(radTatMedianMin, radTatP90Min),
+    opWaitAvgMin: skewedMean(opWaitMedianMin, opWaitP90Min),
+    freshnessHours: 6.5,
+    requiredFte, filledFte, satisfaction, equipmentUptime,
     morgueReleaseHours, activePatients,
   };
+}
+
+function assignTiming(totals: AnnualFact, parts: MonthFact[]) {
+  const edWait = rollDuration(parts, 'edWaitMedianMin', 'edWaitP90Min', 'edWaitAvgMin', 'edArrivals');
+  const edLos = rollDuration(parts, 'edLosMedianMin', 'edLosP90Min', 'edLosAvgMin', 'edArrivals');
+  const ipLos = rollDuration(parts, 'ipLosDays', 'ipLosP90Days', 'ipLosAvgDays', 'admissions');
+  const labTat = rollDuration(parts, 'labTatMedianMin', 'labTatP90Min', 'labTatAvgMin', 'labOrders');
+  const radTat = rollDuration(parts, 'radTatMedianMin', 'radTatP90Min', 'radTatAvgMin', 'radOrders');
+  const opWait = rollDuration(parts, 'opWaitMedianMin', 'opWaitP90Min', 'opWaitAvgMin', 'apptAttended');
+  totals.edWaitMedianMin = edWait.median;
+  totals.edWaitP90Min = edWait.p90;
+  totals.edWaitAvgMin = edWait.avg;
+  totals.edLosMedianMin = edLos.median;
+  totals.edLosP90Min = edLos.p90;
+  totals.edLosAvgMin = edLos.avg;
+  totals.ipLosDays = ipLos.median;
+  totals.ipLosP90Days = ipLos.p90;
+  totals.ipLosAvgDays = ipLos.avg;
+  totals.labTatMedianMin = labTat.median;
+  totals.labTatP90Min = labTat.p90;
+  totals.labTatAvgMin = labTat.avg;
+  totals.radTatMedianMin = radTat.median;
+  totals.radTatP90Min = radTat.p90;
+  totals.radTatAvgMin = radTat.avg;
+  totals.opWaitMedianMin = opWait.median;
+  totals.opWaitP90Min = opWait.p90;
+  totals.opWaitAvgMin = opWait.avg;
+  totals.freshnessHours = parts[0].freshnessHours;
 }
 
 function rollupMonths(months: MonthFact[]): AnnualFact {
@@ -252,18 +362,7 @@ function rollupMonths(months: MonthFact[]): AnnualFact {
   for (const key of ADDITIVE) totals[key] = months.reduce((sum, month) => sum + month[key], 0);
   const avg = (key: keyof MonthFact, weight: AdditiveKey) =>
     weighted(months.map((month) => ({ value: Number(month[key]), weight: month[weight] })));
-  totals.edWaitMedianMin = avg('edWaitMedianMin', 'edArrivals');
-  totals.edWaitP90Min = avg('edWaitP90Min', 'edArrivals');
-  totals.edLosMedianMin = avg('edLosMedianMin', 'edArrivals');
-  totals.edLosP90Min = avg('edLosP90Min', 'edArrivals');
-  totals.ipLosDays = avg('ipLosDays', 'admissions');
-  totals.ipLosP90Days = avg('ipLosP90Days', 'admissions');
-  totals.labTatMedianMin = avg('labTatMedianMin', 'labOrders');
-  totals.labTatP90Min = avg('labTatP90Min', 'labOrders');
-  totals.radTatMedianMin = avg('radTatMedianMin', 'radOrders');
-  totals.radTatP90Min = avg('radTatP90Min', 'radOrders');
-  totals.opWaitMedianMin = avg('opWaitMedianMin', 'apptAttended');
-  totals.opWaitP90Min = avg('opWaitP90Min', 'apptAttended');
+  assignTiming(totals, months);
   totals.satisfaction = avg('satisfaction', 'surveysReturned');
   totals.equipmentUptime = avg('equipmentUptime', 'encounters');
   totals.morgueReleaseHours = avg('morgueReleaseHours', 'deaths');
@@ -287,18 +386,7 @@ function rollupSites(annuals: AnnualFact[]): AnnualFact {
   for (const key of ADDITIVE) totals[key] = annuals.reduce((sum, site) => sum + site[key], 0);
   const avg = (key: keyof MonthFact, weight: AdditiveKey) =>
     weighted(annuals.map((site) => ({ value: Number(site[key]), weight: site[weight] })));
-  totals.edWaitMedianMin = avg('edWaitMedianMin', 'edArrivals');
-  totals.edWaitP90Min = avg('edWaitP90Min', 'edArrivals');
-  totals.edLosMedianMin = avg('edLosMedianMin', 'edArrivals');
-  totals.edLosP90Min = avg('edLosP90Min', 'edArrivals');
-  totals.ipLosDays = avg('ipLosDays', 'admissions');
-  totals.ipLosP90Days = avg('ipLosP90Days', 'admissions');
-  totals.labTatMedianMin = avg('labTatMedianMin', 'labOrders');
-  totals.labTatP90Min = avg('labTatP90Min', 'labOrders');
-  totals.radTatMedianMin = avg('radTatMedianMin', 'radOrders');
-  totals.radTatP90Min = avg('radTatP90Min', 'radOrders');
-  totals.opWaitMedianMin = avg('opWaitMedianMin', 'apptAttended');
-  totals.opWaitP90Min = avg('opWaitP90Min', 'apptAttended');
+  assignTiming(totals, annuals);
   totals.satisfaction = avg('satisfaction', 'surveysReturned');
   totals.equipmentUptime = weighted(annuals.map((site) => ({ value: site.equipmentUptime, weight: site.staffedBeds })));
   totals.morgueReleaseHours = avg('morgueReleaseHours', 'deaths');
@@ -319,7 +407,12 @@ function rollupSites(annuals: AnnualFact[]): AnnualFact {
 
 const CODES = Object.keys(SITE_SPECS) as SiteCode[];
 
+const SCENARIO_CACHE = new Map<string, Scenario>();
+
 export function scenarioFor(hospital: string, year: number): Scenario {
+  const id = `${hospital}|${year}`;
+  const cached = SCENARIO_CACHE.get(id);
+  if (cached) return cached;
   const sites = CODES.map((code) => {
     const months = Array.from({ length: 12 }, (_, month) => buildMonth(code, year, month));
     return { code, months, annual: rollupMonths(months) };
@@ -327,13 +420,15 @@ export function scenarioFor(hospital: string, year: number): Scenario {
   const networkMonths = Array.from({ length: 12 }, (_, month) => rollupSites(sites.map((site) => site.months[month])));
   const focusCode = hospital === 'ALL' ? null : (hospital as SiteCode);
   const focusSite = sites.find((site) => site.code === focusCode);
-  return {
+  const packet = {
     hospital,
     year,
     sites,
     months: focusSite ? focusSite.months : networkMonths,
     focus: focusSite ? focusSite.annual : rollupSites(sites.map((site) => site.annual)),
   };
+  SCENARIO_CACHE.set(id, packet);
+  return packet;
 }
 
 export type WardRow = { id: string; staffed: number; occupied: number; available: number; blocked: number };
@@ -398,6 +493,9 @@ export function problems(fact: AnnualFact): string[] {
   if (fact.surgCompleted + fact.surgCancelled !== fact.surgRequests) issues.push('surgery does not reconcile');
   if (fact.labResulted + fact.labCancelled + fact.labDelayed !== fact.labOrders) issues.push('lab does not reconcile');
   if (fact.radXr + fact.radCt + fact.radUs + fact.radMr !== fact.radOrders) issues.push('modalities do not reconcile');
+  if (fact.radReported + fact.radCancelled + fact.radNoShow !== fact.radOrders) issues.push('radiology disposition does not reconcile');
+  if (fact.surgDeaths > fact.deaths) issues.push('surgical deaths exceed inpatient deaths');
+  if (fact.ipLosAvgDays + 1e-6 < fact.ipLosDays) issues.push('inpatient average below median');
   if (fact.acuity1 + fact.acuity2 + fact.acuity3 + fact.acuity4 + fact.acuity5 !== fact.edArrivals) issues.push('acuity does not reconcile');
   if (fact.adjustment + fact.allowed !== fact.billed) issues.push('billed does not reconcile');
   if (fact.payerPaid + fact.patientPaid + fact.writeoff + fact.outstanding !== fact.allowed) issues.push('allowed does not reconcile');

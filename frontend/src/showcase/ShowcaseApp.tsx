@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
-import { ASSISTANT_PROMPTS, answerQuestion } from './assistant';
+import { ASSISTANT_PROMPTS, answerQuestion, promptForPath } from './assistant';
 import { EXTENSIONS, SCREENS, TOUR, UI } from './catalog';
 import { DEPT, QUESTION_AR, deptLabel, kpiName, tx } from './copy';
 import { HOSPITALS, KPIS, USE_CASES, YEARS, findKpi, kpisForDomains, needsCohortReview } from './engine';
 import { CURRENCY_NOTE, scenarioFor } from './facts';
 import { formatDelta, formatMeasure, measure } from './measures';
-import { ShowcaseState, useShowcase } from './state';
+import { ShowcaseState, decisionKey, useShowcase } from './state';
 import { Workspace } from './workspace';
 import './showcase.css';
 
@@ -39,6 +39,11 @@ function Shell() {
   const [group, setGroup] = useState(active);
   useEffect(() => {
     setGroup(groupFor(location.pathname));
+    try {
+      window.scrollTo(0, 0);
+    } catch {
+      /* The test DOM does not implement scrolling. */
+    }
   }, [location.pathname]);
   const shown = group || active;
   const items = shown === 'Extension' ? EXTENSIONS : SCREENS.filter((item) => item.group === shown);
@@ -182,7 +187,8 @@ export function KpiPage() {
   const [stage, setStage] = useState(0);
   if (!kpi) return <p>{tx(lang, 'This KPI is not in the demonstration inventory.', 'هذا المؤشر غير موجود في فهرس العرض.')}</p>;
   const item = measure(kpi, store.hospital, store.year, store.department);
-  const decision = store.approvals[kpi.key];
+  const scope = decisionKey(kpi.key, store.hospital, store.year, store.department);
+  const decision = store.approvals[scope];
   const stages = UI[lang].stages;
   const cohort = needsCohortReview(kpi);
   const site = HOSPITALS.find((hospital) => hospital.code === store.hospital);
@@ -246,8 +252,8 @@ export function KpiPage() {
       {stage === 5 ? (
         <section className="sx-panel">
           <p>{tx(lang, 'Demo-only decision, stored in this browser.', 'قرار للعرض فقط، يُخزن في هذا المتصفح.')}</p>
-          <button type="button" className="sx-btn primary" onClick={() => store.decide(kpi.key, 'approved')}>{tx(lang, 'Approve simulated action', 'اعتماد الإجراء المحاكى')}</button>
-          <button type="button" className="sx-btn" onClick={() => store.decide(kpi.key, 'rejected')}>{tx(lang, 'Reject simulated action', 'رفض الإجراء المحاكى')}</button>
+          <button type="button" className="sx-btn primary" onClick={() => store.decide(scope, 'approved')}>{tx(lang, 'Approve simulated action', 'اعتماد الإجراء المحاكى')}</button>
+          <button type="button" className="sx-btn" onClick={() => store.decide(scope, 'rejected')}>{tx(lang, 'Reject simulated action', 'رفض الإجراء المحاكى')}</button>
           {decision ? <p>{tx(lang, `Recorded: ${decision}`, `المسجل: ${decision === 'approved' ? 'معتمد' : 'مرفوض'}`)}</p> : null}
         </section>
       ) : null}
@@ -307,14 +313,24 @@ export function ComparePage() {
   const store = useShowcase();
   const lang = store.lang;
   const [key, setKey] = useState('kpi_bed_occupancy_rate');
-  const kpi = findKpi(key) ?? KPIS[0];
-  const choices = useMemo(() => KPIS.slice(0, 80), []);
+  const [query, setQuery] = useState('');
+  const kpi = findKpi(key) ?? findKpi('kpi_bed_occupancy_rate') ?? KPIS[0];
+  const choices = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    const filtered = KPIS.filter((item) => !needle || `${item.name} ${item.key}`.toLowerCase().includes(needle));
+    return filtered.some((item) => item.key === kpi.key) ? filtered : [kpi, ...filtered];
+  }, [query, kpi]);
+  const sample = measure(kpi, store.hospital, store.year, store.department);
   return (
     <article className="sx-workspace">
       <header className="sx-mast">
         <h1>{tx(lang, 'Hospital comparison', 'مقارنة المستشفيات')}</h1>
-        <p>{tx(lang, 'One measure, five fictional hospitals, same year. Rates use each hospital’s own numerator and denominator.', 'مقياس واحد، خمسة مستشفيات خيالية، السنة نفسها. المعدلات تستخدم بسط كل مستشفى ومقامه.')}</p>
+        <p>{tx(lang, 'One measure, five fictional hospitals, same year. The table uses the measure selected below, including its unit.', 'مقياس واحد، خمسة مستشفيات خيالية، السنة نفسها. الجدول يستخدم المقياس المحدد أدناه، مع وحدته.')}</p>
       </header>
+      <label>
+        {tx(lang, 'Find a measure', 'ابحث عن مقياس')}
+        <input aria-label={tx(lang, 'Find a measure', 'ابحث عن مقياس')} value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
       <label>
         {tx(lang, 'Measure', 'المقياس')}
         <select aria-label={tx(lang, 'Measure', 'المقياس')} value={kpi.key} onChange={(event) => setKey(event.target.value)}>
@@ -325,7 +341,7 @@ export function ComparePage() {
         <thead>
           <tr>
             <th>{tx(lang, 'Hospital', 'المستشفى')}</th>
-            <th>{store.year}</th>
+            <th>{kpiName(kpi.name, lang)} ({sample.unit})</th>
           </tr>
         </thead>
         <tbody>
@@ -382,7 +398,10 @@ function AssistantBody() {
   const store = useShowcase();
   const lang = store.lang;
   const location = useLocation();
-  const [question, setQuestion] = useState(ASSISTANT_PROMPTS[0].en);
+  const [question, setQuestion] = useState(() => promptForPath(location.pathname));
+  useEffect(() => {
+    setQuestion(promptForPath(location.pathname));
+  }, [location.pathname]);
   const answer = answerQuestion(question, store.hospital, store.year, store.department, lang);
   return (
     <div>

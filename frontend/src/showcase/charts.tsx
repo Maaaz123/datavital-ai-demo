@@ -134,6 +134,8 @@ export function GroupedChart({
   const points = categories.map((label, index) => ({ label, value: first[index] + second[index] }));
   const state = inspectSeries(points);
   const max = Math.max(...first, ...second, 0);
+  const ticks = [max, max / 2, 0];
+  const figure = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value);
   return (
     <Frame title={title} caption={caption} state={state} labels={labels}>
       <div className="sx-legend" dir="ltr">
@@ -141,19 +143,50 @@ export function GroupedChart({
         <span><i style={{ background: '#9dcfcc' }} />{secondName}</span>
       </div>
       <svg className="sx-svg" viewBox="0 0 720 230" role="img" aria-label={title}>
+        {ticks.map((tick, index) => {
+          const y = 28 + index * 80;
+          return (
+            <g key={`${index}-${tick}`}>
+              <line x1="46" x2="700" y1={y} y2={y} stroke="#e6eaf0" />
+              <text x="42" y={y + 4} textAnchor="end" fill={INK} fontSize="11">{figure(tick)}</text>
+            </g>
+          );
+        })}
         {categories.map((category, index) => {
-          const x = 48 + index * 56;
+          const x = 56 + index * 54;
           const h1 = max ? (first[index] / max) * 160 : 0;
           const h2 = max ? (second[index] / max) * 160 : 0;
           return (
             <g key={category}>
-              <rect x={x} y={188 - h1} width="16" height={h1} rx="3" fill={TEAL} />
-              <rect x={x + 18} y={188 - h2} width="16" height={h2} rx="3" fill="#9dcfcc" />
+              <rect x={x} y={188 - h1} width="16" height={h1} rx="3" fill={TEAL}>
+                <title>{`${category} ${firstName}: ${figure(first[index])}`}</title>
+              </rect>
+              <rect x={x + 18} y={188 - h2} width="16" height={h2} rx="3" fill="#9dcfcc">
+                <title>{`${category} ${secondName}: ${figure(second[index])}`}</title>
+              </rect>
               <text x={x + 16} y="210" textAnchor="middle" fill={INK} fontSize="11">{category}</text>
             </g>
           );
         })}
       </svg>
+      <table className="sx-table" aria-label={`${title} values`}>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>{firstName}</th>
+            <th>{secondName}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {categories.map((category, index) => (
+            <tr key={category}>
+              <td>{category}</td>
+              <td>{figure(first[index])}</td>
+              <td>{figure(second[index])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </Frame>
   );
 }

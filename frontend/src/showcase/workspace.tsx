@@ -121,7 +121,7 @@ export function Workspace({ source }: { source: 'screen' | 'extension' }) {
     : null;
   const siteName = hospitalName(store.hospital, lang);
   const title = lang === 'ar' ? screen.titleAr : screen.title;
-  const story = narrative(family, fact, prior.focus, lang, store.year, store.department);
+  const story = narrative(family, fact, prior.focus, lang, store.year, store.department, store.hospital);
   const labels = CHART_LABELS[lang];
   const months = MONTHS[lang];
 
@@ -223,7 +223,11 @@ function focusFamily(screenId: string, department: string): string {
   return mapped[department] ?? base;
 }
 
-function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: Lang, year: number, department: string) {
+function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: Lang, year: number, department: string, hospital: string) {
+  const shown = (key: string) => {
+    const kpi = findKpi(key);
+    return kpi ? formatMeasure(measure(kpi, hospital, year, department), lang) : '';
+  };
   const occ = fact.occupiedBeds / fact.staffedBeds;
   const denial = fact.claimsDenied / fact.claimsSubmitted;
   const waitDelta = fact.edWaitMedianMin - prior.edWaitMedianMin;
@@ -242,13 +246,13 @@ function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: La
   if (family === 'emergency') {
     return {
       ...common,
-      kpis: ['kpi_ed_avg_los_hours', 'kpi_ed_los_median_minutes', 'kpi_ed_los_p90_minutes', 'kpi_ed_to_admission_rate'],
-      next: '/showcase/kpis/kpi_ed_avg_los_hours',
+      kpis: ['kpi_ed_door_to_provider_median_minutes', 'kpi_ed_avg_los_hours', 'kpi_ed_los_median_minutes', 'kpi_ed_to_admission_rate'],
+      next: '/showcase/kpis/kpi_ed_door_to_provider_median_minutes',
       nextLabel: tx(lang, 'Open the wait lifecycle', 'افتح دورة الانتظار'),
       happening: tx(
         lang,
-        `Median door-to-provider wait is ${fact.edWaitMedianMin.toFixed(0)} minutes. P90 is ${fact.edWaitP90Min.toFixed(0)} minutes. ${year === 2024 ? '2024 is the baseline year.' : `That median is ${waitDelta >= 0 ? 'up' : 'down'} ${Math.abs(waitDelta).toFixed(0)} minutes versus ${year - 1}.`}`,
-        `وسيط الانتظار حتى الطبيب ${fact.edWaitMedianMin.toFixed(0)} دقيقة، والمئين 90 هو ${fact.edWaitP90Min.toFixed(0)} دقيقة. ${year === 2024 ? 'عام 2024 هو خط الأساس.' : `تغير الوسيط بمقدار ${waitDelta.toFixed(0)} دقيقة مقارنة بـ ${year - 1}.`}`,
+        `Median door-to-provider wait is ${shown('kpi_ed_door_to_provider_median_minutes')}. P90 is ${shown('kpi_ed_door_to_provider_p90_minutes')}. ${year === 2024 ? '2024 is the baseline year.' : Math.abs(waitDelta) < 0.5 ? `That median is unchanged versus ${year - 1}.` : `That median is ${waitDelta >= 0 ? 'up' : 'down'} ${Math.abs(waitDelta).toFixed(0)} minutes versus ${year - 1}.`}`,
+        `وسيط الانتظار حتى الطبيب ${shown('kpi_ed_door_to_provider_median_minutes')}، والمئين 90 هو ${shown('kpi_ed_door_to_provider_p90_minutes')}. ${year === 2024 ? 'عام 2024 هو خط الأساس.' : Math.abs(waitDelta) < 0.5 ? `الوسيط لم يتغير مقارنة بـ ${year - 1}.` : `تغير الوسيط بمقدار ${waitDelta.toFixed(0)} دقيقة مقارنة بـ ${year - 1}.`}`,
       ),
       matters: tx(
         lang,
@@ -279,8 +283,8 @@ function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: La
       nextLabel: tx(lang, 'Open beds', 'افتح الأسرة'),
       happening: tx(
         lang,
-        `Median stay ${fact.ipLosDays.toFixed(1)} days (${(fact.ipLosDays * 24).toFixed(1)} hours). P90 is ${fact.ipLosP90Days.toFixed(1)} days. Admissions ${num(fact.admissions, lang)}, discharges ${num(fact.discharges, lang)}, transfers in ${num(fact.transfersIn, lang)}, transfers out ${num(fact.transfersOut, lang)}, deaths ${num(fact.deaths, lang)}.`,
-        `وسيط البقاء ${fact.ipLosDays.toFixed(1)} يوم (${(fact.ipLosDays * 24).toFixed(1)} ساعة). المئين 90 هو ${fact.ipLosP90Days.toFixed(1)} يوم. التنويم ${num(fact.admissions, lang)} والخروج ${num(fact.discharges, lang)} والتحويل الداخل ${num(fact.transfersIn, lang)} والتحويل الخارج ${num(fact.transfersOut, lang)} والوفيات ${num(fact.deaths, lang)}.`,
+        `Average stay ${shown('kpi_inpatient_avg_los_days')} (${shown('kpi_inpatient_avg_los_hours')}). Median stay ${shown('kpi_inpatient_median_los_days')}. P90 ${shown('kpi_inpatient_p90_los_days')}. Admissions ${num(fact.admissions, lang)}, discharges ${num(fact.discharges, lang)}, transfers in ${num(fact.transfersIn, lang)}, transfers out ${num(fact.transfersOut, lang)}, deaths ${num(fact.deaths, lang)}.`,
+        `متوسط البقاء ${shown('kpi_inpatient_avg_los_days')} (${shown('kpi_inpatient_avg_los_hours')}). الوسيط ${shown('kpi_inpatient_median_los_days')}. المئين 90 هو ${shown('kpi_inpatient_p90_los_days')}. التنويم ${num(fact.admissions, lang)} والخروج ${num(fact.discharges, lang)} والتحويل الداخل ${num(fact.transfersIn, lang)} والتحويل الخارج ${num(fact.transfersOut, lang)} والوفيات ${num(fact.deaths, lang)}.`,
       ),
       matters: family === 'vitals'
         ? tx(lang, 'Individual vital-sign values are not modeled. The admission cohort is the assessment opportunity.', 'قيم العلامات الحيوية الفردية غير مبنية في السيناريو. فوج التنويم هو فرصة التقييم.')
@@ -345,8 +349,8 @@ function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: La
     return {
       ...common,
       kpis: ['kpi_claim_denied_rate', 'kpi_revenue_collection_rate', 'kpi_rcm_allowed_amount', 'kpi_authorization_denied_rate'],
-      next: '/showcase/screens/claims',
-      nextLabel: tx(lang, 'Open denials', 'افتح الرفض'),
+      next: '/showcase/kpis/kpi_claim_denied_rate',
+      nextLabel: tx(lang, 'Open the denial lifecycle', 'افتح دورة الرفض'),
       happening: tx(lang, `Billed ${money(fact.billed, lang)}. Contractual adjustment ${money(fact.adjustment, lang)}. Allowed ${money(fact.allowed, lang)}. Write-off ${money(fact.writeoff, lang)}. Collected ${money(fact.payerPaid + fact.patientPaid, lang)}. Outstanding ${money(fact.outstanding, lang)}.`, `الفوترة ${money(fact.billed, lang)}. التسوية التعاقدية ${money(fact.adjustment, lang)}. المسموح ${money(fact.allowed, lang)}. الشطب ${money(fact.writeoff, lang)}. المحصل ${money(fact.payerPaid + fact.patientPaid, lang)}. القائم ${money(fact.outstanding, lang)}.`),
       matters: tx(lang, `Denial rate ${(denial * 100).toFixed(1)}% is denied claims ÷ submitted claims. Currency is ${CURRENCY_NOTE}.`, `معدل الرفض ${(denial * 100).toFixed(1)}٪ هو المطالبات المرفوضة ÷ المقدمة. العملة: ر.س (ريال سعودي) — عملة السيناريو الخيالي.`),
     };
@@ -421,7 +425,7 @@ function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: La
       kpis: ['kpi_mortality_event_volume', 'kpi_ed_mortality_rate', 'kpi_inpatient_avg_los_days', 'kpi_bed_occupancy_rate'],
       next: '/showcase/kpis/kpi_mortality_event_volume',
       nextLabel: tx(lang, 'Open the cohort review', 'افتح مراجعة الفوج'),
-      happening: tx(lang, `${num(fact.deaths, lang)} inpatient deaths. The rate is deaths ÷ admissions. This is a cohort figure.`, `${num(fact.deaths, lang)} وفاة تنويم. المعدل هو الوفيات ÷ التنويم. هذا رقم فوج.`),
+      happening: tx(lang, `${num(fact.deaths, lang)} inpatient deaths. ED mortality is ED deaths ÷ ED arrivals (${shown('kpi_ed_mortality_rate')}). In-hospital mortality is deaths ÷ discharges (${shown('kpi_dx_in_hospital_mortality_rate')}).`, `${num(fact.deaths, lang)} وفاة تنويم. وفيات الطوارئ هي وفيات الطوارئ ÷ وصول الطوارئ (${shown('kpi_ed_mortality_rate')}). الوفيات داخل المستشفى هي الوفيات ÷ الخروج (${shown('kpi_dx_in_hospital_mortality_rate')}).`),
       matters: tx(lang, 'The prediction stage will not invent an individual patient risk.', 'مرحلة التنبؤ لن تختلق خطراً لمريض فرد.'),
     };
   }
@@ -429,8 +433,8 @@ function narrative(family: string, fact: AnnualFact, prior: AnnualFact, lang: La
     ...common,
     happening: tx(
       lang,
-      `Occupancy ${num(occ * 100, lang, 1)}%. ED median wait ${fact.edWaitMedianMin.toFixed(0)} minutes. Denial ${(denial * 100).toFixed(1)}%. Satisfaction ${fact.satisfaction.toFixed(1)} / 100. Outstanding ${money(fact.outstanding, lang)}.`,
-      `الإشغال ${num(occ * 100, lang, 1)}٪. وسيط انتظار الطوارئ ${fact.edWaitMedianMin.toFixed(0)} دقيقة. الرفض ${(denial * 100).toFixed(1)}٪. الرضا ${fact.satisfaction.toFixed(1)} / 100. القائم ${money(fact.outstanding, lang)}.`,
+      `Priority: occupancy ${shown('kpi_bed_occupancy_rate')}. Door-to-provider median ${shown('kpi_ed_door_to_provider_median_minutes')}. Denial ${shown('kpi_claim_denied_rate')}. Satisfaction ${shown('demo_satisfaction_index')}. Outstanding ${shown('kpi_rcm_outstanding_ar')}.`,
+      `الأولوية: الإشغال ${shown('kpi_bed_occupancy_rate')}. وسيط الانتظار حتى الطبيب ${shown('kpi_ed_door_to_provider_median_minutes')}. الرفض ${shown('kpi_claim_denied_rate')}. الرضا ${shown('demo_satisfaction_index')}. القائم ${shown('kpi_rcm_outstanding_ar')}.`,
     ),
     matters: tx(lang, 'The network comparison uses the same facts as the hospital pages. Nothing on this page is a live hospital feed.', 'مقارنة الشبكة تستخدم الحقائق نفسها في صفحات المستشفى. لا يوجد في هذه الصفحة بث من مستشفى حي.'),
   };
