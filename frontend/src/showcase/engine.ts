@@ -94,51 +94,6 @@ export function hash(text: string): number {
   return h >>> 0;
 }
 
-export function demoValue(kpi: KpiDef, hospital: string, year: number, department = 'All'): number {
-  const codes = hospital === 'ALL' ? ['H1', 'H2', 'H3', 'H4', 'H5'] : [hospital];
-  const values = codes.map((code) => oneValue(kpi, code, year, department));
-  if (kpi.unit === 'ratio' || kpi.unit.includes('rate')) {
-    return Math.round((values.reduce((s, n) => s + n, 0) / values.length) * 1000) / 1000;
-  }
-  return Math.round(values.reduce((s, n) => s + n, 0) * 10) / 10;
-}
-
-function oneValue(kpi: KpiDef, hospital: string, year: number, department: string): number {
-  const h = hash(`${kpi.key}|${hospital}|${year}|${department}`);
-  if (kpi.unit === 'ratio' || kpi.unit.includes('rate')) {
-    return Math.round((0.18 + (h % 6400) / 10000) * 1000) / 1000;
-  }
-  if (kpi.unit === 'hours' || kpi.unit === 'days' || kpi.unit.includes('minute')) {
-    return Math.round((6 + (h % 540) / 10) * 10) / 10;
-  }
-  return 40 + (h % 3600);
-}
-
-export function series(kpi: KpiDef, hospital: string, year: number, department = 'All'): number[] {
-  return Array.from({ length: 12 }, (_, month) => {
-    const h = hash(`${kpi.key}|${hospital}|${year}|${department}|${month}`);
-    const base = demoValue(kpi, hospital, year, department);
-    const swing = kpi.unit === 'ratio' || kpi.unit.includes('rate') ? ((h % 80) - 40) / 1000 : ((h % 20) - 10) / 100;
-    const value = base * (1 + swing);
-    return kpi.unit === 'ratio' || kpi.unit.includes('rate')
-      ? Math.round(Math.min(0.98, Math.max(0.02, value)) * 1000) / 1000
-      : Math.round(value * 10) / 10;
-  });
-}
-
-export function formatValue(kpi: KpiDef, value: number): string {
-  if (kpi.unit === 'ratio' || kpi.unit.includes('rate')) return `${(value * 100).toFixed(1)}%`;
-  if (Number.isInteger(value)) return `${value.toLocaleString('en-US')} ${kpi.unit}`;
-  return `${value.toLocaleString('en-US')} ${kpi.unit}`;
-}
-
-export function trend(kpi: KpiDef, hospital: string, year: number, department = 'All') {
-  const current = demoValue(kpi, hospital, year, department);
-  const prior = demoValue(kpi, hospital, Math.max(2024, year - 1), department);
-  const delta = Math.round((current - prior) * 1000) / 1000;
-  return { current, prior, delta, direction: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat' };
-}
-
 export function needsCohortReview(kpi: KpiDef): boolean {
   return /mortality|sepsis|deteriorat|diagnosis|icu_transfer|readmission|vital|birth|morgue/i.test(
     `${kpi.key} ${kpi.domain}`,

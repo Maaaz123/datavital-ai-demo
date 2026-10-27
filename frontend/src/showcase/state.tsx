@@ -100,14 +100,17 @@ export function clearDemoStorage() {
 
 export function ShowcaseState({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Persisted>(fresh);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     setState(load());
+    setReady(true);
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     storage().setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  }, [state, ready]);
 
   const api = useMemo<Store>(
     () => ({

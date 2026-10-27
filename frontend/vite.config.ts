@@ -64,7 +64,7 @@ export default defineConfig({
               /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'static-assets-v2',
+              cacheName: 'static-assets-v3',
               expiration: {
                 maxEntries: 120,
                 maxAgeSeconds: 60 * 60 * 24 * 7,

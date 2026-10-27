@@ -86,16 +86,16 @@ export const SEMANTIC_VIEWS = [
 ];
 
 export const TOUR = [
-  { id: 'start', title: 'Start Demo', titleAr: 'ابدأ العرض', href: '/showcase', body: 'This walkthrough uses five fictional hospitals and simulated AI. No account is required.' },
-  { id: 'hospital', title: 'Choose Hospital', titleAr: 'اختر المستشفى', href: '/showcase', body: 'Pick one hospital or all five. Every chart on the next screens uses that choice.' },
-  { id: 'command', title: 'Explore Executive Command Center', titleAr: 'مركز القيادة', href: '/showcase/screens/command', body: 'Start with the executive picture for the selected year.' },
-  { id: 'issue', title: 'Investigate an Operational Issue', titleAr: 'مسألة تشغيلية', href: '/showcase/screens/emergency', body: 'Open emergency waiting time and see the scenario move with the filters.' },
-  { id: 'cause', title: 'Open Root Cause Analysis', titleAr: 'السبب المحتمل', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'Open a KPI and step through detection and root cause. Causes are scenario factors, not proven causes.' },
-  { id: 'predict', title: 'Review Simulated Prediction', titleAr: 'تنبؤ محاكى', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'The prediction stage is an illustration. It is not a validated model.' },
-  { id: 'approve', title: 'Approve Simulated Action', titleAr: 'اعتماد إجراء محاكى', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'Approving stores a demo-only decision in this browser.' },
-  { id: 'outcome', title: 'Explore Simulated Outcome', titleAr: 'النتيجة المحاكاة', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'After approval, the outcome stage shows an illustrative before and after.' },
-  { id: 'experience', title: 'Continue to Patient Experience', titleAr: 'تجربة المريض', href: '/showcase/experience', body: 'Walk satisfaction, complaints, surveys, discharge, follow-up, and service recovery.' },
-  { id: 'compare', title: 'Compare Hospitals', titleAr: 'قارن المستشفيات', href: '/showcase/compare', body: 'See one KPI across Demo General North, South, East, West, and Central.' },
+  { id: 'start', title: 'Start Demo', titleAr: 'ابدأ العرض', href: '/showcase', body: 'This walkthrough uses five fictional hospitals and simulated AI. No account is required.', bodyAr: 'يستخدم هذا المسار خمسة مستشفيات خيالية وذكاءً محاكى. لا يلزم حساب.' },
+  { id: 'hospital', title: 'Choose Hospital', titleAr: 'اختر المستشفى', href: '/showcase', body: 'Pick one hospital or all five. Every chart on the next screens uses that choice.', bodyAr: 'اختر مستشفى واحداً أو الخمسة. كل رسم في الشاشات التالية يستخدم هذا الاختيار.' },
+  { id: 'command', title: 'Explore Executive Command Center', titleAr: 'مركز القيادة', href: '/showcase/screens/command', body: 'Start with the executive picture for the selected year.', bodyAr: 'ابدأ بالصورة التنفيذية للسنة المحددة.' },
+  { id: 'issue', title: 'Investigate an Operational Issue', titleAr: 'مسألة تشغيلية', href: '/showcase/screens/emergency', body: 'Open emergency waiting time and see the scenario move with the filters.', bodyAr: 'افتح انتظار الطوارئ ولاحظ تحرك السيناريو مع المرشحات.' },
+  { id: 'cause', title: 'Open Root Cause Analysis', titleAr: 'السبب المحتمل', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'Open a KPI and step through detection and root cause. Causes are scenario factors, not proven causes.', bodyAr: 'افتح مؤشراً وانتقل بين الرصد والسبب. الأسباب عوامل في السيناريو، وليست أسباباً مثبتة.' },
+  { id: 'predict', title: 'Review Simulated Prediction', titleAr: 'تنبؤ محاكى', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'The prediction stage is an illustration. It is not a validated model.', bodyAr: 'مرحلة التنبؤ توضيح. ليست نموذجاً متحققاً.' },
+  { id: 'approve', title: 'Approve Simulated Action', titleAr: 'اعتماد إجراء محاكى', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'Approving stores a demo-only decision in this browser.', bodyAr: 'الاعتماد يخزن قراراً للعرض فقط في هذا المتصفح.' },
+  { id: 'outcome', title: 'Explore Simulated Outcome', titleAr: 'النتيجة المحاكاة', href: '/showcase/kpis/kpi_ed_avg_los_hours', body: 'After approval, the outcome stage shows an illustrative before and after.', bodyAr: 'بعد الاعتماد تعرض مرحلة النتيجة توضيحاً قبل وبعد.' },
+  { id: 'experience', title: 'Continue to Patient Experience', titleAr: 'تجربة المريض', href: '/showcase/experience', body: 'Walk satisfaction, complaints, surveys, discharge, follow-up, and service recovery.', bodyAr: 'تتبع الرضا والشكاوى والاستبيانات والخروج والمتابعة واستعادة الخدمة.' },
+  { id: 'compare', title: 'Compare Hospitals', titleAr: 'قارن المستشفيات', href: '/showcase/compare', body: 'See one KPI across Demo General North, South, East, West, and Central.', bodyAr: 'انظر إلى مؤشر واحد عبر المستشفيات التجريبية الخمسة.' },
 ] as const;
 
 function screen(id: string, title: string, titleAr: string, group: string, decision: string, domains: string[]): ScreenDef {

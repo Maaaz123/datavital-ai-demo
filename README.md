@@ -8,4 +8,6 @@ This site uses **synthetic data and simulated AI only**. It is not a live hospit
 
 Open `/showcase` with no account. The earlier operational screens remain behind `/login` (`demo` / `demo`).
 
+Figures come from one deterministic fictional scenario for five hospitals, 2024–2026. Related counts, rates, and SAR amounts are derived from those facts. Predictions, approvals, and outcomes are simulated.
+
 Source for the interface is in `frontend/`. The files at the repository root are the static site GitHub Pages serves from `main`.

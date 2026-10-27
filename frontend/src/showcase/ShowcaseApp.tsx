@@ -1,26 +1,25 @@
-import { Link, NavLink, Outlet, useParams } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useParams } from 'react-router-dom';
 import { ASSISTANT_PROMPTS, answerQuestion } from './assistant';
-import { EXTENSIONS, SCREENS, SEMANTIC_VIEWS, TOUR, UI } from './catalog';
-import {
-  DEPARTMENTS,
-  DISCLAIMER,
-  HOSPITALS,
-  KPIS,
-  USE_CASES,
-  YEARS,
-  demoValue,
-  findKpi,
-  formatValue,
-  hash,
-  kpisForDomains,
-  needsCohortReview,
-  series,
-  trend,
-  type KpiDef,
-} from './engine';
+import { EXTENSIONS, SCREENS, TOUR, UI } from './catalog';
+import { DEPT, QUESTION_AR, deptLabel, kpiName, tx } from './copy';
+import { HOSPITALS, KPIS, USE_CASES, YEARS, findKpi, kpisForDomains, needsCohortReview } from './engine';
+import { CURRENCY_NOTE, scenarioFor } from './facts';
+import { formatDelta, formatMeasure, measure } from './measures';
 import { ShowcaseState, useShowcase } from './state';
+import { Workspace } from './workspace';
 import './showcase.css';
+
+const GROUPS = [
+  { id: 'Executive', en: 'Executive', ar: 'القيادة' },
+  { id: 'Flow', en: 'Flow', ar: 'التدفق' },
+  { id: 'Clinical', en: 'Clinical', ar: 'السريري' },
+  { id: 'Patient', en: 'Patient', ar: 'المريض' },
+  { id: 'Finance', en: 'Finance', ar: 'المالية' },
+  { id: 'Trust', en: 'Trust', ar: 'الثقة' },
+  { id: 'AI', en: 'AI', ar: 'الذكاء' },
+  { id: 'Extension', en: 'Extensions', ar: 'التوسعات' },
+] as const;
 
 export function ShowcaseApp() {
   return (
@@ -33,35 +32,27 @@ export function ShowcaseApp() {
 function Shell() {
   const store = useShowcase();
   const t = UI[store.lang];
-  const [openAssistant, setOpenAssistant] = useState(false);
+  const location = useLocation();
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const active = groupFor(location.pathname);
+  const [group, setGroup] = useState(active);
+  useEffect(() => {
+    setGroup(groupFor(location.pathname));
+  }, [location.pathname]);
+  const shown = group || active;
+  const items = shown === 'Extension' ? EXTENSIONS : SCREENS.filter((item) => item.group === shown);
   return (
     <div className="sx-shell" dir={store.lang === 'ar' ? 'rtl' : 'ltr'} lang={store.lang}>
-      <nav className="sx-nav" aria-label="Demo">
-        <p className="sx-brand">DataVital AI</p>
-        <p className="sx-kicker">{DISCLAIMER}</p>
-        <p className="sx-group">{t.screens}</p>
-        <ul>
-          {SCREENS.map((item) => (
-            <li key={item.id}>
-              <NavLink to={`/showcase/screens/${item.id}`}>{store.lang === 'ar' ? item.titleAr : item.title}</NavLink>
-            </li>
-          ))}
-        </ul>
-        <p className="sx-group">{t.extensions}</p>
-        <ul>
-          {EXTENSIONS.map((item) => (
-            <li key={item.id}>
-              <NavLink to={`/showcase/extensions/${item.id}`}>{store.lang === 'ar' ? item.titleAr : item.title}</NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <div className="sx-main">
-        <div className="sx-banner" role="status">{t.banner}</div>
+      <header className="sx-top">
+        <div className="sx-brandline">
+          <Link to="/showcase" className="sx-brand">DataVital AI</Link>
+          <p className="sx-banner" role="status">{t.banner}</p>
+        </div>
         <div className="sx-toolbar">
           <label>
             {t.hospital}
-            <select aria-label={t.hospital} value={store.hospital} onChange={(e) => store.setHospital(e.target.value)}>
+            <select aria-label={t.hospital} value={store.hospital} onChange={(event) => store.setHospital(event.target.value)}>
               {HOSPITALS.map((item) => (
                 <option key={item.code} value={item.code}>{store.lang === 'ar' ? item.nameAr : item.name}</option>
               ))}
@@ -69,449 +60,393 @@ function Shell() {
           </label>
           <label>
             {t.year}
-            <select aria-label={t.year} value={store.year} onChange={(e) => store.setYear(Number(e.target.value))}>
-              {YEARS.map((year) => <option key={year}>{year}</option>)}
+            <select aria-label={t.year} value={store.year} onChange={(event) => store.setYear(Number(event.target.value))}>
+              {YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
           </label>
           <label>
             {t.department}
-            <select aria-label={t.department} value={store.department} onChange={(e) => store.setDepartment(e.target.value)}>
-              {DEPARTMENTS.map((item) => <option key={item}>{item}</option>)}
+            <select aria-label={t.department} value={store.department} onChange={(event) => store.setDepartment(event.target.value)}>
+              {Object.keys(DEPT).map((id) => <option key={id} value={id}>{deptLabel(id, store.lang)}</option>)}
             </select>
           </label>
           <Link className="sx-btn" to="/showcase/tour">{t.tour}</Link>
           <Link className="sx-btn" to="/showcase/experience">{t.experience}</Link>
           <Link className="sx-btn" to="/showcase/compare">{t.compare}</Link>
-          <Link className="sx-btn" to="/showcase/catalog">{t.catalog}</Link>
-          <button type="button" className="sx-btn" onClick={() => setOpenAssistant((v) => !v)}>{t.assistant}</button>
+          <button type="button" className="sx-btn" onClick={() => setAssistantOpen(true)}>{t.assistant}</button>
           <button type="button" className="sx-btn" onClick={store.toggleLang}>{t.language}</button>
           <button type="button" className="sx-btn" onClick={store.reset}>{t.reset}</button>
-          <Link className="sx-btn" to="/login">{t.classic}</Link>
+          <button type="button" className="sx-btn sx-menu" aria-expanded={navOpen} onClick={() => setNavOpen((value) => !value)}>
+            {tx(store.lang, 'Workspaces', 'مساحات العمل')}
+          </button>
         </div>
-        <div className="sx-content">
+      </header>
+      <div className={`sx-body ${navOpen ? 'sx-nav-open' : ''}`}>
+        <nav className="sx-nav" aria-label={tx(store.lang, 'Workspaces', 'مساحات العمل')}>
+          <div className="sx-groups" role="tablist">
+            {GROUPS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={shown === item.id}
+                onClick={() => { setGroup(item.id); setNavOpen(true); }}
+              >
+                {store.lang === 'ar' ? item.ar : item.en}
+              </button>
+            ))}
+          </div>
+          <ul>
+            {items.map((item) => (
+              <li key={item.id}>
+                <NavLink to={shown === 'Extension' ? `/showcase/extensions/${item.id}` : `/showcase/screens/${item.id}`} onClick={() => setNavOpen(false)}>
+                  {store.lang === 'ar' ? item.titleAr : item.title}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+          <Link className="sx-quiet-link" to="/login">{t.classic}</Link>
+        </nav>
+        <main className="sx-content" id="content">
           <Outlet />
-        </div>
-        {openAssistant ? (
-          <aside className="sx-assistant sx-panel" aria-label={t.assistant}>
-            <AssistantBody />
-          </aside>
-        ) : null}
+        </main>
       </div>
+      {assistantOpen ? (
+        <aside className="sx-assistant" role="dialog" aria-label={t.assistant}>
+          <button type="button" className="sx-btn" onClick={() => setAssistantOpen(false)}>{tx(store.lang, 'Close', 'إغلاق')}</button>
+          <AssistantBody />
+        </aside>
+      ) : null}
     </div>
   );
 }
 
+function groupFor(path: string): (typeof GROUPS)[number]['id'] {
+  const screen = path.split('/screens/')[1];
+  const extension = path.split('/extensions/')[1];
+  if (extension) return 'Extension';
+  const found = SCREENS.find((item) => item.id === screen);
+  if (found) return found.group as (typeof GROUPS)[number]['id'];
+  return 'Executive';
+}
+
 export function HomePage() {
   const store = useShowcase();
+  const fact = scenarioFor(store.hospital, store.year).focus;
+  const lang = store.lang;
   return (
-    <>
-      <header>
-        <p className="sx-kicker">Executive showcase</p>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <p className="sx-kicker">{tx(lang, 'Executive showcase', 'عرض تنفيذي')}</p>
         <h1>DataVital AI</h1>
-        <p>A conceptual tour for hospital leaders. Every number is synthetic. Every prediction is simulated and not clinically validated.</p>
+        <p className="sx-question">{tx(lang, 'A conceptual tour for hospital leaders. Every number is synthetic. Every prediction is simulated and not clinically validated.', 'جولة مفاهيمية لقادة المستشفيات. كل رقم اصطناعي. كل تنبؤ محاكاة وغير متحقق سريرياً.')}</p>
+        <p className="sx-scope">{CURRENCY_NOTE}</p>
       </header>
-      <section className="sx-grid">
-        <Link className="sx-card" to="/showcase/tour"><h2>Start Demo</h2><p>Ten guided steps. No account.</p></Link>
-        <Link className="sx-card" to="/showcase/screens/command"><h2>Command center</h2><p>{HOSPITALS.find((h) => h.code === store.hospital)?.name} · {store.year}</p></Link>
-        <Link className="sx-card" to="/showcase/experience"><h2>Patient experience</h2><p>Satisfaction through service recovery.</p></Link>
-        <Link className="sx-card" to="/showcase/coverage"><h2>Coverage</h2><p>{SCREENS.length} screens · {EXTENSIONS.length} extensions · {KPIS.length} KPI demonstrations · {USE_CASES.length} simulated use cases.</p></Link>
+      <section className="sx-brief">
+        <div>
+          <h2>{tx(lang, 'What is happening', 'ماذا يحدث')}</h2>
+          <p>{tx(lang, `Occupancy ${(fact.occupiedBeds / fact.staffedBeds * 100).toFixed(1)}%. Emergency median wait ${fact.edWaitMedianMin.toFixed(0)} minutes. Denial rate ${(fact.claimsDenied / fact.claimsSubmitted * 100).toFixed(1)}%.`, `الإشغال ${(fact.occupiedBeds / fact.staffedBeds * 100).toFixed(1)}٪. وسيط انتظار الطوارئ ${fact.edWaitMedianMin.toFixed(0)} دقيقة. معدل الرفض ${(fact.claimsDenied / fact.claimsSubmitted * 100).toFixed(1)}٪.`)}</p>
+        </div>
+        <div>
+          <h2>{tx(lang, 'Why it matters', 'لماذا يهم')}</h2>
+          <p>{tx(lang, 'The same fictional facts drive every workspace, so a change of hospital or year moves the story together.', 'الحقائق الخيالية نفسها تقود كل مساحة عمل، فتغيير المستشفى أو السنة يحرك القصة معاً.')}</p>
+        </div>
+        <div>
+          <h2>{tx(lang, 'Review next', 'المراجعة التالية')}</h2>
+          <Link className="sx-btn primary" to="/showcase/tour">{tx(lang, 'Start Demo', 'ابدأ العرض')}</Link>
+        </div>
       </section>
-    </>
+      <section className="sx-stats">
+        <Link className="sx-stat" to="/showcase/screens/command"><strong>{tx(lang, 'Command center', 'مركز القيادة')}</strong><em>{store.year}</em></Link>
+        <Link className="sx-stat" to="/showcase/screens/emergency"><strong>{tx(lang, 'Emergency pressure', 'ضغط الطوارئ')}</strong><em>{fact.edWaitMedianMin.toFixed(0)} {tx(lang, 'min', 'د')}</em></Link>
+        <Link className="sx-stat" to="/showcase/experience"><strong>{tx(lang, 'Patient experience', 'تجربة المريض')}</strong><em>{fact.satisfaction.toFixed(1)} / 100</em></Link>
+        <Link className="sx-stat" to="/showcase/coverage"><strong>{tx(lang, 'Coverage', 'التغطية')}</strong><em>{SCREENS.length}+{EXTENSIONS.length}</em></Link>
+      </section>
+    </article>
   );
 }
 
 export function ScreenPage({ source }: { source: 'screen' | 'extension' }) {
   const { screenId = '' } = useParams();
-  const list = source === 'screen' ? SCREENS : EXTENSIONS;
-  const screen = list.find((item) => item.id === screenId);
-  const store = useShowcase();
-  const rows = useMemo(() => (screen ? kpisForDomains(screen.domains) : []), [screen]);
-  const [month, setMonth] = useState<number | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  if (!screen) return <p>This demonstration screen is not in the inventory.</p>;
-  const title = store.lang === 'ar' ? screen.titleAr : screen.title;
-  const visible = showAll ? rows : rows.slice(0, 8);
-  const lead = visible[0];
-  return (
-    <>
-      <header>
-        <p className="sx-kicker">{screen.group}</p>
-        <h1>{title}</h1>
-        <p>{screen.decision}</p>
-        <p className="sx-kicker">{screen.story}</p>
-      </header>
-      {screen.id === 'experience' || screen.id === 'patient-experience' ? <ExperiencePage /> : null}
-      {screen.id === 'semantic-views' ? <SemanticList /> : null}
-      {screen.id === 'verified-queries' ? <QueryNotice /> : null}
-      {screen.id === 'ai-cases' || screen.id === 'ai-overview' || screen.id === 'ai-case' || screen.id === 'ai-governance' ? <UseCaseList /> : null}
-      {screen.id === 'comparison' ? <ComparePage /> : null}
-      {screen.id === 'kpi-catalog' ? <CatalogPage /> : null}
-      {screen.id === 'assistant' ? <AssistantPage /> : null}
-      {lead ? (
-        <section className="sx-panel">
-          <h2>{lead.name}</h2>
-          <TrendLine kpi={lead} month={month} onMonth={setMonth} />
-        </section>
-      ) : null}
-      <div className="sx-grid">
-        {visible.map((kpi) => <KpiCard key={kpi.key} kpi={kpi} />)}
-      </div>
-      {rows.length > 8 ? (
-        <button type="button" className="sx-btn" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Show fewer KPIs' : `Show all ${rows.length} KPIs on this screen`}
-        </button>
-      ) : null}
-    </>
-  );
-}
-
-function KpiCard({ kpi }: { kpi: KpiDef }) {
-  const store = useShowcase();
-  const move = trend(kpi, store.hospital, store.year, store.department);
-  return (
-    <article className="sx-card">
-      <p className="sx-kicker">{kpi.origin === 'demo_assumption' ? 'Demo assumption' : kpi.origin === 'registry' ? 'Registry label' : 'Catalog definition'}</p>
-      <h2>{kpi.name}</h2>
-      <p className="sx-metric" data-testid={`value-${kpi.key}`}>{formatValue(kpi, move.current)}</p>
-      <p className={move.direction === 'down' ? 'sx-down' : 'sx-up'}>
-        {move.direction} vs {store.year === 2024 ? '2024 baseline' : store.year - 1}: {formatValue(kpi, Math.abs(move.delta))}
-      </p>
-      <Link to={`/showcase/kpis/${kpi.key}`}>Open decision lifecycle</Link>
-    </article>
-  );
-}
-
-function TrendLine({ kpi, month, onMonth }: { kpi: KpiDef; month: number | null; onMonth: (n: number) => void }) {
-  const store = useShowcase();
-  const points = series(kpi, store.hospital, store.year, store.department);
-  const max = Math.max(...points);
-  return (
-    <>
-      <svg className="sx-chart" viewBox="0 0 360 140" role="img" aria-label={`${kpi.name} by month`}>
-        {points.map((value, index) => (
-          <rect
-            key={index}
-            x={12 + index * 29}
-            y={120 - (value / max) * 100}
-            width="18"
-            height={(value / max) * 100}
-            fill={month === index ? '#0b3f3d' : '#0f6e6a'}
-            rx="4"
-          >
-            <title>{`Month ${index + 1}: ${formatValue(kpi, value)}`}</title>
-          </rect>
-        ))}
-      </svg>
-      <div className="sx-stages">
-        {points.map((value, index) => (
-          <button key={index} type="button" className="sx-btn" onClick={() => onMonth(index)}>
-            M{index + 1}
-            <span className="sx-kicker"> {formatValue(kpi, value)}</span>
-          </button>
-        ))}
-      </div>
-      {month !== null ? (
-        <p className="sx-note">
-          Drill-down for month {month + 1}: {formatValue(kpi, points[month])}. Source explanation: {kpi.source}. This is the synthetic series for {store.hospital}, {store.department}, {store.year}.
-        </p>
-      ) : null}
-    </>
-  );
+  if (screenId === 'kpi-catalog') return <CatalogPage />;
+  if (screenId === 'assistant') return <AssistantPage />;
+  if (screenId === 'comparison') return <ComparePage />;
+  return <Workspace source={source} />;
 }
 
 export function KpiPage() {
   const { metricKey = '' } = useParams();
-  const kpi = findKpi(metricKey);
   const store = useShowcase();
-  const t = UI[store.lang];
+  const lang = store.lang;
+  const kpi = findKpi(metricKey);
   const [stage, setStage] = useState(0);
-  const [month, setMonth] = useState<number | null>(null);
-  if (!kpi) return <p>This KPI is not in the demonstration catalog.</p>;
-  const move = trend(kpi, store.hospital, store.year, store.department);
+  if (!kpi) return <p>{tx(lang, 'This KPI is not in the demonstration inventory.', 'هذا المؤشر غير موجود في فهرس العرض.')}</p>;
+  const item = measure(kpi, store.hospital, store.year, store.department);
   const decision = store.approvals[kpi.key];
+  const stages = UI[lang].stages;
   const cohort = needsCohortReview(kpi);
-  const factors = factorsFor(kpi.key);
-  const illustrated = Math.round(move.current * (decision === 'approved' ? 0.93 : 1) * 1000) / 1000;
+  const site = HOSPITALS.find((hospital) => hospital.code === store.hospital);
   return (
-    <>
-      <header>
-        <p className="sx-kicker">{kpi.domain} · {kpi.origin}</p>
-        <h1>{kpi.name}</h1>
-        <p>{kpi.note}</p>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <p className="sx-kicker">{kpi.origin === 'demo_assumption' ? tx(lang, 'Demo assumption', 'افتراض للعرض') : kpi.origin}</p>
+        <h1>{kpiName(kpi.name, lang)}</h1>
+        <p className="sx-scope">{lang === 'ar' ? site?.nameAr : site?.name} · {store.year} · {deptLabel(store.department, lang)}</p>
       </header>
-      <div className="sx-stages" role="tablist" aria-label="Simulated lifecycle">
-        {t.stages.map((label, index) => (
-          <button key={label} type="button" className="sx-btn" role="tab" aria-selected={stage === index} onClick={() => setStage(index)}>
+      <div className="sx-stages" role="tablist">
+        {stages.map((label, index) => (
+          <button key={label} type="button" role="tab" aria-selected={stage === index} onClick={() => setStage(index)}>
             {index + 1}. {label}
           </button>
         ))}
       </div>
-      <section className="sx-panel" role="tabpanel">
-        {stage === 0 ? (
-          <>
-            <p className="sx-metric">{formatValue(kpi, move.current)}</p>
-            <p>Unit: {kpi.unit}. Prior period: {formatValue(kpi, move.prior)}.</p>
-            <p>Calculation: {kpi.formula}</p>
-            <p>Numerator: {kpi.numerator}. Denominator: {kpi.denominator}.</p>
-            <p>Source explanation: {kpi.source}{kpi.columns ? ` (${kpi.columns})` : ''}.</p>
-            <TrendLine kpi={kpi} month={month} onMonth={setMonth} />
-          </>
-        ) : null}
-        {stage === 1 ? <p>Detection: the synthetic value moved {move.direction} by {formatValue(kpi, Math.abs(move.delta))} versus the prior period. This is a scenario change, not a statistical alert from a hospital.</p> : null}
-        {stage === 2 ? (
-          <>
-            <p>Possible scenario factors. They are not proven causes.</p>
-            <ul>{factors.map((item) => <li key={item}>{item}</li>)}</ul>
-          </>
-        ) : null}
-        {stage === 3 ? (
-          cohort ? (
-            <p>Controlled review: this topic is not given an individual patient prediction. The demonstration shows a cohort scenario only. Simulated and not clinically validated.</p>
-          ) : (
-            <p>Simulated prediction: if the scenario pattern continued, the next period would sit near {formatValue(kpi, illustrated)}. Not a validated model.</p>
-          )
-        ) : null}
-        {stage === 4 ? (
+      {stage === 0 ? (
+        <section className="sx-panel">
+          <p className="sx-metric">{formatMeasure(item, lang)}</p>
+          <p>{formatDelta(item, lang)}</p>
+          <p>{item.note}</p>
+          <p className="sx-ltr">{tx(lang, 'Grain', 'الحبيبة')}: {item.grain}</p>
+          <p className="sx-ltr">{tx(lang, 'Catalog formula', 'صيغة الفهرس')}: {kpi.formula}</p>
+          <p>{tx(lang, `Numerator ${item.numerator.toLocaleString('en-US')} · denominator ${item.denominator.toLocaleString('en-US')}`, `البسط ${item.numerator.toLocaleString('en-US')} · المقام ${item.denominator.toLocaleString('en-US')}`)}</p>
+        </section>
+      ) : null}
+      {stage === 1 ? (
+        <section className="sx-panel">
+          <h2>{tx(lang, 'What changed', 'ماذا تغير')}</h2>
+          <p>{tx(lang, `Current ${formatMeasure(item, lang)}. Prior year ${formatMeasure({ ...item, value: item.prior }, lang)}.`, `الحالي ${formatMeasure(item, lang)}. السنة السابقة ${formatMeasure({ ...item, value: item.prior }, lang)}.`)}</p>
+          <p>{item.kind === 'rate' ? tx(lang, 'The comparison is in percentage points, not a relative percent of the rate.', 'المقارنة بالنقاط المئوية، وليست نسبة مئوية نسبية من المعدل.') : tx(lang, 'The comparison is a relative change against the prior year.', 'المقارنة تغير نسبي مقابل السنة السابقة.')}</p>
+        </section>
+      ) : null}
+      {stage === 2 ? (
+        <section className="sx-panel">
+          <h2>{tx(lang, 'Hypotheses, not proven causes', 'فرضيات، وليست أسباباً مثبتة')}</h2>
           <ul>
-            <li>Evidence: {formatValue(kpi, move.current)} at {store.hospital} / {store.department} / {store.year}.</li>
-            <li>Business rationale: the scenario suggests reviewing the largest factor before adding capacity.</li>
-            <li>Proposed action: hold a simulated operations review on this KPI.</li>
-            <li>Responsible role: domain lead for {kpi.domain}.</li>
-            <li>Expected illustrative benefit: a small easing of the series. Not a guaranteed result.</li>
+            <li>{tx(lang, 'Volume and mix in the selected hospital moved with this measure.', 'الحجم والمزيج في المستشفى المحدد تحركا مع هذا المقياس.')}</li>
+            <li>{tx(lang, 'Capacity, staffing share, or denial mix may sit alongside the change.', 'قد تجاور الطاقة أو حصة التوظيف أو مزيج الرفض هذا التغير.')}</li>
+            <li>{tx(lang, 'No factor on this page is marked as a proven cause.', 'لا عامل في هذه الصفحة مُعلَّم كسبب مثبت.')}</li>
           </ul>
-        ) : null}
-        {stage === 5 ? (
-          <>
-            <p>Demo-only approval. It stays in this browser and does not change a hospital system.</p>
-            <div className="sx-stages">
-              <button type="button" className="sx-btn primary" onClick={() => store.decide(kpi.key, 'approved')}>Approve simulated action</button>
-              <button type="button" className="sx-btn" onClick={() => store.decide(kpi.key, 'rejected')}>Reject simulated action</button>
-            </div>
-            <p>{decision ? `Recorded: ${decision}` : 'No decision yet.'}</p>
-          </>
-        ) : null}
-        {stage === 6 ? (
-          decision === 'approved' ? (
-            <p>Simulated outcome: the illustration moves from {formatValue(kpi, move.current)} to {formatValue(kpi, illustrated)}. This is not a measured hospital result.</p>
+        </section>
+      ) : null}
+      {stage === 3 ? (
+        <section className="sx-panel">
+          {cohort ? (
+            <p>{tx(lang, 'This topic is not given an individual patient prediction. The review stays at cohort level.', 'هذا الموضوع لا يُعطى تنبؤاً لمريض فرد. المراجعة تبقى على مستوى الفوج.')}</p>
           ) : (
-            <p>Outcome stays unillustrated until a simulated approval is recorded.</p>
-          )
-        ) : null}
-      </section>
-    </>
+            <p>{tx(lang, 'Simulated illustration only. Not a validated model. The figure is the current scenario value held flat, not a forecast product.', 'توضيح محاكى فقط. ليس نموذجاً متحققاً. الرقم هو قيمة السيناريو الحالية كما هي، وليس منتج توقع.')}</p>
+          )}
+        </section>
+      ) : null}
+      {stage === 4 ? (
+        <section className="sx-panel">
+          <h2>{tx(lang, 'Proposed review', 'المراجعة المقترحة')}</h2>
+          <p>{tx(lang, 'Ask the responsible lead to review the cohort and the hypothesis list before any operational change.', 'اطلب من القائد المسؤول مراجعة الفوج وقائمة الفرضيات قبل أي تغيير تشغيلي.')}</p>
+          <p>{tx(lang, 'Responsible role: domain lead for this workspace. Expected benefit is illustrative and not quantified as a hospital result.', 'الدور المسؤول: قائد المجال لهذه المساحة. الفائدة المتوقعة توضيحية وغير مقاسة كنتيجة مستشفى.')}</p>
+        </section>
+      ) : null}
+      {stage === 5 ? (
+        <section className="sx-panel">
+          <p>{tx(lang, 'Demo-only decision, stored in this browser.', 'قرار للعرض فقط، يُخزن في هذا المتصفح.')}</p>
+          <button type="button" className="sx-btn primary" onClick={() => store.decide(kpi.key, 'approved')}>{tx(lang, 'Approve simulated action', 'اعتماد الإجراء المحاكى')}</button>
+          <button type="button" className="sx-btn" onClick={() => store.decide(kpi.key, 'rejected')}>{tx(lang, 'Reject simulated action', 'رفض الإجراء المحاكى')}</button>
+          {decision ? <p>{tx(lang, `Recorded: ${decision}`, `المسجل: ${decision === 'approved' ? 'معتمد' : 'مرفوض'}`)}</p> : null}
+        </section>
+      ) : null}
+      {stage === 6 ? (
+        <section className="sx-panel">
+          {decision === 'approved' ? (
+            <p>{tx(lang, 'Illustrative outcome after the demo approval. This is not a measured hospital result. The story shows the measure easing by about 7% of the gap to the prior year, as a labelled illustration.', 'نتيجة توضيحية بعد اعتماد العرض. هذه ليست نتيجة مستشفى مقيسة. القصة تعرض تخفف المقياس بنحو 7٪ من الفجوة إلى السنة السابقة، كتوضيح مُعلَّم.')}</p>
+          ) : decision === 'rejected' ? (
+            <p>{tx(lang, 'No illustrative outcome. The simulated action was rejected, so the scenario value stays as measured in the story.', 'لا نتيجة توضيحية. رُفض الإجراء المحاكى، فتبقى قيمة السيناريو كما هي في القصة.')}</p>
+          ) : (
+            <p>{tx(lang, 'Record an approval or rejection before an outcome can be shown.', 'سجل اعتماداً أو رفضاً قبل عرض النتيجة.')}</p>
+          )}
+        </section>
+      ) : null}
+    </article>
   );
 }
 
-function factorsFor(key: string): string[] {
-  const pool = [
-    'Arrival mix in the selected period',
-    'Boarding overlap with inpatient discharge',
-    'Department staffing pattern in the scenario',
-    'Authorization completeness in the scenario',
-    'Prior-year comparison at the same hospital',
-    'Survey and complaint timing in the experience scenario',
-  ];
-  const start = hash(key) % pool.length;
-  return [0, 1, 2].map((offset) => pool[(start + offset) % pool.length]);
-}
+const CASE_AR: Record<string, { title: string; detail: string }> = {
+  'PX-2401': { title: 'درجة ساعات الهدوء في الجناح ب', detail: 'انخفضت الدرجة الخيالية بعد فجوة تمريض في أمسيتين.' },
+  'PX-2402': { title: 'تعليمات الخروج غير واضحة', detail: 'طلبت أسرة خيالية قائمة دواء أوضح.' },
+  'PX-2403': { title: 'استبيان بعد الزيارة، العيادة 3', detail: 'معدل الاستجابة الخيالي دون هدف السيناريو.' },
+  'PX-2404': { title: 'تجربة خروج نهاية الأسبوع', detail: 'القصة تعرض انتظاراً أطول في الصيدلية قبل المغادرة.' },
+  'PX-2405': { title: 'مكالمات المتابعة في اليوم السابع', detail: 'فات فوج خيالي نافذة مكالمة اليوم السابع.' },
+  'PX-2406': { title: 'عرض استعادة الخدمة', detail: 'السيناريو يقترح اتصالاً وورقة تعليمات منقحة.' },
+};
 
 export function ExperiencePage() {
   const store = useShowcase();
-  const kinds = ['satisfaction', 'complaint', 'survey', 'discharge', 'followup', 'recovery'] as const;
+  const lang = store.lang;
+  const labels = { open: tx(lang, 'open', 'مفتوحة'), reviewing: tx(lang, 'reviewing', 'قيد المراجعة'), closed: tx(lang, 'closed', 'مغلقة') };
   return (
-    <section className="sx-panel">
-      <h2>Patient experience workflows</h2>
-      <p>Fictional cases. Advancing a case is a demo-only status change in this browser.</p>
-      {kinds.map((kind) => (
-        <div key={kind}>
-          <h3>{kind}</h3>
-          <ul>
-            {store.cases.filter((item) => item.kind === kind).map((item) => (
-              <li key={item.id}>
-                {item.id} · {item.title} · {item.status}. {item.detail}{' '}
-                <button type="button" className="sx-btn" onClick={() => store.advanceCase(item.id)}>
-                  Advance
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </section>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <p className="sx-kicker">{tx(lang, 'Patient experience', 'تجربة المريض')}</p>
+        <h1>{tx(lang, 'Cases in the story', 'حالات القصة')}</h1>
+        <p>{QUESTION_AR.experience && lang === 'ar' ? QUESTION_AR.experience : 'Satisfaction, complaints, surveys, discharge, follow-up, and service recovery.'}</p>
+      </header>
+      <ul className="sx-cases">
+        {store.cases.map((item) => (
+          <li key={item.id}>
+            <p className="sx-kicker">{item.kind}</p>
+            <h2>{item.id} · {labels[item.status]}</h2>
+            <p>{lang === 'ar' ? CASE_AR[item.id]?.title : item.title}</p>
+            <p>{lang === 'ar' ? CASE_AR[item.id]?.detail : item.detail}</p>
+            <button type="button" className="sx-btn" onClick={() => store.advanceCase(item.id)} disabled={item.status === 'closed'}>
+              {tx(lang, 'Advance', 'تقدّم')}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
 export function ComparePage() {
   const store = useShowcase();
+  const lang = store.lang;
   const [key, setKey] = useState('kpi_bed_occupancy_rate');
   const kpi = findKpi(key) ?? KPIS[0];
+  const choices = useMemo(() => KPIS.slice(0, 80), []);
   return (
-    <section className="sx-panel">
-      <h2>Compare hospitals</h2>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <h1>{tx(lang, 'Hospital comparison', 'مقارنة المستشفيات')}</h1>
+        <p>{tx(lang, 'One measure, five fictional hospitals, same year. Rates use each hospital’s own numerator and denominator.', 'مقياس واحد، خمسة مستشفيات خيالية، السنة نفسها. المعدلات تستخدم بسط كل مستشفى ومقامه.')}</p>
+      </header>
       <label>
-        KPI
-        <select className="sx-input" aria-label="KPI to compare" value={kpi.key} onChange={(e) => setKey(e.target.value)}>
-          {KPIS.slice(0, 80).map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+        {tx(lang, 'Measure', 'المقياس')}
+        <select aria-label={tx(lang, 'Measure', 'المقياس')} value={kpi.key} onChange={(event) => setKey(event.target.value)}>
+          {choices.map((item) => <option key={item.key} value={item.key}>{kpiName(item.name, lang)}</option>)}
         </select>
       </label>
       <table className="sx-table">
-        <caption>Synthetic {kpi.name} for {store.year}, {store.department}</caption>
-        <thead><tr><th>Hospital</th><th>Value</th></tr></thead>
+        <thead>
+          <tr>
+            <th>{tx(lang, 'Hospital', 'المستشفى')}</th>
+            <th>{store.year}</th>
+          </tr>
+        </thead>
         <tbody>
           {HOSPITALS.filter((item) => item.code !== 'ALL').map((item) => (
             <tr key={item.code}>
-              <td>{item.name}</td>
-              <td>{formatValue(kpi, demoValue(kpi, item.code, store.year, store.department))}</td>
+              <td>{lang === 'ar' ? item.nameAr : item.name}</td>
+              <td>{formatMeasure(measure(kpi, item.code, store.year, store.department), lang)}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </section>
+    </article>
   );
 }
 
 export function CatalogPage() {
-  const [query, setQuery] = useState('');
-  const [domain, setDomain] = useState('All');
-  const [limit, setLimit] = useState(30);
-  const domains = ['All', ...Array.from(new Set(KPIS.map((item) => item.domain))).sort()];
-  const rows = KPIS.filter((item) => {
-    const text = `${item.key} ${item.name} ${item.domain}`.toLowerCase();
-    if (query && !text.includes(query.toLowerCase())) return false;
-    if (domain !== 'All' && item.domain !== domain) return false;
-    return true;
-  });
-  return (
-    <section className="sx-panel">
-      <h2>KPI catalog</h2>
-      <p>{KPIS.length} demonstrations. {rows.length} match. Catalog, registry, and labelled assumptions stay distinct.</p>
-      <div className="sx-stages">
-        <input className="sx-input" aria-label="Search KPIs" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <select aria-label="KPI domain" value={domain} onChange={(e) => setDomain(e.target.value)}>
-          {domains.map((item) => <option key={item}>{item}</option>)}
-        </select>
-      </div>
-      <table className="sx-table">
-        <thead><tr><th>KPI</th><th>Origin</th><th>Value</th></tr></thead>
-        <tbody>
-          {rows.slice(0, limit).map((kpi) => <CatalogRow key={kpi.key} kpi={kpi} />)}
-        </tbody>
-      </table>
-      {rows.length > limit ? <button type="button" className="sx-btn" onClick={() => setLimit((n) => n + 40)}>Show more</button> : null}
-    </section>
-  );
-}
-
-function CatalogRow({ kpi }: { kpi: KpiDef }) {
   const store = useShowcase();
+  const lang = store.lang;
+  const [query, setQuery] = useState('');
+  const [shown, setShown] = useState(30);
+  const rows = KPIS.filter((item) => `${item.name} ${item.key} ${item.domain}`.toLowerCase().includes(query.toLowerCase()));
   return (
-    <tr>
-      <td><Link to={`/showcase/kpis/${kpi.key}`}>{kpi.name}</Link><div className="sx-kicker">{kpi.key}</div></td>
-      <td>{kpi.origin}</td>
-      <td>{formatValue(kpi, demoValue(kpi, store.hospital, store.year, store.department))}</td>
-    </tr>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <h1>{tx(lang, 'KPI catalog', 'فهرس المؤشرات')}</h1>
+        <p>{tx(lang, `${KPIS.length} demonstrations. Catalog, registry, and labelled assumptions stay distinct.`, `${KPIS.length} عرضاً. يبقى الفهرس والسجل والافتراضات المعلّمة منفصلة.`)}</p>
+      </header>
+      <input className="sx-input" aria-label={tx(lang, 'Search KPIs', 'ابحث في المؤشرات')} value={query} onChange={(event) => { setQuery(event.target.value); setShown(30); }} />
+      <ul className="sx-cases">
+        {rows.slice(0, shown).map((item) => (
+          <li key={item.key}>
+            <Link to={`/showcase/kpis/${item.key}`}>{kpiName(item.name, lang)}</Link>
+            <p className="sx-ltr">{item.key} · {item.origin} · {item.domain}</p>
+          </li>
+        ))}
+      </ul>
+      {rows.length > shown ? <button type="button" className="sx-btn" onClick={() => setShown((value) => value + 40)}>{tx(lang, 'Show more', 'أظهر المزيد')}</button> : null}
+    </article>
   );
 }
 
 export function AssistantPage() {
   return (
-    <section className="sx-panel">
-      <h1>Simulated assistant</h1>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <h1>{tx(useShowcase().lang, 'Assistant', 'المساعد')}</h1>
+      </header>
       <AssistantBody />
-    </section>
+    </article>
   );
 }
 
 function AssistantBody() {
   const store = useShowcase();
-  const [question, setQuestion] = useState(ASSISTANT_PROMPTS[0]);
-  const reply = answerQuestion(question, store.hospital, store.year, store.department);
+  const lang = store.lang;
+  const location = useLocation();
+  const [question, setQuestion] = useState(ASSISTANT_PROMPTS[0].en);
+  const answer = answerQuestion(question, store.hospital, store.year, store.department, lang);
   return (
-    <>
-      <div className="sx-stages">
+    <div>
+      <p className="sx-kicker">{tx(lang, 'Deterministic simulation. No live model is queried.', 'محاكاة حتمية. لا يُستدعى نموذج حي.')}</p>
+      <p className="sx-kicker">{location.pathname}</p>
+      <div className="sx-prompts">
         {ASSISTANT_PROMPTS.map((prompt) => (
-          <button key={prompt} type="button" className="sx-btn" onClick={() => setQuestion(prompt)}>{prompt}</button>
+          <button key={prompt.en} type="button" className="sx-btn" onClick={() => setQuestion(lang === 'ar' ? prompt.ar : prompt.en)}>
+            {lang === 'ar' ? prompt.ar : prompt.en}
+          </button>
         ))}
       </div>
-      <label>
-        Ask the scenario
-        <input className="sx-input" aria-label="Ask the scenario" value={question} onChange={(e) => setQuestion(e.target.value)} />
-      </label>
-      <h2>{reply.title}</h2>
-      <ul>
-        <li>Evidence: {reply.evidence}</li>
-        <li>Business rationale: {reply.rationale}</li>
-        <li>Proposed action: {reply.action}</li>
-        <li>Responsible role: {reply.role}</li>
-        <li>Expected illustrative benefit: {reply.benefit}</li>
-        <li>Simulated approval: {reply.approval}</li>
-        <li>Simulated outcome: {reply.outcome}</li>
-      </ul>
-    </>
+      <h2>{answer.title}</h2>
+      <dl className="sx-answer">
+        <dt>{tx(lang, 'Observation', 'الملاحظة')}</dt><dd>{answer.observation}</dd>
+        <dt>{tx(lang, 'Evidence', 'الدليل')}</dt><dd>{answer.evidence}</dd>
+        <dt>{tx(lang, 'Possible explanation', 'تفسير محتمل')}</dt><dd>{answer.explanation}</dd>
+        <dt>{tx(lang, 'Proposed review', 'المراجعة المقترحة')}</dt><dd>{answer.action}</dd>
+        <dt>{tx(lang, 'Responsible role', 'الدور المسؤول')}</dt><dd>{answer.role}</dd>
+        <dt>{tx(lang, 'Illustrative benefit', 'فائدة توضيحية')}</dt><dd>{answer.benefit}</dd>
+        <dt>{tx(lang, 'Simulated approval', 'اعتماد محاكى')}</dt><dd>{answer.approval}</dd>
+        <dt>{tx(lang, 'Illustrative outcome', 'نتيجة توضيحية')}</dt><dd>{answer.outcome}</dd>
+      </dl>
+    </div>
   );
 }
 
 export function TourPage() {
   const store = useShowcase();
+  const lang = store.lang;
   const step = TOUR[store.tourStep] ?? TOUR[0];
-  const title = store.lang === 'ar' ? step.titleAr : step.title;
   return (
-    <section className="sx-panel">
-      <h1>Guided demonstration</h1>
-      <p>Step {store.tourStep + 1} of {TOUR.length}. No account is required.</p>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <p className="sx-kicker">{tx(lang, `Step ${store.tourStep + 1} of ${TOUR.length}`, `الخطوة ${store.tourStep + 1} من ${TOUR.length}`)}</p>
+        <h1>{lang === 'ar' ? step.titleAr : step.title}</h1>
+        <p>{lang === 'ar' ? step.bodyAr : step.body}</p>
+      </header>
       <div className="sx-progress" aria-hidden="true"><span style={{ width: `${((store.tourStep + 1) / TOUR.length) * 100}%` }} /></div>
-      <h2>{title}</h2>
-      <p>{step.body}</p>
-      <div className="sx-stages">
-        <Link className="sx-btn primary" to={step.href}>Open this step</Link>
-        <button type="button" className="sx-btn" onClick={() => store.setTourStep(Math.max(0, store.tourStep - 1))}>Back</button>
-        <button type="button" className="sx-btn" onClick={() => store.setTourStep(Math.min(TOUR.length - 1, store.tourStep + 1))}>Next</button>
-      </div>
-    </section>
+      <Link className="sx-btn primary" to={step.href}>{tx(lang, 'Open this step', 'افتح هذه الخطوة')}</Link>
+      <button type="button" className="sx-btn" onClick={() => store.setTourStep(Math.min(TOUR.length - 1, store.tourStep + 1))}>{tx(lang, 'Next', 'التالي')}</button>
+    </article>
   );
 }
 
 export function CoveragePage() {
+  const lang = useShowcase().lang;
+  const domains = new Set(KPIS.map((item) => item.domain));
   return (
-    <section className="sx-panel">
-      <h1>Coverage matrix</h1>
-      <table className="sx-table">
-        <thead><tr><th>Requirement</th><th>Demonstration</th></tr></thead>
-        <tbody>
-          <tr><td>Screens</td><td>{SCREENS.length} navigable screens</td></tr>
-          <tr><td>Enterprise extensions</td><td>{EXTENSIONS.length} navigable modules</td></tr>
-          <tr><td>KPI demonstrations</td><td>{KPIS.length} ({KPIS.filter((k) => k.origin === 'catalog').length} catalog, {KPIS.filter((k) => k.origin === 'registry').length} registry, {KPIS.filter((k) => k.origin === 'demo_assumption').length} labelled assumptions)</td></tr>
-          <tr><td>AI use cases</td><td>{USE_CASES.length} simulated, not validated</td></tr>
-          <tr><td>Semantic view names</td><td>{SEMANTIC_VIEWS.length} names. SQL text is not invented.</td></tr>
-          <tr><td>Verified queries</td><td>280 were contracted in the source pack. Query text is not in this demo, so none is fabricated.</td></tr>
-        </tbody>
-      </table>
-      <h2>Use cases</h2>
-      <UseCaseList />
-    </section>
+    <article className="sx-workspace">
+      <header className="sx-mast">
+        <h1>{tx(lang, 'Coverage', 'التغطية')}</h1>
+      </header>
+      <ul>
+        <li>{SCREENS.length} {tx(lang, 'original screens', 'شاشة أصلية')}</li>
+        <li>{EXTENSIONS.length} {tx(lang, 'enterprise extensions', 'توسعة مؤسسية')}</li>
+        <li>{KPIS.filter((item) => item.origin === 'catalog').length} {tx(lang, 'catalog KPIs', 'مؤشر فهرس')}</li>
+        <li>{KPIS.filter((item) => item.origin === 'registry').length} {tx(lang, 'registry labels', 'تسمية سجل')}</li>
+        <li>{KPIS.filter((item) => item.origin === 'demo_assumption').length} {tx(lang, 'labelled assumptions', 'افتراض معلّم')}</li>
+        <li>{USE_CASES.length} {tx(lang, 'simulated use cases', 'حالة استخدام محاكاة')}</li>
+        <li>{domains.size} {tx(lang, 'KPI domains', 'مجال مؤشر')}</li>
+        <li>{kpisForDomains(['Emergency']).length} {tx(lang, 'emergency definitions available from the catalog', 'تعريف طوارئ متاح من الفهرس')}</li>
+      </ul>
+      <p>{tx(lang, 'Remaining limits: 280 verified-query SQL texts are not in the source pack and are not invented. Semantic views are names only. Infection, equipment, survey, morgue, birth, eligibility, and dialysis columns are labelled assumptions. Predictions are simulated illustrations. This is not a certified or clinically validated hospital platform.', 'حدود متبقية: نصوص SQL لـ 280 استعلاماً موثقاً غير موجودة في حزمة المصدر ولم تُختلق. العروض الدلالية أسماء فقط. أعمدة العدوى والمعدات والاستبيان والمشرحة والولادة والأهلية والغسيل افتراضات معلّمة. التنبؤات توضيحات محاكاة. هذا ليس منصة مستشفى معتمدة أو متحققة سريرياً.')}</p>
+    </article>
   );
-}
-
-function UseCaseList() {
-  return (
-    <ul>
-      {USE_CASES.map((item) => (
-        <li key={item.key}>
-          <strong>{item.name}</strong> — simulated. {item.objective} Review: {item.review}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function SemanticList() {
-  return (
-    <ul>
-      {SEMANTIC_VIEWS.map((name) => <li key={name}>{name} — name only. SQL is not invented for this demo.</li>)}
-    </ul>
-  );
-}
-
-function QueryNotice() {
-  return <p className="sx-note">The source pack contracts 280 verified queries. Their SQL text is not in this demonstration, so the list is not filled with invented queries.</p>;
 }
