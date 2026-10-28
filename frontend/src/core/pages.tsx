@@ -6,8 +6,8 @@ import { DEPARTMENTS, DISCLAIMER, HOSPITALS, KPIS, USE_CASES, findKpi, needsCoho
 import { scenarioFor } from '@/showcase/facts';
 import { formatDelta, formatMeasure, measure, type Measure } from '@/showcase/measures';
 import { decisionKey, useShowcase } from '@/showcase/state';
-import { AREAS, CHALLENGES, LAYERS, PRESENTATION, allScreens, areaFor, chartKind, featuredKpis, findScreen } from './stories';
-import { Chart, figureFor, secondaryFor } from './viz';
+import { AREAS, CHALLENGES, LAYERS, PRESENTATION, allScreens, areaFor, featuredKpis, findScreen } from './stories';
+import { Chart, screenCharts } from './viz';
 
 export const COUNTRIES = [
   { id: 'sa', name: 'Saudi Arabia', currency: 'SAR', factor: 1, tz: 'Asia/Riyadh', languages: 'Arabic and English', occupancyTarget: 85 },
@@ -59,17 +59,25 @@ export function Overview() {
       <section className="gc-hero">
         <div>
           <p className="gc-kicker">DataVital Global Core</p>
-          <h1>From Hospital Data to Intelligent Decisions.</h1>
-          <p className="gc-lede">One global healthcare intelligence platform that connects clinical, operational, financial and patient experience insights — turning complexity into measurable action.</p>
+          <div className="gc-ltr">
+            <h1>From Hospital Data to Intelligent Decisions.</h1>
+            <p className="gc-lede">One global healthcare intelligence platform that connects clinical, operational, financial and patient experience insights — turning complexity into measurable action.</p>
+            <ol className="gc-path">
+              <li>See the pressure</li>
+              <li>Open one indicator</li>
+              <li>Review a simulated action</li>
+              <li>A person approves</li>
+            </ol>
+          </div>
           <div className="gc-actions">
             <Link className="gc-btn primary" to="/present">Start Interactive Tour</Link>
-            <Link className="gc-btn" to="/architecture">Explore Platform</Link>
+            <Link className="gc-btn" to="/platform">Explore Platform</Link>
             <Link className="gc-btn quiet" to="/kpis">View All KPIs</Link>
           </div>
           <p className="gc-note">{DISCLAIMER} Conceptual product demonstration. Not a live hospital system.</p>
         </div>
         <aside className="gc-preview">
-          <p className="gc-kicker">Platform preview</p>
+          <p className="gc-kicker">Live scenario preview</p>
           <p>{HOSPITALS.find((item) => item.code === store.hospital)?.[lang === 'ar' ? 'nameAr' : 'name']} · {store.year}</p>
           <ol>
             {cards.map(({ kpi, item }) => (
@@ -79,6 +87,7 @@ export function Overview() {
               </li>
             ))}
           </ol>
+          <Link to="/story/emergency">Open the emergency story</Link>
         </aside>
       </section>
       <section className="gc-grid">
@@ -162,12 +171,28 @@ export function Architecture() {
   );
 }
 
+export function PlatformPage() {
+  return (
+    <section className="gc-mast">
+      <p className="gc-kicker">Platform</p>
+      <h1>Problem, solution, and the five layers.</h1>
+      <p className="gc-lede">Start with the hospital problem, then the decision path, then the architecture. None of the layers is a live integration.</p>
+      <div className="gc-grid">
+        <article className="gc-card"><h2>The hospital challenge</h2><p>Ten operating problems, each with a decision a person would review.</p><Link to="/challenge">Open</Link></article>
+        <article className="gc-card"><h2>The DataVital solution</h2><p>From a shared number to a reviewed action.</p><Link to="/solution">Open</Link></article>
+        <article className="gc-card"><h2>Global Core architecture</h2><p>Sources, definitions, intelligence, action, and local settings.</p><Link to="/architecture">Open</Link></article>
+        <article className="gc-card"><h2>Patient experience</h2><p>Satisfaction, complaints, discharge, and recovery beside the operational story.</p><Link to="/experience">Open</Link></article>
+      </div>
+    </section>
+  );
+}
+
 export function OperationsHub() {
   const { lang } = useScope();
   return (
     <section className="gc-mast">
       <p className="gc-kicker">Hospital operations</p>
-      <h1>Choose a domain</h1>
+      <h1>Choose a solution</h1>
       <div className="gc-grid">
         {AREAS.map((area) => (
           <article className="gc-card" key={area.id}>
@@ -218,9 +243,7 @@ export function StoryPage() {
     const kpi = findKpi(key)!;
     return { kpi, item: measure(kpi, store.hospital, store.year, store.department) };
   });
-  const kind = chartKind(screen.id);
-  const primary = figureFor(kind, screen.id, store.hospital, store.year, lang);
-  const secondary = secondaryFor(kind, store.hospital, store.year);
+  const charts = screenCharts(screen.id, store.hospital, store.year, lang);
   const fact = scenarioFor(store.hospital, store.year).focus;
   const answer = answerQuestion(query || promptForPath(`/story/${screen.id}`), store.hospital, store.year, store.department, lang);
   const previous = index > 0 ? screens[index - 1] : null;
@@ -239,6 +262,9 @@ export function StoryPage() {
       <p className="gc-kicker">{screen.decision}</p>
       <h1>{lang === 'ar' ? screen.titleAr : screen.title}</h1>
       {store.department !== 'All' && area.id !== 'workforce' ? <p>This department filter does not narrow this workspace. Counts stay on the hospital cohort.</p> : null}
+      <div className="gc-viz">
+        {charts.map((figure) => <Chart key={figure.title} figure={figure} />)}
+      </div>
       <div className="gc-kpis">
         {cards.map(({ kpi, item }) => (
           <div className="gc-kpi" key={kpi.key}>
@@ -249,8 +275,6 @@ export function StoryPage() {
           </div>
         ))}
       </div>
-      <Chart figure={primary} />
-      <Chart figure={secondary} />
       <p>
         {screen.story} {screen.id === 'infection-prevention' ? `Outbreak declarations: ${fact.outbreakDeclarations} events in this period and scope.` : ''}
         {' '}Connected to {area.title}. Related definitions stay in the KPI explorer.
@@ -331,7 +355,8 @@ export function ExperiencePage() {
       <p className="gc-kicker">Patient experience</p>
       <h1>{tx(lang, 'Patient experience', 'تجربة المريض')}</h1>
       <p className="gc-lede">Satisfaction, feedback, surveys, complaints, communication, waiting, admission, discharge, follow-up, and service recovery. The counts are labelled assumptions.</p>
-      <Chart figure={figureFor('journey', 'experience', store.hospital, store.year, lang)} />
+      <Chart figure={screenCharts('experience', store.hospital, store.year, lang)[0]} />
+      <Chart figure={screenCharts('experience', store.hospital, store.year, lang)[1]} />
       <p className="gc-ltr">Satisfaction index {fact.satisfaction.toFixed(1)} / 100. Responses {fact.surveysReturned.toLocaleString('en-US')} of {fact.surveysSent.toLocaleString('en-US')} surveys. Open complaints {fact.complaintsOpened.toLocaleString('en-US')}.</p>
       <div className="gc-cases">
         {store.cases.map((item) => (
@@ -515,7 +540,7 @@ export function LifecyclePage() {
           {!decision ? <p>Record an approval or rejection before an outcome can be shown.</p> : null}
         </section>
       ) : null}
-      <Chart figure={figureFor(chartKind('command'), 'command', store.hospital, store.year, lang)} />
+      <Chart figure={screenCharts('command', store.hospital, store.year, lang)[0]} />
     </article>
   );
 }

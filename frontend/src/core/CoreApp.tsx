@@ -8,13 +8,11 @@ import './core.css';
 
 const NAV = [
   ['/', 'Overview', 'نظرة'],
-  ['/challenge', 'Challenge', 'التحدي'],
-  ['/solution', 'Solution', 'الحل'],
-  ['/architecture', 'Architecture', 'البنية'],
-  ['/operations', 'Operations', 'العمليات'],
+  ['/platform', 'Platform', 'المنصة'],
+  ['/operations', 'Solutions', 'الحلول'],
   ['/intelligence', 'Intelligence', 'الذكاء'],
-  ['/kpis', 'KPIs', 'المؤشرات'],
-  ['/library', 'Library', 'المكتبة'],
+  ['/kpis', 'KPI Library', 'المؤشرات'],
+  ['/library', 'Explore Screens', 'الشاشات'],
   ['/settings', 'Settings', 'الإعدادات'],
 ] as const;
 
@@ -52,7 +50,7 @@ function Shell() {
           {NAV.map(([to, en, ar]) => (
             <NavLink key={to} to={to} end={to === '/'}>{lang === 'ar' ? ar : en}</NavLink>
           ))}
-          <NavLink to="/present">{tx(lang, 'Present', 'العرض')}</NavLink>
+          <NavLink to="/present">{tx(lang, 'Presentation', 'العرض')}</NavLink>
         </nav>
       </header>
       <div className="gc-toolbar">

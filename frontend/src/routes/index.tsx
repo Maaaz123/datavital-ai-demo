@@ -11,6 +11,7 @@ import {
   LifecyclePage,
   OperationsHub,
   Overview,
+  PlatformPage,
   PresentPage,
   SettingsPage,
   Solution,
@@ -86,6 +87,7 @@ export const routes = [
     element: <CoreApp />,
     children: [
       { index: true, element: <Overview /> },
+      { path: 'platform', element: <PlatformPage /> },
       { path: 'challenge', element: <Challenge /> },
       { path: 'solution', element: <Solution /> },
       { path: 'architecture', element: <Architecture /> },

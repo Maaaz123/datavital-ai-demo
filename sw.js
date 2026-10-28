@@ -81,7 +81,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "062470f9645e4f963062138e69d009e8"
+    "revision": "c00da9cd20acd257cde46ee867a57fa0"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -89,7 +89,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-CM3X15cQ.js",
+    "url": "assets/pwa-DG1vkmRN.js",
     "revision": null
   }, {
     "url": "assets/plus-jakarta-sans-vietnamese-700-normal-CV6qDkkj.woff2",
@@ -164,10 +164,10 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
     "revision": null
   }, {
-    "url": "assets/index-C4RBVYgP.css",
+    "url": "assets/index-Dq9a1fKy.css",
     "revision": null
   }, {
-    "url": "assets/index-BHIEwV4K.js",
+    "url": "assets/index-DFM8HsQl.js",
     "revision": null
   }, {
     "url": "favicon.svg",
@@ -186,7 +186,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
   workbox.registerRoute(({
     request
   }) => request.mode === "navigate", new workbox.NetworkFirst({
-    "cacheName": "html-navigations-v5",
+    "cacheName": "html-navigations-v6",
     "networkTimeoutSeconds": 3,
     plugins: [new workbox.CacheableResponsePlugin({
       statuses: [0, 200, 404]
@@ -199,7 +199,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     request,
     url
   }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.StaleWhileRevalidate({
-    "cacheName": "static-assets-v5",
+    "cacheName": "static-assets-v6",
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 120,
       maxAgeSeconds: 604800

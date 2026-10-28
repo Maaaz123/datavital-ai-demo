@@ -2,7 +2,7 @@ import { EXTENSIONS, SCREENS, type ScreenDef } from '@/showcase/catalog';
 
 export type ChartKind = 'wait' | 'census' | 'beds' | 'claims' | 'hospitals' | 'journey' | 'ledger' | 'workforce' | 'acuity' | 'trust';
 
-export type AreaId = 'executive' | 'clinical' | 'financial' | 'experience' | 'quality' | 'workforce';
+export type AreaId = 'executive' | 'clinical' | 'financial' | 'experience' | 'quality' | 'workforce' | 'governance';
 
 const FEATURED: Record<string, string[]> = {
   hub: ['kpi_bed_occupancy_rate', 'kpi_ed_door_to_provider_median_minutes', 'kpi_claim_denied_rate', 'demo_satisfaction_index'],
@@ -18,7 +18,7 @@ const FEATURED: Record<string, string[]> = {
   inpatient: ['kpi_inpatient_avg_los_days', 'kpi_inpatient_avg_los_hours', 'kpi_inpatient_median_los_days', 'kpi_inpatient_p90_los_days'],
   outpatient: ['kpi_outpatient_avg_wait_minutes', 'kpi_outpatient_median_wait_minutes', 'kpi_outpatient_p90_wait_minutes', 'kpi_appointment_volume'],
   appointments: ['kpi_appointment_no_show_rate', 'kpi_appointment_cancellation_rate', 'kpi_appointment_slot_fill_rate', 'kpi_appointment_volume'],
-  dialysis: ['demo_dialysis_session_volume', 'kpi_bed_occupancy_rate', 'demo_satisfaction_index', 'kpi_department_count'],
+  dialysis: ['demo_dialysis_session_volume'],
   mortality: ['kpi_mortality_event_volume', 'kpi_ed_mortality_rate', 'kpi_dx_in_hospital_mortality_rate', 'kpi_surg_30d_mortality_rate'],
   surgery: ['kpi_surg_case_request_volume', 'kpi_surg_completed_cases', 'kpi_surg_cancellation_rate', 'kpi_surg_median_turnover_minutes'],
   laboratory: ['kpi_lab_order_volume', 'kpi_lab_tat_avg_minutes', 'kpi_lab_tat_median_minutes', 'kpi_lab_order_completed_rate'],
@@ -45,15 +45,15 @@ const FEATURED: Record<string, string[]> = {
   insights: ['kpi_ed_door_to_provider_median_minutes', 'kpi_claim_denied_rate', 'kpi_bed_occupancy_rate', 'demo_satisfaction_index'],
   assistant: ['kpi_ed_door_to_provider_median_minutes', 'kpi_claim_denied_rate', 'kpi_bed_occupancy_rate', 'demo_satisfaction_index'],
   'clinical-quality': ['kpi_surg_postop_complication_rate', 'kpi_readmission_30d_rate', 'kpi_med_safety_event_volume', 'kpi_dx_in_hospital_mortality_rate'],
-  'infection-prevention': ['demo_hai_surveillance_rate', 'kpi_admission_volume', 'kpi_bed_occupancy_rate', 'kpi_department_count'],
-  'supply-chain': ['kpi_med_order_volume', 'kpi_lab_order_volume', 'kpi_supply_utilization_event_volume', 'kpi_pharmacy_demand_units'],
-  'biomedical-equipment': ['demo_equipment_uptime', 'kpi_bed_staffed_count', 'kpi_department_count', 'kpi_wf_active_fte'],
+  'infection-prevention': ['demo_hai_surveillance_rate'],
+  'supply-chain': ['kpi_pharmacy_demand_units', 'kpi_med_order_volume', 'kpi_med_dispense_volume'],
+  'biomedical-equipment': ['demo_equipment_uptime'],
   'ai-governance': ['kpi_ai_support_los_label_coverage', 'kpi_financial_ai_support_claim_feature_readiness', 'kpi_forecast_support_encounter_series_completeness', 'kpi_pipeline_max_freshness_lag_hours'],
   'patient-experience': ['demo_satisfaction_index', 'demo_discharge_experience_index', 'demo_followup_completion_rate', 'demo_survey_response_rate'],
   'ward-transfer': ['kpi_transfer_volume', 'kpi_ed_to_admission_rate', 'kpi_bed_occupancy_rate', 'kpi_net_census_change'],
-  morgue: ['demo_morgue_release_hours', 'kpi_mortality_event_volume', 'kpi_dx_in_hospital_mortality_rate', 'kpi_department_count'],
-  'maternal-neonatal': ['demo_birth_encounter_volume', 'kpi_admission_volume', 'kpi_bed_occupancy_rate', 'demo_satisfaction_index'],
-  'assessments-vitals': ['kpi_vital_sign_volume', 'kpi_inpatient_census_count', 'kpi_admission_volume', 'kpi_inpatient_avg_los_hours'],
+  morgue: ['demo_morgue_release_hours', 'kpi_mortality_event_volume'],
+  'maternal-neonatal': ['demo_birth_encounter_volume'],
+  'assessments-vitals': ['kpi_vital_sign_volume', 'kpi_inpatient_avg_los_hours', 'kpi_inpatient_median_los_days'],
   eligibility: ['demo_eligibility_check_volume', 'kpi_claim_volume', 'kpi_authorization_volume', 'kpi_claim_denied_rate'],
   'pre-authorization': ['kpi_authorization_volume', 'kpi_authorization_denied_rate', 'kpi_surg_case_request_volume', 'kpi_claim_denied_rate'],
   'claims-processing': ['kpi_claim_volume', 'kpi_claim_paid_rate', 'kpi_claim_denied_rate', 'kpi_rcm_clean_claim_rate'],
@@ -147,10 +147,17 @@ export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; 
   },
   {
     id: 'quality',
-    title: 'Quality & Patient Safety',
+    title: 'Quality & Safety',
     titleAr: 'الجودة والسلامة',
-    lede: 'Safety signals, infection surveillance, data trust, and the limits of what this demo can claim.',
-    screens: ['clinical-quality', 'infection-prevention', 'quality', 'quality-detail', 'audit', 'metadata', 'access', 'kpi-catalog', 'semantic-views', 'verified-queries'],
+    lede: 'Safety signals and infection surveillance, each on its own cohort.',
+    screens: ['clinical-quality', 'infection-prevention'],
+  },
+  {
+    id: 'governance',
+    title: 'Data Governance & AI',
+    titleAr: 'حوكمة البيانات والذكاء',
+    lede: 'Definitions, evidence, and simulated AI. Predictions stay labelled as illustrations.',
+    screens: ['access', 'audit', 'quality', 'quality-detail', 'metadata', 'kpi-catalog', 'semantic-views', 'verified-queries', 'ai-governance', 'ai-overview', 'ai-cases', 'ai-case', 'predictions', 'insights', 'assistant'],
   },
   {
     id: 'workforce',
@@ -170,11 +177,15 @@ export function findScreen(id: string): ScreenDef | undefined {
 }
 
 export function featuredKpis(id: string): string[] {
-  return FEATURED[id] ?? ['kpi_bed_occupancy_rate', 'kpi_encounter_volume', 'kpi_admission_volume', 'demo_satisfaction_index'];
+  const keys = FEATURED[id];
+  if (!keys) throw new Error(`Missing KPI selection for ${id}`);
+  return keys;
 }
 
 export function chartKind(id: string): ChartKind {
-  return KIND[id] ?? 'census';
+  const kind = KIND[id];
+  if (!kind) throw new Error(`Missing chart kind for ${id}`);
+  return kind;
 }
 
 export function areaFor(id: string): AreaId {
