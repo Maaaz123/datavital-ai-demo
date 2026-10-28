@@ -23,6 +23,9 @@ type Persisted = {
   year: number;
   department: string;
   lang: 'en' | 'ar';
+  country: string;
+  facility: string;
+  approvalPolicy: 'lead' | 'committee';
   approvals: Record<string, Approval>;
   cases: ExperienceCase[];
   tourStep: number;
@@ -43,6 +46,9 @@ function fresh(): Persisted {
     year: 2026,
     department: 'All',
     lang: 'en',
+    country: 'sa',
+    facility: 'General hospital',
+    approvalPolicy: 'lead',
     approvals: {},
     cases: INITIAL_CASES,
     tourStep: 0,
@@ -84,6 +90,9 @@ type Store = Persisted & {
   setHospital: (hospital: string) => void;
   setYear: (year: number) => void;
   setDepartment: (department: string) => void;
+  setCountry: (country: string) => void;
+  setFacility: (facility: string) => void;
+  setApprovalPolicy: (approvalPolicy: 'lead' | 'committee') => void;
   toggleLang: () => void;
   decide: (key: string, decision: Approval) => void;
   advanceCase: (id: string) => void;
@@ -122,6 +131,9 @@ export function ShowcaseState({ children }: { children: ReactNode }) {
       setHospital: (hospital) => setState((s) => ({ ...s, hospital })),
       setYear: (year) => setState((s) => ({ ...s, year })),
       setDepartment: (department) => setState((s) => ({ ...s, department })),
+      setCountry: (country) => setState((s) => ({ ...s, country })),
+      setFacility: (facility) => setState((s) => ({ ...s, facility })),
+      setApprovalPolicy: (approvalPolicy) => setState((s) => ({ ...s, approvalPolicy })),
       toggleLang: () => setState((s) => ({ ...s, lang: s.lang === 'en' ? 'ar' : 'en' })),
       decide: (key, decision) => setState((s) => ({ ...s, approvals: { ...s.approvals, [key]: decision } })),
       advanceCase: (id) =>

@@ -1,40 +1,21 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, useRoutes } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { featuredKpis } from '@/core/stories';
+import { routes } from '@/routes';
 import { clearDemoStorage } from '@/showcase/state';
 import { EXTENSIONS, SCREENS, TOUR } from '@/showcase/catalog';
 import { KPIS, USE_CASES, findKpi } from '@/showcase/engine';
 import { measure } from '@/showcase/measures';
-import {
-  AssistantPage,
-  CatalogPage,
-  ComparePage,
-  CoveragePage,
-  ExperiencePage,
-  HomePage,
-  KpiPage,
-  ScreenPage,
-  ShowcaseApp,
-  TourPage,
-} from '@/showcase/ShowcaseApp';
+
+function Harness() {
+  return useRoutes(routes);
+}
 
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/showcase" element={<ShowcaseApp />}>
-          <Route index element={<HomePage />} />
-          <Route path="tour" element={<TourPage />} />
-          <Route path="screens/:screenId" element={<ScreenPage source="screen" />} />
-          <Route path="extensions/:screenId" element={<ScreenPage source="extension" />} />
-          <Route path="kpis/:metricKey" element={<KpiPage />} />
-          <Route path="experience" element={<ExperiencePage />} />
-          <Route path="compare" element={<ComparePage />} />
-          <Route path="catalog" element={<CatalogPage />} />
-          <Route path="assistant" element={<AssistantPage />} />
-          <Route path="coverage" element={<CoveragePage />} />
-        </Route>
-      </Routes>
+      <Harness />
     </MemoryRouter>,
   );
 }
@@ -51,8 +32,11 @@ describe('marketing demo coverage', () => {
     expect(USE_CASES).toHaveLength(37);
     expect(KPIS.filter((item) => item.origin === 'catalog')).toHaveLength(192);
     expect(KPIS.filter((item) => item.origin === 'registry')).toHaveLength(188);
-    expect(KPIS.filter((item) => item.origin === 'demo_assumption').length).toBeGreaterThan(0);
+    expect(KPIS.filter((item) => item.origin === 'demo_assumption')).toHaveLength(12);
     expect(TOUR).toHaveLength(10);
+    for (const item of [...SCREENS, ...EXTENSIONS]) {
+      for (const key of featuredKpis(item.id)) expect(findKpi(key)?.key).toBe(key);
+    }
   });
 
   it('keeps synthetic values deterministic and filter-sensitive', () => {
@@ -65,9 +49,10 @@ describe('marketing demo coverage', () => {
   });
 
   it('renders the public home and the disclosure', () => {
-    renderAt('/showcase');
+    renderAt('/');
     expect(screen.getByRole('status').textContent).toMatch(/synthetic data and simulated AI/i);
-    expect(screen.getByRole('heading', { level: 1, name: 'DataVital AI' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /From Hospital Data to Intelligent Decisions/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
 
   it('updates emergency wait when the hospital changes and explains an inapplicable department', () => {
@@ -120,12 +105,12 @@ describe('marketing demo coverage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Advance' })[0]);
     expect(screen.getByRole('heading', { level: 2, name: /PX-2401/ }).textContent).toMatch(/reviewing/);
     fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
-    expect(document.querySelector('.sx-shell')).toHaveAttribute('dir', 'rtl');
-    expect(screen.getByRole('heading', { level: 1, name: 'حالات القصة' })).toBeInTheDocument();
+    expect(document.querySelector('.gc-shell')).toHaveAttribute('dir', 'rtl');
+    expect(screen.getByRole('heading', { level: 1, name: 'تجربة المريض' })).toBeInTheDocument();
   });
 
   it('answers from the selected hospital without a live model', () => {
-    renderAt('/showcase/assistant');
+    renderAt('/intelligence');
     expect(screen.getByRole('heading', { level: 2, name: /Emergency time at Demo General North in 2026/ })).toBeInTheDocument();
     expect(screen.getAllByText(/Simulated approval/).length).toBeGreaterThan(0);
   });
@@ -152,10 +137,10 @@ describe('marketing demo coverage', () => {
 
   it('opens the door-to-provider lifecycle from emergency and a denial lifecycle from claims', () => {
     const emergency = renderAt('/showcase/screens/emergency');
-    expect(screen.getByRole('link', { name: /Open the wait lifecycle/ })).toHaveAttribute('href', '/showcase/kpis/kpi_ed_door_to_provider_median_minutes');
+    expect(screen.getByRole('link', { name: /Open the wait lifecycle/ })).toHaveAttribute('href', '/kpis/kpi_ed_door_to_provider_median_minutes');
     emergency.unmount();
     renderAt('/showcase/screens/claims');
-    expect(screen.getByRole('link', { name: /Open the denial lifecycle/ })).toHaveAttribute('href', '/showcase/kpis/kpi_claim_denied_rate');
+    expect(screen.getByRole('link', { name: /Open the denial lifecycle/ })).toHaveAttribute('href', '/kpis/kpi_claim_denied_rate');
   });
 
   it('does not carry an approval into another hospital or year', () => {
@@ -177,7 +162,7 @@ describe('marketing demo coverage', () => {
 
   it('keeps the workspace navigation to one group instead of all 53 links', () => {
     renderAt('/showcase/screens/command');
-    const links = document.querySelectorAll('.sx-nav a');
+    const links = document.querySelectorAll('.gc-nav a');
     expect(links.length).toBeLessThan(20);
   });
 });

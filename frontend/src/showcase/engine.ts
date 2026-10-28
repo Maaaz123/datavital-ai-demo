@@ -85,15 +85,6 @@ function assumption(key: string, name: string, domain: string, unit: string, not
 export const KPIS: KpiDef[] = [...(catalogKpis as KpiDef[]), ...ASSUMPTIONS];
 export const USE_CASES: UseCaseDef[] = useCases as UseCaseDef[];
 
-export function hash(text: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
 export function needsCohortReview(kpi: KpiDef): boolean {
   return /mortality|sepsis|deteriorat|diagnosis|icu_transfer|readmission|vital|birth|morgue/i.test(
     `${kpi.key} ${kpi.domain}`,
