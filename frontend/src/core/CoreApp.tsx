@@ -103,17 +103,17 @@ function Shell() {
                   className="gc-filter-trigger"
                   aria-expanded={filtersOpen}
                   aria-controls={filterTitle}
+                  aria-label="Filters"
                   onClick={() => setFiltersOpen((value) => !value)}
                 >
-                  <span className="gc-filter-label">Filters</span>
-                  <span className="gc-filter-summary">
-                    <strong>{hospitalName}</strong>
-                    <em>{store.year} · {periodLabel}</em>
-                  </span>
-                  <span className="gc-filter-caret" aria-hidden="true">▾</span>
+                  Filters
                 </button>
                 {filtersOpen ? (
                   <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Emergency filters">
+                    <p className="gc-filter-pop-head">
+                      <strong>Filters</strong>
+                      <span>{hospitalName} · {store.year} · {periodLabel}</span>
+                    </p>
                     <label>
                       Hospital
                       <select aria-label="Hospital" value={store.hospital} onChange={(event) => store.setHospital(event.target.value)}>
