@@ -3,6 +3,7 @@ import { HOSPITALS } from './engine';
 import { scenarioFor, wardRows } from './facts';
 import { alertsFor } from '@/core/alerts';
 import { peakHours } from '@/core/derived';
+import { ipdDocScenario } from '@/core/ipdScope';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
 export type AssistantAnswer = {
@@ -401,10 +402,11 @@ function answerInpatient(
   }
 
   if (/discharge delay|ready|delay/.test(q)) {
+    const docs = ipdDocScenario({ hospital, occupiedBeds: current.occupiedBeds, staffedBeds: current.staffedBeds });
     return pack(lang, {
       title: tx(lang, `Discharge delays at ${name} in ${year}`, `تأخر الخروج في ${name} عام ${year}`),
       observation: tx(lang, `About ${readyNotDischarged} patients marked ready but still here (illustrative share of census ${current.occupiedBeds}).`, `حوالي ${readyNotDischarged} مريضاً جاهزين وما زالوا هنا.`),
-      evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Delay duration clocks and readiness documentation rates are not available. AI does not decide medical readiness.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Illustrative readiness documentation ~${(docs.readinessDocRate * 100).toFixed(1)}%. Ready-to-actual delay duration clocks are not available. AI does not decide medical readiness.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Hypothesis: ready-but-not-discharged rises when consults or discharge logistics lag. These drivers are not proven here.', 'فرضية: الجاهز غير الخارج يرتفع عند تأخر الاستشارات أو لوجستيات الخروج.'),
       action: tx(lang, 'Review ready-but-not-discharged cases with the responsible clinical team. Do not auto-discharge.', 'راجع حالات الجاهز غير الخارج مع الفريق السريري المسؤول.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -424,15 +426,16 @@ function answerInpatient(
     });
   }
 
-  if (/care.?plan|milestone|consult|document/.test(q)) {
+  if (/care.?plan|milestone|consult|document|summar(y|ies)|med.?rec|follow.?up|assessment|diagnosis/.test(q)) {
+    const docs = ipdDocScenario({ hospital, occupiedBeds: current.occupiedBeds, staffedBeds: current.staffedBeds });
     return pack(lang, {
-      title: tx(lang, `Care-plan progress at ${name}`, `تقدم خطة الرعاية في ${name}`),
-      observation: tx(lang, 'Care-plan documentation, review compliance, consultation response time, and milestone completion are not available in this demonstration.', 'توثيق خطط الرعاية ومراجعتها وزمن الاستشارات غير متاحة في هذا العرض.'),
-      evidence: tx(lang, `Length of stay and ready-but-not-discharged are not used as substitutes. Admissions ${current.admissions.toLocaleString('en-US')}.`, `مدة الإقامة لا تُستخدم بديلاً.`),
-      explanation: tx(lang, 'Unsupported documentation clocks stay explicit. The simulation does not invent overdue milestones.', 'ساعات التوثيق غير المدعومة تبقى صريحة.'),
-      action: tx(lang, 'Related supported questions: How has length of stay changed? Which clinical groups have prolonged stays?', 'أسئلة مدعومة ذات صلة: كيف تغيرت مدة الإقامة؟'),
+      title: tx(lang, `Care documentation at ${name} in ${year}`, `توثيق الرعاية في ${name} عام ${year}`),
+      observation: tx(lang, `Care-plan documentation ~${(docs.carePlanDocRate * 100).toFixed(1)}% · daily clinical review ~${(docs.dailyReviewRate * 100).toFixed(1)}% · median consult response ~${docs.consultResponseHours.toFixed(1)}h · ${docs.pendingConsults} pending consults.`, `توثيق خطة الرعاية حوالي ${(docs.carePlanDocRate * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Discharge summary ~${(docs.dischargeSummaryRate * 100).toFixed(1)}% · med-rec ~${(docs.medRecRate * 100).toFixed(1)}% · follow-up plan ~${(docs.followUpPlanRate * 100).toFixed(1)}% · milestone completion ~${(docs.milestoneRate * 100).toFixed(1)}%. Admissions ${current.admissions.toLocaleString('en-US')}. These are illustrative scenario shares, not extracted charts.`, `ملخص الخروج حوالي ${(docs.dischargeSummaryRate * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Potential reasons (not proven): documentation gaps can trail busy wards and delayed consults. Figures are not inferred from length of stay and are not a validated EMR extract.', 'أسباب محتملة وليست مثبتة: فجوات التوثيق قد تتأخر مع ازدحام الأجنحة.'),
+      action: tx(lang, 'On Care Progress & Outcomes, review care documentation cards and pending consults with the clinical operations lead. AI does not decide medical readiness.', 'في تقدم الرعاية والنتائج راجع بطاقات التوثيق والاستشارات المعلقة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
-      benefit: tx(lang, 'Honesty about missing records protects decision quality.', 'الصراحة حول السجلات الناقصة تحمي جودة القرار.'),
+      benefit: tx(lang, 'Closing confirmed documentation gaps supports safer discharge handoffs without inventing clinical findings.', 'إغلاق فجوات التوثيق المؤكدة يدعم تسليم خروج أكثر أماناً.'),
     });
   }
 

@@ -3,7 +3,7 @@ import { scenarioFor } from '@/showcase/facts';
 import { useShowcase } from '@/showcase/state';
 import { alertsFor } from './alerts';
 import { useCopilot } from './Copilot';
-import { IPD_AI_CASES, ipdIndicatorsFor, type Indicator, type IpdScopeInput } from './ipdScope';
+import { IPD_AI_CASES, ipdDocScenario, ipdIndicatorsFor, type Indicator, type IpdScopeInput } from './ipdScope';
 import { sumKey, usePeriod, weighted } from './period';
 import { Chart, ChartStage, type Figure } from './viz';
 
@@ -76,10 +76,12 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   ];
   const longStayWeights = specialties.map((item) => Math.max(0.01, item.discharges * (0.8 + item.los / Math.max(losMedian, 1))));
   const longStayBySpecialty = splitExact(longStayCount, longStayWeights);
+  const docs = ipdDocScenario({ hospital, occupiedBeds: census, staffedBeds: fact.staffedBeds });
   return {
     admissions, discharges, deaths, transfersIn, transfersOut, edAdmitted, directAdmissions, census,
     losMedian, losP90, losAvg, longStayRate, longStayCount, longStayBySpecialty, readyNotDischarged, delayedDischargeRate,
     expectedDischarges, readmit7, readmit30, amaRate, specialties, sources, destinations,
+    ...docs,
     labels: rows.map((row) => row.label),
     monthlyAdmissions: rows.map((row) => row.month.admissions),
     monthlyDischarges: rows.map((row) => row.month.discharges),
@@ -278,19 +280,19 @@ function scopeInput(view: View): IpdScopeInput {
     oeLos: null,
     delayP50: null,
     delayP90: null,
-    readinessDocRate: null,
-    dischargeSummaryRate: null,
-    carePlanDocRate: null,
-    carePlanReviewRate: null,
-    dailyReviewRate: null,
-    consultResponseHours: null,
-    pendingConsults: null,
-    milestoneRate: null,
-    admissionAssessmentRate: null,
-    diagnosisDocRate: null,
-    dischargeInstructionsRate: null,
-    medRecRate: null,
-    followUpPlanRate: null,
+    readinessDocRate: view.readinessDocRate,
+    dischargeSummaryRate: view.dischargeSummaryRate,
+    carePlanDocRate: view.carePlanDocRate,
+    carePlanReviewRate: view.carePlanReviewRate,
+    dailyReviewRate: view.dailyReviewRate,
+    consultResponseHours: view.consultResponseHours,
+    pendingConsults: view.pendingConsults,
+    milestoneRate: view.milestoneRate,
+    admissionAssessmentRate: view.admissionAssessmentRate,
+    diagnosisDocRate: view.diagnosisDocRate,
+    dischargeInstructionsRate: view.dischargeInstructionsRate,
+    medRecRate: view.medRecRate,
+    followUpPlanRate: view.followUpPlanRate,
     cancelRate: null,
   };
 }
@@ -451,12 +453,12 @@ export function IpdStayPage() {
             <strong>Delayed discharge rate</strong>
             <span>{pct(view.delayedDischargeRate)} of census</span>
           </div>
-          <div className="gc-exception gc-tone-neutral">
-            <strong>Summary / delay clocks</strong>
-            <span>Not available</span>
+          <div className={`gc-exception gc-tone-${rateTone(1 - view.dischargeSummaryRate, 0.12, 0.2)}`}>
+            <strong>Discharge summary completion</strong>
+            <span>{pct(view.dischargeSummaryRate)} illustrative · delay duration clocks not available</span>
           </div>
         </div>
-        <p className="gc-next">Bed cleaning and assignment after discharge stay in Beds & Capacity.</p>
+        <p className="gc-next">Bed cleaning and assignment after discharge stay in Beds & Capacity. Observed-to-expected LOS remains unavailable.</p>
       </section>
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Inpatient Length of Stay', 'Discharge Management']} />
     </Page>
@@ -492,12 +494,12 @@ export function IpdOutcomesPage() {
             <strong>Inpatient mortality</strong>
             <span>{pct(mortality)} · {num(view.deaths)} / {num(view.admissions)}</span>
           </div>
-          <div className="gc-exception gc-tone-neutral">
-            <strong>Care-plan & consult clocks</strong>
-            <span>Not available · not inferred from length of stay</span>
+          <div className={`gc-exception gc-tone-${view.consultResponseHours >= 12 ? 'watch' : 'good'}`}>
+            <strong>Median consultation response</strong>
+            <span>{num(view.consultResponseHours, 1)} hours · {num(view.pendingConsults)} pending (illustrative)</span>
           </div>
         </div>
-        <p className="gc-next">AI may flag missing documentation later. It does not decide that a patient is medically ready to leave.</p>
+        <p className="gc-next">Documentation rates below are illustrative scenario shares. AI does not decide that a patient is medically ready to leave.</p>
       </section>
       <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * view.readmit30 * (0.75 + item.los / Math.max(view.losMedian, 1) * 0.2))) }], 'patients', 'Specialty shares around the hospital 30-day rate. Severity is not adjusted.')} />
       <Slot figure={fig('line', 'Census vs discharges over time', view.labels, [
@@ -505,7 +507,7 @@ export function IpdOutcomesPage() {
         { name: 'Discharges', values: view.monthlyDischarges },
       ], 'patients', 'Census is a month-end patient count. Discharges are period totals. They are shown together for context, not stacked as one identity. Bed occupancy rate stays in Beds & Capacity.')} />
       <JourneyStrip view={view} />
-      <BlankDocStrip />
+      <DocProgressStrip view={view} />
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Inpatient Care Coordination', 'Inpatient Outcomes', 'Inpatient Documentation & Continuity']} />
       <AiIndex />
     </Page>
@@ -540,29 +542,29 @@ function JourneyStrip({ view }: { view: View }) {
   );
 }
 
-function BlankDocStrip() {
+function DocProgressStrip({ view }: { view: View }) {
   const items = [
-    'Care plan documentation',
-    'Daily clinical review',
-    'Consultation response time',
-    'Discharge summary',
-    'Medication reconciliation',
-    'Follow-up plan',
+    { name: 'Care Plan Documentation Rate', value: pct(view.carePlanDocRate) },
+    { name: 'Daily Clinical Review Completion Rate', value: pct(view.dailyReviewRate) },
+    { name: 'Median Consultation Response Time', value: `${num(view.consultResponseHours, 1)} hours` },
+    { name: 'Discharge Summary Completion Rate', value: pct(view.dischargeSummaryRate) },
+    { name: 'Discharge Medication Reconciliation Completion Rate', value: pct(view.medRecRate) },
+    { name: 'Follow-up Plan Documentation Rate', value: pct(view.followUpPlanRate) },
   ];
   return (
-    <section className="gc-panel span-12 gc-scope gc-scope-tight">
+    <section className="gc-panel span-12 gc-scope gc-scope-tight" data-testid="ipd-doc-progress">
       <div className="gc-scope-head">
         <div>
-          <h2>Documentation not available here</h2>
-          <p>These records are not stored in this demonstration. Length of stay is not used as a substitute.</p>
+          <h2>Care documentation & continuity</h2>
+          <p>Illustrative completion shares for this hospital and period · not extracted chart documents · not inferred from length of stay</p>
         </div>
       </div>
       <div className="gc-scope-grid gc-scope-grid-dense">
         {items.map((item, index) => (
-          <article key={item} className="gc-scope-card is-blank gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }}>
-            <span className="gc-scope-status">Not available</span>
-            <strong>{item}</strong>
-            <em>Not available</em>
+          <article key={item.name} className="gc-scope-card is-constructed gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }} title="Illustrative scenario share for executive demonstration.">
+            <span className="gc-scope-status">Estimated</span>
+            <strong>{item.name}</strong>
+            <em>{item.value}</em>
           </article>
         ))}
       </div>

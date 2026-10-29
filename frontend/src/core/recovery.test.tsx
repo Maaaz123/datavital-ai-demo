@@ -221,6 +221,8 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Care Progress & Outcomes' })).toBeInTheDocument();
     expect(screen.queryByText(/Door-to-Provider|Operational bed occupancy|Beds short vs requests/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Inpatient journey/i)).toBeInTheDocument();
+    expect(screen.getByTestId('ipd-doc-progress')).toBeInTheDocument();
+    expect(screen.queryByText(/Documentation not available here/i)).not.toBeInTheDocument();
     ipd.unmount();
   });
 });
