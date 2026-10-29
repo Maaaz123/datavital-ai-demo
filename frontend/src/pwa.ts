@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v55-public-ipd-fix';
+const BUILD_ID = 'v56-pack-align';
 const BUILD_KEY = 'datavital-build-id';
 
 /**

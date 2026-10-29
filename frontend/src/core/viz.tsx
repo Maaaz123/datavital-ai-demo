@@ -443,12 +443,7 @@ export function Chart({ figure, compact = false, action }: { figure: Figure; com
         <div className="gc-chart-copy">
           <strong>{figure.title}</strong>
           <span>{figure.note}</span>
-          {figure.type === 'pareto' ? (
-            <ul className="gc-legend">
-              <li><i style={{ background: PALETTE[0] }} />{figure.series[0]?.name ?? 'Count'}</li>
-              <li><i style={{ background: '#8c6a3d' }} />Cumulative %</li>
-            </ul>
-          ) : figure.series.length > 1 && figure.type !== 'heatmap' ? (
+          {figure.series.length > 1 && figure.type !== 'heatmap' && figure.type !== 'pareto' ? (
             <ul className="gc-legend">
               {figure.series.map((item, index) => (
                 <li key={item.name}><i style={{ background: PALETTE[index % PALETTE.length] }} />{item.name}</li>

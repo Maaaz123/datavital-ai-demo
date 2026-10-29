@@ -355,7 +355,7 @@ export function IpdStayPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Bars are long-stay patient counts (left axis). The brown line is cumulative % of ${num(view.longStayCount)} long-stay discharges (right axis, reaches 100%). Categories are ranked high→low. Severity is not adjusted.`)} />
+          <Slot span={false} figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Bars = patient counts (left). Brown line = cumulative % of ${num(view.longStayCount)} (right, to 100%). Ranked high→low.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Length of stay by specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.los) }], 'days', 'Specialty medians around the hospital median. Raw gaps are not proof of better or worse care.')} />
@@ -365,7 +365,7 @@ export function IpdStayPage() {
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Discharge destinations', view.destinations.filter((item) => item.id !== 'Home').map((item) => item.id), [{ name: 'Share of discharges', values: view.destinations.filter((item) => item.id !== 'Home').map((item) => (view.discharges ? Math.round((item.count / view.discharges) * 1000) / 10 : 0)) }], '%', (() => {
             const homeShare = view.discharges ? Math.round(((view.destinations.find((item) => item.id === 'Home')?.count ?? 0) / view.discharges) * 1000) / 10 : 0;
-            return `Non-home destination shares of ${num(view.discharges)} discharges. Home is ${homeShare}% and stays readable in the note so it does not flatten transfer, rehab, and AMA bars. Counts remain in the indicator catalog. Inpatient deaths are not a discharge destination.`;
+            return `Non-home shares of ${num(view.discharges)} discharges (%). Home is ${homeShare}% in this note. Deaths are not a discharge destination.`;
           })())} />
         </div>
         <div className="gc-ed-pack-col">
