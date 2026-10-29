@@ -138,7 +138,7 @@ Compared live preview renders of Snapshot / Stay / Outcomes after `v52-chart-bad
 | Deployment URL | https://maaaz123.github.io/datavital-ai-demo/ |
 | Cache wipe | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
 | Local preview verification | `http://127.0.0.1:4173/datavital-ai-demo/` with `?fresh=v52-chart-badge-qa` |
-| Commit | *recorded after publish commit below* |
+| Commit | ebe25572d315b20bff03be824dc04eac2015b272* |
 
 ### Live verification checklist
 
