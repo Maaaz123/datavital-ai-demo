@@ -60,7 +60,7 @@ export default defineConfig({
               /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'static-assets-v31',
+              cacheName: 'static-assets-v32',
               networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 120,

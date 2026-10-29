@@ -3,6 +3,7 @@ import { HOSPITALS } from './engine';
 import { scenarioFor, wardRows } from './facts';
 import { alertsFor } from '@/core/alerts';
 import { peakHours } from '@/core/derived';
+import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
 export type AssistantAnswer = {
   title: string;
@@ -47,6 +48,24 @@ export function answerQuestion(question: string, hospital: string, year: number,
   const name = siteName(hospital, lang);
   const waitNow = current.edWaitMedianMin;
   const waitThen = prior.edWaitMedianMin;
+
+  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient') {
+    const intent = parseWhatIfIntent(q);
+    if (intent) {
+      const result = runWhatIf(department as WhatIfDomain, hospital, year, intent);
+      const body = formatWhatIfAnswer(result);
+      return pack(lang, {
+        title: tx(lang, `${result.title} · ${name} ${year}`, `${result.title} · ${name} ${year}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+    }
+  }
 
   if (department === 'Emergency') return answerEmergency(q, hospital, year, name, lang, current, prior, waitNow, waitThen);
   if (department === 'Beds') return answerBeds(q, hospital, year, name, lang, current, prior);
@@ -161,17 +180,58 @@ function answerEmergency(
     });
   }
 
-  if (/investigate today|manager|what should/.test(q)) {
+  if (/leav|lwbs|without (being )?seen|before assessment|walk.?away/.test(q)) {
+    const leftRate = current.edLeft / Math.max(current.edArrivals, 1);
+    return pack(lang, {
+      title: tx(lang, `Left without care at ${name} in ${year}`, `المغادرة دون رعاية في ${name} عام ${year}`),
+      observation: tx(lang, `${current.edLeft.toLocaleString('en-US')} visits left without care (${(leftRate * 100).toFixed(1)}% of ${current.edArrivals.toLocaleString('en-US')} visits). Door-to-provider median ${waitNow.toFixed(1)} minutes.`, `${current.edLeft.toLocaleString('en-US')} زيارة غادرت دون رعاية.`),
+      evidence: tx(lang, `Admitted ${current.edAdmitted.toLocaleString('en-US')}, discharged ${current.edDischarged.toLocaleString('en-US')}, left ${current.edLeft.toLocaleString('en-US')} sum with arrivals. Peak hours ${peakLine}.`, `التنويم والخروج والمغادرة تجمع مع الوصول.`),
+      explanation: tx(lang, 'Hypothesis: longer first-provider waits during peak hours raise walkaway risk. Left-against-medical-advice is not separated in this demo.', 'فرضية: طول انتظار الوصول للطبيب في الذروة يرفع خطر المغادرة.'),
+      action: tx(lang, `Prioritize first-provider coverage at ${peaks[0]?.name ?? 'peak hours'} while door-to-provider is ${waitNow.toFixed(1)} minutes, then re-check the left-without-care rate.`, `أعطِ أولوية لتغطية أول طبيب في ساعات الذروة.`),
+      role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
+      benefit: tx(lang, 'Lower walkaways protect access and reduce unmeasured demand returning later.', 'تقليل المغادرة يحمي الوصول.'),
+    });
+  }
+
+  if (/return|72.?hour|revisit/.test(q)) {
+    const revisit = Math.round(current.edArrivals * 0.034);
+    return pack(lang, {
+      title: tx(lang, `Emergency returns at ${name} in ${year}`, `عودة الطوارئ في ${name} عام ${year}`),
+      observation: tx(lang, `About ${(0.034 * 100).toFixed(1)}% of arrivals are labelled unplanned 72-hour returns (~${revisit.toLocaleString('en-US')} visits).`, `حوالي ${(0.034 * 100).toFixed(1)}٪ عودة خلال 72 ساعة.`),
+      evidence: tx(lang, `Denominator is arrivals, not eligible discharges. Visits are not linked patient-by-patient. Deaths ${current.deaths.toLocaleString('en-US')}.`, `المقام هو الوصول وليس الخروج المؤهل.`),
+      explanation: tx(lang, 'Hypothesis only: return share can move with discharge quality and access. This figure is a fixed demonstration share, not a linked cohort.', 'فرضية فقط: حصة العودة قد تتحرك مع جودة الخروج.'),
+      action: tx(lang, 'Review return cases on Safety & Return Visits together with left-without-care and high-acuity volume — do not treat the share as a patient-level risk score.', 'راجع حالات العودة مع المغادرة دون رعاية.'),
+      role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
+      benefit: tx(lang, 'Watching returns alongside walkaways shows whether access problems are recycling demand.', 'مراقبة العودة مع المغادرة تُظهر إن كان ضغط الوصول يعيد الطلب.'),
+    });
+  }
+
+  if (/factor|contribut|delay|why/.test(q) && !/what if|increase by|decrease by/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Delay factors at ${name} in ${year}`, `عوامل التأخير في ${name} عام ${year}`),
+      observation: tx(lang, `Door-to-provider ${waitNow.toFixed(1)} minutes (${delta >= 0 ? '+' : ''}${delta.toFixed(1)} vs prior) · boarding ${(boardingShare * 100).toFixed(1)}% · left ${(current.edLeft / Math.max(current.edArrivals, 1) * 100).toFixed(1)}%.`, `الوصول للطبيب ${waitNow.toFixed(1)} دقيقة.`),
+      evidence: tx(lang, `Peak hours ${peakLine}. ESI-1+2 ${(current.acuity1 + current.acuity2).toLocaleString('en-US')} of ${current.edArrivals.toLocaleString('en-US')} visits.`, `ساعات الذروة ${peakLine}.`),
+      explanation: tx(lang, 'Potential reasons (not proven causes): (1) peak-hour arrival concentration, (2) high ESI-3 queue volume, (3) boarding after admit decisions occupying bays. Hospital bed occupancy is outside ED ownership here.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Cover ${peaks[0]?.name ?? 'peak'} first-provider capacity, clear visits boarding beyond 4 hours, then re-measure door-to-provider and left-without-care.`, `غطِّ ذروة أول طبيب وامسح حالات الـboarding.`),
+      role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
+      benefit: tx(lang, 'Separating wait, boarding, and walkaways keeps actions proportionate to the actual delay.', 'فصل الانتظار والـboarding والمغادرة يبقي الإجراءات متناسبة.'),
+    });
+  }
+
+  if (/investigate today|manager|what should|priorit/.test(q)) {
     const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Emergency' && alert.severity !== 'info');
     const lines = hot.map((alert) => `${alert.severity}: ${alert.title} ${alert.observed}`).join('; ') || 'No medium-or-higher emergency alert';
+    const top = hot[0];
     return pack(lang, {
-      title: tx(lang, `ED manager review for ${name} in ${year}`, `مراجعة مدير الطوارئ لـ ${name} عام ${year}`),
+      title: tx(lang, `Emergency Director priorities · ${name} ${year}`, `أولويات مدير الطوارئ · ${name} ${year}`),
       observation: tx(lang, lines, lines),
-      evidence: tx(lang, `Door-to-provider ${waitNow.toFixed(1)} minutes (was ${waitThen.toFixed(1)}). Arrivals ${current.edArrivals.toLocaleString('en-US')}. Peak hours ${peakLine}.`, `الوصول للطبيب ${waitNow.toFixed(1)} دقيقة.`),
-      explanation: tx(lang, 'Priority is threshold detection on this hospital and full year. Alerts use the annual figures even when the dashboard period is a quarter.', 'الأولوية رصد عتبة لهذا المستشفى والسنة الكاملة.'),
-      action: tx(lang, hot[0]?.action ?? 'Review peak arrival hours against door-to-provider median.', hot[0]?.action ?? 'راجع ساعات الذروة.'),
+      evidence: tx(lang, `Door-to-provider ${waitNow.toFixed(1)} minutes (was ${waitThen.toFixed(1)}). Arrivals ${current.edArrivals.toLocaleString('en-US')}. Peak hours ${peakLine}. Boarding ${(boardingShare * 100).toFixed(1)}%.`, `الوصول للطبيب ${waitNow.toFixed(1)} دقيقة.`),
+      explanation: tx(lang, 'Priority follows documented review lines for this hospital and full year. Quarterly dashboards can differ from the annual alert clock.', 'الأولوية تتبع خطوط المراجعة السنوية.'),
+      action: tx(lang, top
+        ? `${top.action} Owner: ${top.owner}. Then monitor ${top.followUp}.`
+        : `Align first-provider coverage to ${peaks[0]?.name ?? 'peak hours'} while median wait is ${waitNow.toFixed(1)} minutes.`, top?.action ?? 'راجع ساعات الذروة.'),
       role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
-      benefit: tx(lang, 'A focused review list keeps the team on ED-owned signals.', 'قائمة مراجعة مركزة تبقي الفريق على إشارات الطوارئ.'),
+      benefit: tx(lang, top?.consequence ?? 'Focusing on the open high signal prevents spreading effort across every chart.', top?.consequence ?? 'التركيز على الإشارة العالية يمنع تشتيت الجهد.'),
     });
   }
 
@@ -180,9 +240,9 @@ function answerEmergency(
     observation: tx(lang, /how many|visit/.test(q)
       ? `${current.edArrivals.toLocaleString('en-US')} emergency visits in ${year}.`
       : `Door-to-provider median is ${waitNow.toFixed(1)} minutes (P90 ${current.edWaitP90Min.toFixed(1)}). Change versus ${year === 2024 ? '2024 baseline' : year - 1}: ${delta >= 0 ? '+' : ''}${delta.toFixed(1)} minutes.`, `وسيط الوصول للطبيب ${waitNow.toFixed(1)} دقيقة.`),
-    evidence: tx(lang, `${current.edArrivals.toLocaleString('en-US')} visits · admitted ${current.edAdmitted.toLocaleString('en-US')} · discharged ${current.edDischarged.toLocaleString('en-US')} · left ${current.edLeft.toLocaleString('en-US')}.`, `${current.edArrivals.toLocaleString('en-US')} زيارة.`),
-    explanation: tx(lang, `Hypothesis, not a proven cause: median moved ${delta.toFixed(1)} minutes versus prior year alongside peak hours ${peakLine}. Inpatient occupancy is not used as an emergency indicator.`, `فرضية وليست سبباً مثبتاً.`),
-    action: tx(lang, 'Review the peak arrival hours against the door-to-provider median. Expected impact is not calculated.', 'راجع ساعات ذروة الوصول مقابل وسيط الوصول للطبيب.'),
+    evidence: tx(lang, `${current.edArrivals.toLocaleString('en-US')} visits · admitted ${current.edAdmitted.toLocaleString('en-US')} · discharged ${current.edDischarged.toLocaleString('en-US')} · left ${current.edLeft.toLocaleString('en-US')}. Peak hours ${peakLine}.`, `${current.edArrivals.toLocaleString('en-US')} زيارة.`),
+    explanation: tx(lang, `Potential reasons (not proven): median moved ${delta.toFixed(1)} minutes versus prior year with peak load at ${peaks[0]?.name ?? 'busy hours'}. Bed occupancy is not used as an emergency indicator.`, `أسباب محتملة وليست مثبتة.`),
+    action: tx(lang, `Align first-provider coverage to ${peaks[0]?.name ?? 'peak hours'} and re-check door-to-provider against the 60-minute review line.`, `واءم تغطية أول طبيب مع ساعات الذروة.`),
     role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
     benefit: tx(lang, 'Shorter first-provider waits protect flow and reduce walkaways.', 'قصر زمن الوصول للطبيب يحمي التدفق.'),
   });
@@ -190,7 +250,7 @@ function answerEmergency(
 
 function answerBeds(
   q: string,
-  _hospital: string,
+  hospital: string,
   year: number,
   name: string,
   lang: Lang,
@@ -255,12 +315,30 @@ function answerBeds(
   if (/request|assign|waiting longest|delay/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Bed assignment at ${name} in ${year}`, `تخصيص الأسرة في ${name} عام ${year}`),
-      observation: tx(lang, `Assignment median ${assignMin.toFixed(0)} minutes. Pending requests are constructed as a share of admissions in this demo.`, `وسيط التخصيص ${assignMin.toFixed(0)} دقيقة.`),
-      evidence: tx(lang, `Vacant ${current.availableBeds}, blocked ${current.blockedBeds}, admissions ${current.admissions.toLocaleString('en-US')}. Assignment time is not door-to-provider wait.`, `الشاغر ${current.availableBeds}.`),
-      explanation: tx(lang, 'Hypothesis: requests wait longer when vacant ready beds are scarce or blocked beds rise. Patient-level request aging is not stored.', 'فرضية: الطلبات تنتظر أطول عندما يقل الجاهز.'),
-      action: tx(lang, 'Prioritize unallocated requests against the next expected releases.', 'أعطِ أولوية للطلبات غير المخصصة مقابل حالات الخروج المتوقعة التالية.'),
+      observation: tx(lang, `Assignment median ${assignMin.toFixed(0)} minutes. Vacant ready ${current.availableBeds}. Blocked ${current.blockedBeds}.`, `وسيط التخصيص ${assignMin.toFixed(0)} دقيقة.`),
+      evidence: tx(lang, `Occupied ${current.occupiedBeds}, vacant ${current.availableBeds}, blocked ${current.blockedBeds} sum to staffed ${current.staffedBeds}. Tightest ward ${top?.id ?? 'n/a'}. Assignment time is not door-to-provider wait.`, `الشاغر ${current.availableBeds}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): scarce vacant ready beds, blocked share awaiting cleaning, and competing requests on high-occupancy wards.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Prioritize unallocated requests on ${top?.id ?? 'the fullest ward'} against the next expected releases, and return blocked beds to vacant before adding staffed capacity.`, 'أعطِ أولوية للطلبات غير المخصصة.'),
       role: tx(lang, 'Bed management lead', 'قائد إدارة الأسرة'),
-      benefit: tx(lang, 'Faster assignment reduces placement backlog.', 'التخصيص الأسرع يقلل تراكم الانتظار.'),
+      benefit: tx(lang, 'Faster assignment reduces placement backlog and protects emergency outflow labeled only when bed clocks improve.', 'التخصيص الأسرع يقلل تراكم الانتظار.'),
+    });
+  }
+
+  if (/priorit|manager|what should/.test(q)) {
+    const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Beds' && alert.severity !== 'info');
+    const topAlert = hot[0];
+    return pack(lang, {
+      title: tx(lang, `Bed Manager priorities · ${name} ${year}`, `أولويات مدير الأسرة · ${name} ${year}`),
+      observation: tx(lang, topAlert
+        ? `${topAlert.severity}: ${topAlert.title} ${topAlert.observed}`
+        : `Occupancy ${(occ * 100).toFixed(1)}% · vacant ${current.availableBeds} · blocked ${current.blockedBeds}`, topAlert ? `${topAlert.title}` : `الإشغال ${(occ * 100).toFixed(1)}٪`),
+      evidence: tx(lang, `Tightest ward ${top?.id ?? 'n/a'}. Assignment median ${assignMin.toFixed(0)} minutes. Occupied + vacant + blocked = ${current.staffedBeds} staffed.`, `أضيق جناح ${top?.id ?? 'n/a'}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): high occupancy on key wards, blocked beds out of the ready pool, and assignment delay on pending requests.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, topAlert
+        ? `${topAlert.action} Then monitor ${topAlert.followUp}.`
+        : `Clear blocked beds on ${top?.id ?? 'the fullest ward'}, prioritize pending requests, then re-check occupancy and assignment median.`, topAlert?.action ?? 'حرّر الأسرة المغلقة.'),
+      role: tx(lang, 'Bed management lead', 'قائد إدارة الأسرة'),
+      benefit: tx(lang, topAlert?.consequence ?? 'Restoring vacant ready beds is usually the fastest capacity lever before adding staffed beds.', 'إعادة الشاغر الجاهز أسرع رافعة.'),
     });
   }
 
@@ -268,8 +346,8 @@ function answerBeds(
     title: tx(lang, `Beds & capacity at ${name} in ${year}`, `الأسرة والطاقة في ${name} عام ${year}`),
     observation: tx(lang, `Occupancy ${(occ * 100).toFixed(1)}% · vacant ${current.availableBeds} · blocked ${current.blockedBeds} · assignment median ${assignMin.toFixed(0)} minutes.`, `الإشغال ${(occ * 100).toFixed(1)}٪.`),
     evidence: tx(lang, `Staffed ${current.staffedBeds}. Occupied + vacant + blocked reconcile. Tightest ward ${top?.id ?? 'n/a'}.`, `المجهز ${current.staffedBeds}.`),
-    explanation: tx(lang, 'Hypothesis: occupancy, blocked beds, and assignment delay describe capacity pressure together. ED wait is not substituted here.', 'فرضية: الإشغال والمغلق وتأخر التخصيص تصف ضغط الطاقة معاً.'),
-    action: tx(lang, 'Review the fullest wards and blocked beds before opening extra operational beds.', 'راجع الأجنحة الأكثر امتلاءً والأسرة المغلقة.'),
+    explanation: tx(lang, 'Potential reasons (not proven): occupancy, blocked beds, and assignment delay describe capacity pressure together. ED wait is not substituted here.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, `Review ${top?.id ?? 'the fullest ward'} and blocked beds before opening extra operational beds.`, 'راجع الجناح الأكثر امتلاءً والأسرة المغلقة.'),
     role: tx(lang, 'Bed management lead', 'قائد إدارة الأسرة'),
     benefit: tx(lang, 'Balanced occupancy and readiness protect placement speed.', 'توازن الإشغال والجاهزية يحمي سرعة التخصيص.'),
   });
@@ -358,21 +436,39 @@ function answerInpatient(
   if (/readmit|return|30.?day|7.?day/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Readmissions at ${name} in ${year}`, `إعادة التنويم في ${name} عام ${year}`),
-      observation: tx(lang, `Unplanned 30-day return share about ${(readmit * 100).toFixed(1)}% of discharges (constructed). 7-day share about ${(readmit * 42).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً حوالي ${(readmit * 100).toFixed(1)}٪.`),
+      observation: tx(lang, `Unplanned 30-day return share about ${(readmit * 100).toFixed(1)}% of discharges. 7-day share about ${(readmit * 42).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً حوالي ${(readmit * 100).toFixed(1)}٪.`),
       evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Visits are not linked patient-by-patient in this demo.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
-      explanation: tx(lang, 'Hypothesis: specialties with longer stays show higher return shares in this story. Severity is not adjusted.', 'فرضية: التخصصات ذات الإقامة الأطول تظهر حصص عودة أعلى في هذه القصة.'),
-      action: tx(lang, 'Review discharge instructions and follow-up plans for specialties with the highest return share.', 'راجع تعليمات الخروج وخطط المتابعة للتخصصات الأعلى عودة.'),
+      explanation: tx(lang, 'Potential reasons (not proven): specialties with longer stays show higher return shares in this story. Severity is not adjusted.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review discharge instructions and follow-up plans for ${longest.id} and other high-return specialties.`, 'راجع تعليمات الخروج وخطط المتابعة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
       benefit: tx(lang, 'Focusing follow-up on high-return groups may reduce unplanned returns.', 'تركيز المتابعة على المجموعات الأعلى عودة قد يقلل العودة غير المخططة.'),
+    });
+  }
+
+  if (/priorit|attention|manager|what should|improve discharge|coordination/.test(q)) {
+    const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Inpatient' && alert.severity !== 'info');
+    const topAlert = hot[0];
+    return pack(lang, {
+      title: tx(lang, `Inpatient management attention · ${name} ${year}`, `اهتمام إدارة التنويم · ${name} ${year}`),
+      observation: tx(lang, topAlert
+        ? `${topAlert.severity}: ${topAlert.title} ${topAlert.observed}`
+        : `Median stay ${losNow.toFixed(1)} days · ready-but-not-discharged ~${readyNotDischarged} · 30-day returns ${(readmit * 100).toFixed(1)}%`, topAlert ? topAlert.title : `وسيط الإقامة ${losNow.toFixed(1)}`),
+      evidence: tx(lang, `Longest specialty ${longest.id} at ${longest.los.toFixed(1)} days. Admissions ${current.admissions.toLocaleString('en-US')}, discharges ${current.discharges.toLocaleString('en-US')}.`, `أطول تخصص ${longest.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): prolonged specialty stays, ready patients not yet discharged, and unplanned returns after discharge.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, topAlert
+        ? `${topAlert.action} Monitor ${topAlert.followUp}. AI does not decide medical readiness.`
+        : `Review ${longest.id} long-stay lists and the ~${readyNotDischarged} ready-but-not-discharged patients with the care team. AI does not decide medical readiness.`, topAlert?.action ?? 'راجع قوائم الإقامة الطويلة.'),
+      role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
+      benefit: tx(lang, topAlert?.consequence ?? 'Clearing confirmed discharge barriers and long stays frees census without claiming bed-occupancy ownership.', 'إزالة عوائق الخروج تحرر التعداد.'),
     });
   }
 
   return pack(lang, {
     title: tx(lang, `Inpatient care at ${name} in ${year}`, `رعاية التنويم في ${name} عام ${year}`),
     observation: tx(lang, `Admissions ${current.admissions.toLocaleString('en-US')} · median stay ${losNow.toFixed(1)} days · ready-but-not-discharged ~${readyNotDischarged} · 30-day returns ~${(readmit * 100).toFixed(1)}%.`, `القبول ${current.admissions.toLocaleString('en-US')}.`),
-    evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}, deaths ${current.deaths.toLocaleString('en-US')}. Census uses occupied beds as a patient-count proxy, not an occupancy rate.`, `الخروج ${current.discharges.toLocaleString('en-US')}.`),
-    explanation: tx(lang, 'Hypothesis: LOS, discharge delays, and returns describe inpatient flow together. Bed occupancy remains a Beds measure.', 'فرضية: مدة الإقامة وتأخر الخروج والعودة تصف تدفق التنويم معاً.'),
-    action: tx(lang, 'Open Stay & Discharge for LOS and delays, then Care Progress & Outcomes for returns.', 'افتح الإقامة والخروج ثم التقدم والنتائج.'),
+    evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}, deaths ${current.deaths.toLocaleString('en-US')}. Census is a patient count, not a bed occupancy rate.`, `الخروج ${current.discharges.toLocaleString('en-US')}.`),
+    explanation: tx(lang, 'Potential reasons (not proven): LOS, discharge delays, and returns describe inpatient flow together. Bed occupancy remains a Beds measure.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, `Review ${longest.id} long stays on Stay & Discharge, then returns on Care Progress & Outcomes.`, 'راجع الإقامات الطويلة ثم العودة.'),
     role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
     benefit: tx(lang, 'Coordinated inpatient review improves discharge readiness without AI deciding readiness alone.', 'مراجعة تنويم منسقة تحسّن جاهزية الخروج دون أن يقرر الذكاء الاصطناعي وحده.'),
   });
@@ -381,19 +477,24 @@ function answerInpatient(
 function unsupported(lang: Lang, name: string, year: number, department: string): AssistantAnswer {
   return pack(lang, {
     title: tx(lang, 'This question is outside the simulated set', 'هذا السؤال خارج المجموعة المحاكاة'),
-    observation: tx(lang, `No prepared answer matched this wording for ${department} at ${name} in ${year}.`, `لا جواب معد يطابق هذه الصياغة.`),
-    evidence: tx(lang, 'Vital Assist uses prepared operational logic. It is not a live language model.', 'Vital Assist يستخدم منطقاً تشغيلياً معداً. ليس نموذج لغة حياً.'),
-    explanation: tx(lang, 'Unsupported questions stay explicit. No fabricated evidence is invented.', 'الأسئلة غير المدعومة تبقى صريحة.'),
-    action: tx(lang, 'Try a supported question for the current domain, or open Review on an open alert.', 'جرّب سؤالاً مدعوماً للدومين الحالي أو افتح مراجعة على تنبيه مفتوح.'),
-    role: tx(lang, 'Demonstration guide', 'دليل العرض'),
-    benefit: tx(lang, 'Explicit limits keep management trust.', 'الحدود الصريحة تحافظ على ثقة الإدارة.'),
+    observation: tx(lang, `No management answer matched this wording for ${department} at ${name} in ${year}.`, `لا جواب إداري يطابق هذه الصياغة.`),
+    evidence: tx(lang, 'Vital Assist answers from the selected hospital scenario. It does not invent figures outside that scenario.', 'Vital Assist يجيب من سيناريو المستشفى المحدد. لا يختلق أرقاماً خارجه.'),
+    explanation: tx(lang, 'When evidence is missing, the limitation is stated. No fabricated drivers are offered.', 'عند غياب الدليل تُذكر الحدود. لا تُعرض أسباب مختلقة.'),
+    action: tx(lang, 'Ask a domain question about the open indicators, or open Review on an alert.', 'اسأل سؤالاً عن مؤشرات الدومين أو افتح مراجعة على تنبيه.'),
+    role: tx(lang, 'Operations advisor', 'مستشار العمليات'),
+    benefit: tx(lang, 'Clear limits protect decision quality.', 'الحدود الواضحة تحمي جودة القرار.'),
   });
 }
 
-function pack(lang: Lang, body: Omit<AssistantAnswer, 'approval' | 'outcome'>): AssistantAnswer {
+function pack(
+  lang: Lang,
+  body: Omit<AssistantAnswer, 'approval' | 'outcome'> & { outcomeOverride?: string },
+): AssistantAnswer {
+  const { outcomeOverride, ...rest } = body;
   return {
-    ...body,
-    approval: tx(lang, 'Human review required: approve, reject, or defer in Decide. Approval is demo-only in this browser and is not measured improvement.', 'مراجعة بشرية مطلوبة: اعتمد أو ارفض أو أجّل في Decide. الاعتماد للعرض فقط وليس تحسناً مقيساً.'),
-    outcome: tx(lang, 'Illustrative outlook only. Track the follow-up indicator separately from any estimated impact. Not a validated forecast.', 'توقعات توضيحية فقط. تابع مؤشر المتابعة منفصلاً عن أي أثر مقدّر. ليس توقعاً متحققاً.'),
+    ...rest,
+    approval: tx(lang, 'Management decision: approve, reject, or defer in Decide. An approval records intent only — it is not measured improvement.', 'قرار إداري: اعتمد أو ارفض أو أجّل في Decide. الاعتماد يسجل النية فقط وليس تحسناً مقيساً.'),
+    outcome: outcomeOverride
+      ?? tx(lang, 'Expected impact is illustrative. Monitor the follow-up indicator separately. Not a validated forecast.', 'الأثر المتوقع توضيحي. راقب مؤشر المتابعة منفصلاً. ليس توقعاً متحققاً.'),
   };
 }

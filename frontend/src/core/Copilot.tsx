@@ -1,10 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { answerQuestion } from '@/showcase/assistant';
 import { tx } from '@/showcase/copy';
 import { HOSPITALS } from '@/showcase/engine';
 import { decisionKey, useShowcase } from '@/showcase/state';
+import { runWhatIf, WHAT_IF_PROMPTS, type DomainName as WhatIfDomain } from '@/showcase/whatIf';
 import { alertsFor, visibleAlerts, type AlertStatus, type DemoAlert, type Severity } from './alerts';
+import { usePeriod } from './period';
 
 type Tab = 'overview' | 'alerts' | 'investigate' | 'predictions' | 'actions' | 'approvals' | 'ask';
 
@@ -221,10 +223,10 @@ export function CopilotPanel() {
         {copilot.tab === 'overview' ? <Overview alerts={alerts} selected={selected} /> : null}
         {copilot.tab === 'alerts' ? <AlertFeed alerts={alerts} statusOf={statusOf} /> : null}
         {copilot.tab === 'investigate' ? <Investigate alert={selected} status={selected ? statusOf(selected) : 'new'} /> : null}
-        {copilot.tab === 'predictions' ? <Prediction alert={selected} /> : null}
+        {copilot.tab === 'predictions' ? <Prediction alert={selected} department={domain.department} /> : null}
         {copilot.tab === 'actions' ? <Actions alert={selected} mode="recommend" department={domain.department} /> : null}
         {copilot.tab === 'approvals' ? <DecisionReview alert={selected} department={domain.department} /> : null}
-        {copilot.tab === 'ask' ? <Ask label={name ?? store.hospital} department={domain.department} askScope={domain.askScope} /> : null}
+        {copilot.tab === 'ask' ? <Ask label={name ?? store.hospital} department={domain.department} askScope={domain.askScope} page={page} /> : null}
       </div>
     </aside>
   );
@@ -237,7 +239,7 @@ function Overview({ alerts, selected }: { alerts: DemoAlert[]; selected: DemoAle
     <div className="gc-assist-stack">
       <section className="gc-assist-card">
         <h3>Decision support</h3>
-        <p>Prepared operational logic for this domain and screen. Drivers are hypotheses. Forecasts are illustrative, not validated models.</p>
+        <p>Investigate the open signal, explore an illustrative what-if, then approve or defer an action. Drivers are hypotheses. Outlooks are not validated forecasts.</p>
       </section>
       <section className={`gc-assist-card ${selected ? 'gc-tone-watch' : 'gc-tone-neutral'}`}>
         <h3>Primary signal</h3>
@@ -321,22 +323,60 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
   );
 }
 
-function Prediction({ alert }: { alert: DemoAlert | null }) {
-  if (!alert) return <section className="gc-assist-card"><p>No signal is selected.</p></section>;
+function Prediction({ alert, department }: { alert: DemoAlert | null; department: DomainName }) {
+  const store = useShowcase();
+  const options = WHAT_IF_PROMPTS[department];
+  const [selected, setSelected] = useState(options[0]);
+  useEffect(() => {
+    setSelected(WHAT_IF_PROMPTS[department][0]);
+  }, [department]);
+  const fromPrompt = useMemo(
+    () => answerQuestion(selected, store.hospital, store.year, department, 'en'),
+    [department, selected, store.hospital, store.year],
+  );
+  const fallback = useMemo(
+    () => runWhatIf(department as WhatIfDomain, store.hospital, store.year, null),
+    [department, store.hospital, store.year],
+  );
+  const lines = [fromPrompt.observation, fromPrompt.evidence, fromPrompt.explanation, fromPrompt.action, fromPrompt.outcome];
+
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
-        <h3>Illustrative outlook</h3>
-        <p><strong>Horizon:</strong> next review period within {alert.period}.</p>
-        <p><strong>Inputs:</strong> {alert.title} at {alert.observed}; threshold {alert.threshold}.</p>
-        <p><strong>Method:</strong> scenario continuation — if the observed level holds, pressure stays similar.</p>
-        <p><strong>Expected range:</strong> not quantified. No confidence score is claimed.</p>
-        <p><strong>Limitation:</strong> not a validated predictive model. No clinical or financial validation is claimed.</p>
+        <h3>What-if scenarios</h3>
+        <p>Illustrative only for {store.hospital} · {store.year} · {department}. Not a validated forecast.</p>
+        <div className="gc-inline" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+          {options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={`gc-chip-btn ${selected === option ? 'is-good' : 'is-mute'}`}
+              aria-pressed={selected === option}
+              onClick={() => setSelected(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
       </section>
       <section className="gc-assist-card gc-tone-watch">
-        <h3>Comparison</h3>
-        <p>{alert.comparison}</p>
+        <h3>{fromPrompt.title}</h3>
+        {lines.map((line) => <p key={line.slice(0, 48)}>{line}</p>)}
       </section>
+      {alert ? (
+        <section className="gc-assist-card">
+          <h3>Linked alert</h3>
+          <p>{alert.title}: {alert.observed} · {alert.period}</p>
+          <p>Threshold: {alert.threshold}</p>
+          <p>Follow-up if you act: {alert.followUp}</p>
+        </section>
+      ) : (
+        <section className="gc-assist-card">
+          <h3>Baseline scenario</h3>
+          <p>{fallback.current}</p>
+          <p>{fallback.estimated}</p>
+        </section>
+      )}
     </article>
   );
 }
@@ -347,25 +387,30 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
   if (!alert) return <section className="gc-assist-card"><p>No recommendation is selected.</p></section>;
   const key = decisionKey(alert.kpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
+  const sketch = runWhatIf(department as WhatIfDomain, store.hospital, store.year, null);
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
         <h3>Recommended action</h3>
-        <p><strong>Problem:</strong> {alert.title} is {alert.observed} ({alert.severity}).</p>
-        <p><strong>Action:</strong> {alert.action}</p>
-        <p><strong>Evidence:</strong> {alert.evidence}</p>
-        <p><strong>Why it may help:</strong> {alert.consequence}</p>
-        <p><strong>Expected effect:</strong> not calculated. Impact remains an estimate until measured.</p>
-        <p><strong>Uncertainty:</strong> illustrative scenario logic only.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : ''}</p>
-        <p><strong>Owner:</strong> {alert.owner}</p>
+        <p><strong>Problem:</strong> {alert.title} is {alert.observed} ({alert.severity}) for {alert.hospital} · {alert.period}.</p>
+        <p><strong>Supporting evidence:</strong> {alert.evidence}</p>
+        <p><strong>Possible contributing factors:</strong> {alert.drivers} These are hypotheses, not proven causes.</p>
+        <p><strong>Recommended action:</strong> {alert.action}</p>
+        <p><strong>Expected benefit:</strong> {alert.consequence}</p>
+        <p><strong>Illustrative scenario:</strong> {sketch.change} → {sketch.estimated}</p>
+        <p><strong>Assumptions:</strong> {sketch.assumptions}</p>
         <p><strong>Priority:</strong> {alert.severity}</p>
+        <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
-        <p><strong>Follow-up indicator:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}</p>
+        <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : ''}</p>
       </section>
-      {mode === 'decide' ? null : (
-        <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
-      )}
+      <div className="gc-inline">
+        {mode === 'decide' ? null : (
+          <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
+        )}
+        <button type="button" className="gc-chip-btn is-watch" onClick={() => copilot.setTab('predictions')}>Explore what-if</button>
+      </div>
     </article>
   );
 }
@@ -462,32 +507,38 @@ type ChatMessage = {
   body: string[];
 };
 
-function Ask({ label, department, askScope }: { label: string; department: DomainName; askScope: string }) {
+function Ask({ label, department, askScope, page }: { label: string; department: DomainName; askScope: string; page: string }) {
   const store = useShowcase();
+  const { period } = usePeriod();
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
   const beds = department === 'Beds';
   const ipd = department === 'Inpatient';
+  const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const prompts = beds
-    ? ['Which wards have the greatest capacity pressure?', 'How many beds are currently available?', 'What is slowing down bed readiness?']
+    ? ['Which wards have the greatest capacity pressure?', 'Why are bed assignments delayed?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
     : ipd
-      ? ['Which clinical groups have prolonged stays?', 'Where are discharge delays increasing?', 'How has length of stay changed?']
-      : ['Why has the door-to-provider wait increased?', 'When is patient demand highest?', 'What explains the boarding trend?'];
-  const [messages, setMessages] = useState<ChatMessage[]>([{
-    id: 'welcome',
-    role: 'assistant',
-    title: 'Vital Assist',
-    body: [
-      `Prepared answers for ${label}, ${store.year}, ${askScope}. This is not a live language model.`,
-      beds
-        ? 'Ask about occupancy, vacant beds, blocked beds, allocation, or shortfall.'
-        : ipd
-          ? 'Ask about admissions, length of stay, delayed discharge, or readmissions.'
-          : 'Ask about arrivals, waiting time, boarding, or disposition.',
-      `Try: ${prompts[0]}`,
-    ],
-  }]);
+      ? ['Why is the average length of stay increasing?', 'Which specialties have the longest stays?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
+      : ['Why is emergency waiting time increasing?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      title: 'Vital Assist',
+      body: [
+        `${askScope} · ${label} · ${periodLabel} · ${page}.`,
+        beds
+          ? 'Ask about occupancy, blocked beds, assignment delays, or capacity what-if scenarios.'
+          : ipd
+            ? 'Ask about length of stay, delayed discharge, specialty long stays, or discharge what-if scenarios.'
+            : 'Ask about arrivals, waiting time, boarding, walkaways, or demand what-if scenarios.',
+        'Answers use this hospital scenario. Unsupported questions stay explicit.',
+      ],
+    }]);
+  }, [askScope, beds, ipd, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -508,11 +559,12 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
         body: [
           `What happened: ${answer.observation}`,
           `Why it matters: ${answer.benefit}`,
+          `Potential reasons: ${answer.explanation}`,
           `Supporting evidence: ${answer.evidence}`,
-          `Potential drivers: ${answer.explanation}`,
-          `What may happen next: ${answer.outcome}`,
-          `Recommended actions: ${answer.action} · Owner: ${answer.role}`,
-          `Human review: ${answer.approval}`,
+          `Recommended actions: ${answer.action}`,
+          `Expected impact: ${answer.outcome}`,
+          `Management decision: ${answer.approval}`,
+          `Follow-up: Monitor the indicators named above after the next peak or reporting checkpoint (${periodLabel}).`,
         ].filter(Boolean),
       }]);
       setTyping(false);
@@ -556,7 +608,7 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={beds ? 'Ask about this Beds & Capacity view…' : ipd ? 'Ask about this Inpatient Care view…' : 'Ask about this Emergency view…'}
+          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : 'Ask the Emergency Director view…'}
           aria-label="Message Vital Assist"
           disabled={typing}
         />
