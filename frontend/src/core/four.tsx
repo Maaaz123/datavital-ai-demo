@@ -121,7 +121,7 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
     <article className="gc-command gc-ed">
       <header className="gc-command-head">
         <div>
-          <p className="gc-kicker">Emergency Department</p>
+          <p className="gc-kicker">Emergency</p>
           <h1>{title}</h1>
         </div>
       </header>
@@ -314,20 +314,20 @@ export function OverviewPage() {
   const leftRate = view.arrivals ? view.left / view.arrivals : 0;
   const boardRate = view.admitted ? view.boarding / view.admitted : 0;
   return (
-    <Page title="Emergency Overview" kpis={[
-      score('Total ED Visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'ED arrivals in the selected period.', `${num(view.arrivals)} visits.`, undefined, 'neutral'),
-      score('High-Acuity Arrivals', num(view.acuity[0] + view.acuity[1]), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 arrivals. This is arrival volume, not a count of patients waiting.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
-      score('Door-to-Provider Median', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Time from arrival to the first provider. This is not length of stay and not boarding.', `Median ${num(view.median, 1)} minutes.`, undefined, waitTone(view.median)),
-      score('ED Length of Stay', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Median time from arrival until the visit leaves the department. Admitted and discharged stays are not separated. This is not inpatient length of stay.', `Median ${num(view.losMedian, 0)} minutes.`, 'value-kpi_ed_avg_los_hours', view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
-      score('Left Without Being Seen', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by emergency visits.', `${num(view.left)} of ${num(view.arrivals)} visits.`, undefined, rateTone(leftRate, 0.015, 0.025)),
-      score('Boarding Beyond 4 Hours', pct(boardRate), compare(view, prior, (item) => item.admitted ? item.boarding / item.admitted : 0, true), 'Admitted visits still in the department more than 4 hours after the admit decision, divided by emergency admissions. This is not hospital bed occupancy.', `${num(view.boarding)} of ${num(view.admitted)} admissions.`, undefined, rateTone(boardRate, 0.04, 0.08)),
+    <Page title="Emergency Snapshot" kpis={[
+      score('Emergency visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'Emergency arrivals in the selected period.', `${num(view.arrivals)} visits.`, undefined, 'neutral'),
+      score('Most urgent arrivals', num(view.acuity[0] + view.acuity[1]), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 arrivals. This is arrival volume, not a count of patients waiting.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
+      score('Time to first doctor', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Time from arrival to the first provider. This is not length of stay and not boarding.', `Median ${num(view.median, 1)} minutes.`, undefined, waitTone(view.median)),
+      score('Time in emergency', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Median time from arrival until the visit leaves the department. Admitted and discharged stays are not separated. This is not inpatient length of stay.', `Median ${num(view.losMedian, 0)} minutes.`, 'value-kpi_ed_avg_los_hours', view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
+      score('Left without care', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by emergency visits.', `${num(view.left)} of ${num(view.arrivals)} visits.`, undefined, rateTone(leftRate, 0.015, 0.025)),
+      score('Admitted still waiting >4h', pct(boardRate), compare(view, prior, (item) => item.admitted ? item.boarding / item.admitted : 0, true), 'Admitted visits still in the department more than 4 hours after the admit decision, divided by emergency admissions. This is not hospital bed occupancy.', `${num(view.boarding)} of ${num(view.admitted)} admissions.`, undefined, rateTone(boardRate, 0.04, 0.08)),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'ED visits trend', view.labels, [{ name: 'Arrivals', values: view.monthlyArrivals }], 'visits', 'Monthly visits sum to the period total.')} />
+      <Slot span="span-8" figure={fig('area', 'Emergency visits over time', view.labels, [{ name: 'Visits', values: view.monthlyArrivals }], 'visits', 'Monthly visits sum to the period total.')} />
       <Alerts />
       <Slot figure={heatFig(view)} />
-      <Slot figure={fig('bars', 'Triage distribution', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Arrivals', values: view.acuity }], 'visits', 'The five ESI counts sum to arrivals.')} />
-      <Slot figure={fig('flow', 'Patient disposition', ['Arrivals', 'Admitted', 'Discharged', 'Left'], [{ name: 'Visits', values: [view.arrivals, view.admitted, view.discharged, view.left] }], 'visits', 'Admitted, discharged, and left sum to arrivals.')} />
-      <Slot figure={fig('bars', 'Boarding beyond 4 hours', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Visits still in the department after the admit decision. Counts sum to the period total.')} />
+      <Slot figure={fig('bars', 'Urgency mix on arrival', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Visits', values: view.acuity }], 'visits', 'The five ESI counts sum to arrivals.')} />
+      <Slot figure={fig('flow', 'How visits ended', ['Arrived', 'Admitted', 'Discharged', 'Left'], [{ name: 'Visits', values: [view.arrivals, view.admitted, view.discharged, view.left] }], 'visits', 'Admitted, discharged, and left sum to arrivals.')} />
+      <Slot figure={fig('bars', 'Admitted patients waiting >4h', view.labels, [{ name: 'Waiting', values: view.monthlyBoard }], 'patients', 'Visits still in the department after the admit decision. Counts sum to the period total.')} />
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Demand & Arrivals']} />
     </Page>
   );
@@ -340,19 +340,19 @@ export function FlowPage() {
   const leftRate = view.arrivals ? view.left / view.arrivals : 0;
   const peakTotal = view.peaks.reduce((sum, item) => sum + item.count, 0) || 1;
   return (
-    <Page title="Patient Flow & Waiting" kpis={[
-      score('Triage Completion', pct(triageRate), compare(view, prior, (item) => item.arrivals ? item.triageCompleted / item.arrivals : 0, true), 'Arrivals minus patients who left before triage, divided by arrivals.', `${num(view.triageCompleted)} triaged. ${num(view.before)} left before triage.`, undefined, rateTone(triageRate, 0.97, 0.95, false)),
-      score('Door-to-Provider Median', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Minutes from arrival to the first provider. This is not length of stay, disposition time, or boarding.', `Median ${num(view.median, 1)} minutes.`, undefined, waitTone(view.median)),
-      score('Door-to-Provider P90', `${num(view.p90, 1)} minutes`, compare(view, prior, (item) => item.p90), 'Door-to-provider 90th percentile for the same visits.', `P90 ${num(view.p90, 1)} minutes.`, undefined, view.p90 >= 100 ? 'alert' : view.p90 >= 80 ? 'watch' : 'good'),
-      score('ED Length of Stay Median', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Minutes from arrival until the visit leaves the department. Admitted and discharged stays are not separated.', `Median ${num(view.losMedian, 0)} minutes.`, undefined, view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
-      score('ED Length of Stay P90', `${num(view.losP90, 0)} minutes`, compare(view, prior, (item) => item.losP90), 'Length-of-stay P90 for the same visits. It is stored separately from the median.', `P90 ${num(view.losP90, 0)} minutes.`, undefined, view.losP90 >= 280 ? 'alert' : view.losP90 >= 220 ? 'watch' : 'good'),
-      score('ED Admission Rate', pct(view.arrivals ? view.admitted / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.admitted / item.arrivals : 0, true), 'Emergency visits with an admit decision divided by emergency visits. This is not inpatient bed occupancy.', `${num(view.admitted)} admitted.`, undefined, 'neutral'),
-      score('ED Discharge Rate', pct(view.arrivals ? view.discharged / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.discharged / item.arrivals : 0, true), 'Emergency visits discharged from the department divided by emergency visits.', `${num(view.discharged)} discharged.`, undefined, 'good'),
-      score('Left Without Being Seen', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by arrivals. Deaths stay inside the visit and are not another exit.', `${num(view.before)} before triage and ${num(view.after)} after triage.`, undefined, rateTone(leftRate, 0.015, 0.025)),
+    <Page title="Waiting & Patient Flow" kpis={[
+      score('Seen at triage', pct(triageRate), compare(view, prior, (item) => item.arrivals ? item.triageCompleted / item.arrivals : 0, true), 'Arrivals minus patients who left before triage, divided by arrivals.', `${num(view.triageCompleted)} triaged. ${num(view.before)} left before triage.`, undefined, rateTone(triageRate, 0.97, 0.95, false)),
+      score('Time to first doctor', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Minutes from arrival to the first provider. This is not length of stay, disposition time, or boarding.', `Median ${num(view.median, 1)} minutes.`, undefined, waitTone(view.median)),
+      score('Long waits (9 in 10)', `${num(view.p90, 1)} minutes`, compare(view, prior, (item) => item.p90), 'Door-to-provider 90th percentile for the same visits.', `P90 ${num(view.p90, 1)} minutes.`, undefined, view.p90 >= 100 ? 'alert' : view.p90 >= 80 ? 'watch' : 'good'),
+      score('Typical time in ED', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Minutes from arrival until the visit leaves the department. Admitted and discharged stays are not separated.', `Median ${num(view.losMedian, 0)} minutes.`, undefined, view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
+      score('Long stays (9 in 10)', `${num(view.losP90, 0)} minutes`, compare(view, prior, (item) => item.losP90), 'Length-of-stay P90 for the same visits. It is stored separately from the median.', `P90 ${num(view.losP90, 0)} minutes.`, undefined, view.losP90 >= 280 ? 'alert' : view.losP90 >= 220 ? 'watch' : 'good'),
+      score('Admitted from ED', pct(view.arrivals ? view.admitted / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.admitted / item.arrivals : 0, true), 'Emergency visits with an admit decision divided by emergency visits. This is not inpatient bed occupancy.', `${num(view.admitted)} admitted.`, undefined, 'neutral'),
+      score('Discharged from ED', pct(view.arrivals ? view.discharged / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.discharged / item.arrivals : 0, true), 'Emergency visits discharged from the department divided by emergency visits.', `${num(view.discharged)} discharged.`, undefined, 'good'),
+      score('Left without care', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by arrivals. Deaths stay inside the visit and are not another exit.', `${num(view.before)} before triage and ${num(view.after)} after triage.`, undefined, rateTone(leftRate, 0.015, 0.025)),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Hourly arrivals', view.hours.map((_, index) => `${index}`), [{ name: 'Arrivals', values: view.hours }], 'visits', 'The 24 hours sum to period arrivals.')} />
+      <Slot span="span-8" figure={fig('area', 'Arrivals by hour of day', view.hours.map((_, index) => `${index}`), [{ name: 'Visits', values: view.hours }], 'visits', 'The 24 hours sum to period arrivals.')} />
       <section className="gc-panel gc-insight span-4">
-        <h2>Peak demand</h2>
+        <h2>Busiest hours</h2>
         <div className="gc-peak-list">
           {view.peaks.map((item, index) => (
             <div key={item.name} className={`gc-peak ${index === 0 ? 'gc-peak-hot' : index === 1 ? 'gc-peak-warm' : 'gc-peak-cool'}`} style={{ animationDelay: `${index * 70}ms` }}>
@@ -366,14 +366,14 @@ export function FlowPage() {
         </div>
         <p className="gc-next">These hours stay inside the 24-hour arrival total.</p>
       </section>
-      <Slot figure={fig('bars', 'Arrivals by day of week', view.days.map((item) => item.name), [{ name: 'Arrivals', values: view.days.map((item) => item.count) }], 'visits', 'The seven days sum to period arrivals.')} />
-      <Slot figure={fig('bars', 'Waiting time distribution', view.bins.map((item) => item.name), [{ name: 'Arrivals', values: view.bins.map((item) => item.count) }], 'visits', 'Bins sum to arrivals around the period median.')} />
+      <Slot figure={fig('bars', 'Arrivals by weekday', view.days.map((item) => item.name), [{ name: 'Visits', values: view.days.map((item) => item.count) }], 'visits', 'The seven days sum to period arrivals.')} />
+      <Slot figure={fig('bars', 'How long until first doctor', view.bins.map((item) => item.name), [{ name: 'Visits', values: view.bins.map((item) => item.count) }], 'visits', 'Bins sum to arrivals around the period median.')} />
       <Slot figure={waitHeatFig(view)} />
-      <Slot figure={fig('flow', 'Patient journey', ['Arrivals', 'Triaged', 'Admitted', 'Discharged', 'Left before triage', 'Left after triage'], [{ name: 'Visits', values: [view.arrivals, view.triageCompleted, view.admitted, view.discharged, view.before, view.after] }], 'visits', 'Triaged visits exclude patients who left before triage.')} />
-      <Slot figure={fig('stacked', 'Triage by acuity and time', ['Night', 'Day', 'Evening'], view.acuity.map((value, index) => ({ name: `ESI-${index + 1}`, values: splitSafe(value, [0.22, 0.46, 0.32]) })), 'visits', 'ESI counts follow a fixed time pattern and still sum to arrivals. This is not a staffing roster.')} />
-      <Slot figure={fig('bars', 'Boarding beyond 4 hours', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Still in the department after the admit decision. The denominator is emergency admissions.')} />
+      <Slot figure={fig('flow', 'Patient path through ED', ['Arrived', 'Triaged', 'Admitted', 'Discharged', 'Left before triage', 'Left after triage'], [{ name: 'Visits', values: [view.arrivals, view.triageCompleted, view.admitted, view.discharged, view.before, view.after] }], 'visits', 'Triaged visits exclude patients who left before triage.')} />
+      <Slot figure={fig('stacked', 'Urgency by time of day', ['Night', 'Day', 'Evening'], view.acuity.map((value, index) => ({ name: `ESI-${index + 1}`, values: splitSafe(value, [0.22, 0.46, 0.32]) })), 'visits', 'ESI counts follow a fixed time pattern and still sum to arrivals. This is not a staffing roster.')} />
+      <Slot figure={fig('bars', 'Admitted patients waiting >4h', view.labels, [{ name: 'Waiting', values: view.monthlyBoard }], 'patients', 'Still in the department after the admit decision. The denominator is emergency admissions.')} />
       <section className="gc-panel gc-slot span-12">
-        <Donut title="Arrival mode" note="Walk-in, ambulance, transfer, and other sum to arrivals." parts={view.modes.map((item) => ({ name: item.name, value: item.count }))} wide />
+        <Donut title="How patients arrived" note="Walk-in, ambulance, transfer, and other sum to arrivals." parts={view.modes.map((item) => ({ name: item.name, value: item.count }))} wide />
       </section>
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Triage', 'ED Waiting Times', 'ED Flow & Disposition']} />
     </Page>
@@ -389,34 +389,34 @@ export function QualityPage() {
   const leftRate = view.arrivals ? view.left / view.arrivals : 0;
   const revisitRate = view.arrivals ? view.revisit / view.arrivals : 0;
   return (
-    <Page title="ED Quality & Outcomes" kpis={[
-      score('Unplanned 72-Hour Return', pct(revisitRate), 'Scenario share', 'A fixed 3.4% of emergency visits. Visits are not linked, and the denominator is arrivals rather than eligible discharges.', `${num(view.revisit)} return visits.`, undefined, rateTone(revisitRate, 0.03, 0.05)),
-      score('ED Mortality Count', num(view.deaths), compare(view, prior, (item) => item.deaths), 'Deaths in the emergency visit cohort. These are not inpatient deaths.', `${num(view.deaths)} deaths.`, undefined, view.deaths > 0 ? 'alert' : 'good'),
-      score('ED Mortality Rate', pct(mortality), deltaText(mortality, priorRate, true), 'Deaths divided by the same emergency visits.', `${num(view.deaths)} / ${num(view.arrivals)}.`, undefined, mortality > 0.001 ? 'alert' : mortality > 0 ? 'watch' : 'good'),
-      score('Left Without Being Seen', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by emergency visits.', `${num(view.left)} left.`, undefined, rateTone(leftRate, 0.015, 0.025)),
-      score('High-Acuity Arrivals', num(high), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 volume. Their time to first provider is not recorded separately.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
+    <Page title="Safety & Return Visits" kpis={[
+      score('Back within 72 hours', pct(revisitRate), 'Scenario share', 'A fixed 3.4% of emergency visits. Visits are not linked, and the denominator is arrivals rather than eligible discharges.', `${num(view.revisit)} return visits.`, undefined, rateTone(revisitRate, 0.03, 0.05)),
+      score('Deaths in emergency', num(view.deaths), compare(view, prior, (item) => item.deaths), 'Deaths in the emergency visit cohort. These are not inpatient deaths.', `${num(view.deaths)} deaths.`, undefined, view.deaths > 0 ? 'alert' : 'good'),
+      score('Death rate in emergency', pct(mortality), deltaText(mortality, priorRate, true), 'Deaths divided by the same emergency visits.', `${num(view.deaths)} / ${num(view.arrivals)}.`, undefined, mortality > 0.001 ? 'alert' : mortality > 0 ? 'watch' : 'good'),
+      score('Left without care', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by emergency visits.', `${num(view.left)} left.`, undefined, rateTone(leftRate, 0.015, 0.025)),
+      score('Most urgent arrivals', num(high), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 volume. Their time to first provider is not recorded separately.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Left and return visits', view.labels, [{ name: 'Left', values: view.monthlyLeft }, { name: 'Return visits', values: view.monthlyRevisit }], 'visits', 'Left visits sum to the period total. Returns are a 3.4% scenario share of arrivals.')} />
+      <Slot span="span-8" figure={fig('line', 'Walkaways and return visits', view.labels, [{ name: 'Left without care', values: view.monthlyLeft }, { name: 'Back within 72h', values: view.monthlyRevisit }], 'visits', 'Left visits sum to the period total. Returns are a 3.4% scenario share of arrivals.')} />
       <section className="gc-panel gc-insight span-4">
-        <h2>Quality exceptions</h2>
+        <h2>Safety watch list</h2>
         <div className="gc-exception-list">
           <div className={`gc-exception gc-tone-${rateTone(leftRate, 0.015, 0.025)}`}>
-            <strong>Left without being seen</strong>
+            <strong>Left without care</strong>
             <span>{pct(leftRate)} · {num(view.left)} visits</span>
           </div>
           <div className={`gc-exception gc-tone-${rateTone(revisitRate, 0.03, 0.05)}`}>
-            <strong>Unplanned 72-hour return</strong>
+            <strong>Back within 72 hours</strong>
             <span>{pct(revisitRate)} of arrivals, not of eligible discharges</span>
           </div>
           <div className={`gc-exception gc-tone-${mortality > 0 ? 'alert' : 'good'}`}>
-            <strong>Emergency mortality</strong>
+            <strong>Deaths in emergency</strong>
             <span>{pct(mortality)} · {num(view.deaths)} / {num(view.arrivals)}</span>
           </div>
         </div>
         <p className="gc-next">High-acuity waiting time, return visits that were admitted, and left against medical advice are not in this scenario.</p>
       </section>
-      <Slot figure={fig('bars', 'Emergency mortality', view.labels, [{ name: 'Deaths', values: view.monthlyDeaths }], 'deaths', `${num(view.deaths)} deaths among ${num(view.arrivals)} visits (${pct(mortality)}).`)} />
-      <Slot figure={fig('bars', 'High-acuity arrivals', ['ESI-1', 'ESI-2'], [{ name: 'Arrivals', values: [view.acuity[0], view.acuity[1]] }], 'visits', 'ESI-1 and ESI-2 are part of the five-level distribution. Their waits are not separate.')} />
+      <Slot figure={fig('bars', 'Deaths in emergency', view.labels, [{ name: 'Deaths', values: view.monthlyDeaths }], 'deaths', `${num(view.deaths)} deaths among ${num(view.arrivals)} visits (${pct(mortality)}).`)} />
+      <Slot figure={fig('bars', 'Most urgent arrivals', ['ESI-1', 'ESI-2'], [{ name: 'Visits', values: [view.acuity[0], view.acuity[1]] }], 'visits', 'ESI-1 and ESI-2 are part of the five-level distribution. Their waits are not separate.')} />
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Quality & Outcomes']} />
     </Page>
   );
@@ -451,11 +451,11 @@ function rateTone(rate: number, watch: number, alert: number, higherWorse = true
 }
 
 function heatFig(view: View): Figure {
-  return fig('heatmap', 'Arrivals heatmap', HEATMAP_BLOCKS, [{ name: 'Arrivals', values: view.heat.flat() }], 'visits', 'Each cell is part of the period arrival total.', { rows: HEATMAP_DAYS, matrix: view.heat });
+  return fig('heatmap', 'When patients arrive', HEATMAP_BLOCKS, [{ name: 'Visits', values: view.heat.flat() }], 'visits', 'Each cell is part of the period arrival total.', { rows: HEATMAP_DAYS, matrix: view.heat });
 }
 
 function waitHeatFig(view: View): Figure {
-  return fig('heatmap', 'Waiting time by hour', HEATMAP_BLOCKS, [{ name: 'Minutes', values: view.waitHeat.flat() }], 'minutes', 'Busy hours run longer around the period median.', { rows: HEATMAP_DAYS, matrix: view.waitHeat });
+  return fig('heatmap', 'Wait pressure by hour', HEATMAP_BLOCKS, [{ name: 'Minutes', values: view.waitHeat.flat() }], 'minutes', 'Busy hours run longer around the period median.', { rows: HEATMAP_DAYS, matrix: view.waitHeat });
 }
 
 function Donut({ title, note, parts, wide = false }: { title: string; note: string; parts: { name: string; value: number }[]; wide?: boolean }) {

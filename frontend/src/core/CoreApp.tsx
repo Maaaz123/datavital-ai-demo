@@ -1,19 +1,11 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { DISCLAIMER, HOSPITALS, YEARS } from '@/showcase/engine';
 import { ShowcaseState, useShowcase } from '@/showcase/state';
 import { CopilotButton, CopilotPanel, CopilotState, useCopilot } from './Copilot';
+import { glyphPath, NAV_DOMAINS, screenForPath, type NavScreen } from './nav';
 import { PERIODS, PeriodContext, type ReportPeriod } from './period';
 import './core.css';
-
-const NAV = [
-  { group: 'Emergency', to: '/', label: 'Emergency Overview', short: 'ED', end: true },
-  { group: 'Emergency', to: '/emergency/flow', label: 'Patient Flow & Waiting', short: 'Flow', end: false },
-  { group: 'Emergency', to: '/emergency/quality', label: 'ED Quality & Outcomes', short: 'Quality', end: false },
-  { group: 'Beds', to: '/beds', label: 'Beds Overview', short: 'Beds', end: false },
-  { group: 'Beds', to: '/beds/placement', label: 'Allocation & Turnover', short: 'Placement', end: false },
-  { group: 'Beds', to: '/beds/capacity', label: 'Capacity Planning', short: 'Capacity', end: false },
-];
 
 function Shell() {
   const store = useShowcase();
@@ -23,6 +15,11 @@ function Shell() {
   const [navWide, setNavWide] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('year');
+  const [query, setQuery] = useState('');
+  const current = screenForPath(location.pathname);
+  const [openDomains, setOpenDomains] = useState<Record<string, boolean>>(() => (
+    Object.fromEntries(NAV_DOMAINS.map((domain) => [domain.id, domain.match(location.pathname)]))
+  ));
   const filterRef = useRef<HTMLDivElement>(null);
   const filterTitle = useId();
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital)?.name ?? store.hospital;
@@ -36,6 +33,13 @@ function Shell() {
     setMenu(false);
     setFiltersOpen(false);
     copilot.clearChart();
+    setOpenDomains((prev) => {
+      const next = { ...prev };
+      for (const domain of NAV_DOMAINS) {
+        if (domain.match(location.pathname)) next[domain.id] = true;
+      }
+      return next;
+    });
     try {
       if (!/jsdom/i.test(window.navigator.userAgent)) window.scrollTo(0, 0);
     } catch {
@@ -58,6 +62,24 @@ function Shell() {
       window.removeEventListener('keydown', onKey);
     };
   }, [filtersOpen]);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return NAV_DOMAINS;
+    return NAV_DOMAINS
+      .map((domain) => ({
+        ...domain,
+        screens: domain.screens.filter((screen) => (
+          screen.title.toLowerCase().includes(needle)
+          || screen.short.toLowerCase().includes(needle)
+          || screen.purpose.toLowerCase().includes(needle)
+          || domain.label.toLowerCase().includes(needle)
+        )),
+      }))
+      .filter((domain) => domain.screens.length > 0);
+  }, [query]);
+
+  const screenCount = NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0);
 
   return (
     <PeriodContext.Provider value={{ period, setPeriod }}>
@@ -83,21 +105,56 @@ function Shell() {
                 {navWide ? '‹' : '›'}
               </button>
             </div>
+
+            <label className="gc-nav-find">
+              <span className="gc-sr-only">Find a screen</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Find a screen"
+                aria-label="Find a screen"
+              />
+            </label>
+            <p className="gc-nav-count">{screenCount} screens · {NAV_DOMAINS.length} domains</p>
+
             <nav className="gc-nav" aria-label="Primary">
-              {NAV.map((item, index) => (
-                <span key={item.to} className="gc-nav-item">
-                  {index === 0 || NAV[index - 1].group !== item.group ? (
-                    <span className="gc-nav-group">{item.group}</span>
-                  ) : null}
-                  <NavLink to={item.to} end={item.end} title={item.label}>
-                    <NavGlyph label={item.label} />
-                    <span className="gc-nav-label">
-                      <strong>{item.short}</strong>
-                      <em>{item.label}</em>
-                    </span>
-                  </NavLink>
-                </span>
-              ))}
+              {filtered.map((domain) => {
+                const open = Boolean(query) || openDomains[domain.id];
+                const active = domain.match(location.pathname);
+                return (
+                  <div key={domain.id} className={`gc-nav-domain ${active ? 'is-active' : ''} ${open ? 'is-open' : ''}`}>
+                    <button
+                      type="button"
+                      className="gc-nav-domain-btn"
+                      aria-expanded={open}
+                      aria-label={`${domain.label} domain`}
+                      title={domain.label}
+                      onClick={() => setOpenDomains((prev) => ({ ...prev, [domain.id]: !prev[domain.id] }))}
+                    >
+                      <span className="gc-nav-domain-mark" aria-hidden="true">{domain.mark}</span>
+                      <span className="gc-nav-domain-copy">
+                        <strong>{domain.label}</strong>
+                        <em>{domain.screens.length} screens</em>
+                      </span>
+                      <span className="gc-nav-domain-caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
+                    </button>
+                    {open ? (
+                      <div className="gc-nav-screens">
+                        {domain.screens.map((screen) => (
+                          <NavLink key={screen.to} to={screen.to} end={screen.end} title={screen.title}>
+                            <NavGlyph screen={screen} />
+                            <span className="gc-nav-label">
+                              <strong>{screen.short}</strong>
+                              <em>{screen.title}</em>
+                            </span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {filtered.length === 0 ? <p className="gc-nav-empty">No screen matches “{query}”.</p> : null}
             </nav>
           </aside>
           <div className="gc-workspace">
@@ -105,6 +162,13 @@ function Shell() {
               <button type="button" className="gc-menu gc-btn quiet" aria-expanded={menu} onClick={() => setMenu((value) => !value)}>
                 Menu
               </button>
+              {current ? (
+                <p className="gc-crumb" aria-label="Current screen">
+                  <span>{current.domain.label}</span>
+                  <i>/</i>
+                  <strong>{current.screen.title}</strong>
+                </p>
+              ) : null}
               <div className="gc-filter-wrap" ref={filterRef}>
                 <button
                   type="button"
@@ -160,14 +224,10 @@ function Shell() {
   );
 }
 
-function NavGlyph({ label }: { label: string }) {
-  const path = label.startsWith('Emergency') || label.startsWith('Beds Overview') ? 'M4 10.5 12 4l8 6.5V20H4z'
-    : label.startsWith('Patient') ? 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0'
-    : label.startsWith('Allocation') ? 'M4 7h16M4 12h10M4 17h14'
-    : 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+function NavGlyph({ screen }: { screen: NavScreen }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d={glyphPath(screen.glyph)} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 }

@@ -89,14 +89,14 @@ function domainCount(hospital: string, year: number, department: 'Emergency' | '
 
 function domainFromPath(path: string): { screenId: 'emergency' | 'beds'; department: 'Emergency' | 'Beds'; page: string; askScope: string } {
   if (path.startsWith('/beds')) {
-    const page = path.startsWith('/beds/placement') ? 'Allocation & Turnover'
-      : path.startsWith('/beds/capacity') ? 'Capacity Planning'
-      : 'Beds Overview';
+    const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
+      : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
+      : 'Bed Status';
     return { screenId: 'beds', department: 'Beds', page, askScope: 'Beds & Capacity' };
   }
-  const page = path.startsWith('/emergency/flow') ? 'Patient Flow & Waiting'
-    : path.startsWith('/emergency/quality') ? 'ED Quality & Outcomes'
-    : 'Emergency Overview';
+  const page = path.startsWith('/emergency/flow') ? 'Waiting & Patient Flow'
+    : path.startsWith('/emergency/quality') ? 'Safety & Return Visits'
+    : 'Emergency Snapshot';
   return { screenId: 'emergency', department: 'Emergency', page, askScope: 'Emergency' };
 }
 

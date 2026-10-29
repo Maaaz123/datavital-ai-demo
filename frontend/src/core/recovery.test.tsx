@@ -6,6 +6,7 @@ import { clearDemoStorage } from '@/showcase/state';
 import { scenarioFor, wardRows } from '@/showcase/facts';
 import { daysFor, hoursFor, leaveSplit, modesFor } from './derived';
 import { BEDS_AI_CASES, bedsIndicatorsFor, type BedsScopeInput } from './bedsScope';
+import { NAV_DOMAINS } from './nav';
 import { AI_CASES, indicatorsFor, type ScopeInput } from './scope';
 
 function Harness() {
@@ -29,32 +30,33 @@ describe('emergency and beds domains', () => {
     clearDemoStorage();
   });
 
-  it('opens Emergency Overview and keeps both domain links', () => {
+  it('opens Emergency Snapshot with grouped domain navigation', () => {
     renderAt('/');
-    expect(screen.getByRole('heading', { level: 1, name: 'Emergency Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Emergency Snapshot' })).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data/i);
     expect(screen.getAllByText('68,372').length).toBeGreaterThan(0);
     const links = [...document.querySelectorAll('.gc-nav a')];
     expect(links.map((item) => item.getAttribute('title'))).toEqual([
-      'Emergency Overview',
-      'Patient Flow & Waiting',
-      'ED Quality & Outcomes',
-      'Beds Overview',
-      'Allocation & Turnover',
-      'Capacity Planning',
+      'Emergency Snapshot',
+      'Waiting & Patient Flow',
+      'Safety & Return Visits',
     ]);
-    expect(links).toHaveLength(6);
+    expect(screen.getByRole('button', { name: 'Emergency domain' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Beds & Capacity domain' })).toBeInTheDocument();
+    expect(NAV_DOMAINS).toHaveLength(2);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(6);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
   });
 
-  it('opens Beds Overview without removing Emergency', () => {
+  it('opens Bed Status and expands the Beds domain', () => {
     renderAt('/beds');
-    expect(screen.getByRole('heading', { level: 1, name: 'Beds Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Bed Status' })).toBeInTheDocument();
     expect(screen.getAllByText('420').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/Door-to-Provider|ESI-1|Left Without Being Seen/i)).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.gc-nav a')).toHaveLength(6);
+    const links = [...document.querySelectorAll('.gc-nav a')].map((item) => item.getAttribute('title'));
+    expect(links).toEqual(expect.arrayContaining(['Bed Status', 'Bed Assignment', 'Bed Capacity Outlook']));
+    expect(screen.queryByText(/Door-to-Provider|Left Without Being Seen/i)).not.toBeInTheDocument();
   });
 
   it('updates visits when the hospital, year, or period changes', () => {
@@ -76,11 +78,11 @@ describe('emergency and beds domains', () => {
 
   it('opens a KPI detail and investigates a chart in the copilot', () => {
     renderAt('/');
-    fireEvent.click(screen.getByRole('button', { name: /ED Visits/ }));
-    expect(screen.getByTestId('kpi-detail').textContent).toMatch(/ED arrivals/i);
-    fireEvent.click(screen.getByRole('button', { name: 'Investigate ED visits trend' }));
+    fireEvent.click(screen.getByTestId('ed-ribbon').querySelector('button') as HTMLButtonElement);
+    expect(screen.getByTestId('kpi-detail').textContent).toMatch(/Emergency arrivals|visits/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate Emergency visits over time' }));
     expect(screen.getByRole('heading', { name: 'Vital Assist' })).toBeInTheDocument();
-    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/ED visits trend/);
+    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/Emergency visits over time/);
     expect(screen.getByText(/open alert/i)).toBeInTheDocument();
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
@@ -121,10 +123,10 @@ describe('emergency and beds domains', () => {
     expect(screen.getByText(/Decision: approved/)).toBeInTheDocument();
   });
 
-  it('sends legacy public routes back to Emergency Overview', () => {
+  it('sends legacy public routes back to Emergency Snapshot', () => {
     for (const path of ['/dashboard', '/story/pharmacy', '/board/pharmacy/medication-flow', '/kpis', '/present', '/intelligence', '/emergency/ai']) {
       const view = renderAt(path);
-      expect(screen.getByRole('heading', { level: 1, name: 'Emergency Overview' }), path).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'Emergency Snapshot' }), path).toBeInTheDocument();
       expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
       view.unmount();
     }
@@ -183,15 +185,14 @@ describe('emergency and beds domains', () => {
 
   it('keeps domains separated on their pages', () => {
     const quality = renderAt('/emergency/quality');
-    expect(screen.getByRole('heading', { level: 1, name: 'ED Quality & Outcomes' })).toBeInTheDocument();
-    expect(screen.queryByText(/Staffed Hospital Beds|Capacity Shortfall|staffing gap/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Safety & Return Visits' })).toBeInTheDocument();
+    expect(screen.queryByText(/Staffed Hospital Beds|Beds short vs requests|staffing gap/i)).not.toBeInTheDocument();
     quality.unmount();
     const capacity = renderAt('/beds/capacity');
-    expect(screen.getByRole('heading', { level: 1, name: 'Capacity Planning' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Bed Capacity Outlook' })).toBeInTheDocument();
     expect(screen.queryByText(/Door-to-Provider|Left Without Being Seen|ESI-1/i)).not.toBeInTheDocument();
     expect(screen.getByText(/AI use cases/i)).toBeInTheDocument();
-    expect(screen.getByText(/48h projected available/i)).toBeInTheDocument();
+    expect(screen.getByText(/Likely free in 48 hours/i)).toBeInTheDocument();
     capacity.unmount();
   });
 });
-

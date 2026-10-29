@@ -131,7 +131,7 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
     <article className="gc-command gc-ed">
       <header className="gc-command-head">
         <div>
-          <p className="gc-kicker">Beds & Capacity Management</p>
+          <p className="gc-kicker">Beds & Capacity</p>
           <h1>{title}</h1>
         </div>
       </header>
@@ -385,20 +385,20 @@ export function BedsOverviewPage() {
   const prior = usePrior();
   const blockedRate = view.staffed ? view.blocked / view.staffed : 0;
   return (
-    <Page title="Beds Overview" kpis={[
-      score('Operational Beds', num(view.staffed), compare(view, prior, (item) => item.staffed), 'Staffed beds available for allocation. Physical presence alone does not make a bed operational.', `${num(view.staffed)} operational beds.`, undefined, 'neutral'),
-      score('Occupied Beds', num(view.occupied), compare(view, prior, (item) => item.occupied), 'Occupied staffed beds in the snapshot. Occupied + vacant + blocked = operational.', `${num(view.occupied)} occupied.`, undefined, 'watch'),
-      score('Vacant Beds', num(view.available), compare(view, prior, (item) => item.available), 'Vacant staffed beds ready for allocation.', `${num(view.available)} vacant.`, undefined, view.available <= 2 ? 'alert' : view.available <= 8 ? 'watch' : 'good'),
-      score('Blocked Beds', num(view.blocked), compare(view, prior, (item) => item.blocked), 'Blocked or closed staffed beds. They are not vacant and not occupied.', `${num(view.blocked)} blocked · ${pct(blockedRate)}.`, undefined, rateTone(blockedRate, 0.02, 0.04)),
-      score('Current Occupancy', pct(view.occupancy), compare(view, prior, (item) => item.occupancy, true), 'Occupied ÷ operational beds at the snapshot. Not a sum of monthly averages.', `${num(view.occupied)} / ${num(view.staffed)}.`, 'value-kpi_bed_occupancy_rate', occTone(view.occupancy)),
-      score('Capacity Shortfall', num(view.shortfall), compare(view, prior, (item) => item.shortfall), 'Pending bed requests minus vacant beds when demand exceeds vacant capacity.', `${num(view.pendingRequests)} pending · ${num(view.available)} vacant.`, undefined, view.shortfall > 0 ? 'alert' : 'good'),
+    <Page title="Bed Status" kpis={[
+      score('Beds ready to use', num(view.staffed), compare(view, prior, (item) => item.staffed), 'Staffed beds available for allocation. Physical presence alone does not make a bed operational.', `${num(view.staffed)} operational beds.`, undefined, 'neutral'),
+      score('Beds in use', num(view.occupied), compare(view, prior, (item) => item.occupied), 'Occupied staffed beds in the snapshot. Occupied + vacant + blocked = operational.', `${num(view.occupied)} occupied.`, undefined, 'watch'),
+      score('Beds free now', num(view.available), compare(view, prior, (item) => item.available), 'Vacant staffed beds ready for allocation.', `${num(view.available)} vacant.`, undefined, view.available <= 2 ? 'alert' : view.available <= 8 ? 'watch' : 'good'),
+      score('Beds blocked', num(view.blocked), compare(view, prior, (item) => item.blocked), 'Blocked or closed staffed beds. They are not vacant and not occupied.', `${num(view.blocked)} blocked · ${pct(blockedRate)}.`, undefined, rateTone(blockedRate, 0.02, 0.04)),
+      score('Share of beds in use', pct(view.occupancy), compare(view, prior, (item) => item.occupancy, true), 'Occupied ÷ operational beds at the snapshot. Not a sum of monthly averages.', `${num(view.occupied)} / ${num(view.staffed)}.`, 'value-kpi_bed_occupancy_rate', occTone(view.occupancy)),
+      score('Beds short vs requests', num(view.shortfall), compare(view, prior, (item) => item.shortfall), 'Pending bed requests minus vacant beds when demand exceeds vacant capacity.', `${num(view.pendingRequests)} pending · ${num(view.available)} vacant.`, undefined, view.shortfall > 0 ? 'alert' : 'good'),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Occupied beds trend', view.labels, [{ name: 'Occupied', values: view.monthlyOccupied }], 'beds', 'Month-end occupied snapshots. These are not summed into annual occupancy.')} />
+      <Slot span="span-8" figure={fig('area', 'Beds in use over time', view.labels, [{ name: 'In use', values: view.monthlyOccupied }], 'beds', 'Month-end occupied snapshots. These are not summed into annual occupancy.')} />
       <Alerts />
-      <Slot figure={fig('bars', 'Bed status snapshot', ['Operational', 'Occupied', 'Vacant', 'Blocked'], [{ name: 'Beds', values: [view.staffed, view.occupied, view.available, view.blocked] }], 'beds', 'Occupied + vacant + blocked = operational.')} />
-      <Slot figure={fig('bars', 'Occupancy by ward', view.wards.map((ward) => ward.id), [{ name: 'Occupied', values: view.wards.map((ward) => ward.occupied) }, { name: 'Vacant', values: view.wards.map((ward) => ward.available) }, { name: 'Blocked', values: view.wards.map((ward) => ward.blocked) }], 'beds', 'Ward split of the hospital bed snapshot.')} />
-      <Slot figure={fig('bars', 'Occupancy by bed type', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU beds. Emergency bays are outside this domain.')} />
-      <Slot figure={fig('line', 'Vacant and blocked beds', view.labels, [{ name: 'Vacant', values: view.monthlyAvailable }, { name: 'Blocked', values: view.monthlyBlocked }], 'beds', 'Vacant and blocked stay inside the operational total.')} />
+      <Slot figure={fig('bars', 'Bed status right now', ['Ready', 'In use', 'Free', 'Blocked'], [{ name: 'Beds', values: [view.staffed, view.occupied, view.available, view.blocked] }], 'beds', 'In use + free + blocked = ready to use.')} />
+      <Slot figure={fig('bars', 'Beds by ward', view.wards.map((ward) => ward.id), [{ name: 'In use', values: view.wards.map((ward) => ward.occupied) }, { name: 'Free', values: view.wards.map((ward) => ward.available) }, { name: 'Blocked', values: view.wards.map((ward) => ward.blocked) }], 'beds', 'Ward split of the hospital bed snapshot.')} />
+      <Slot figure={fig('bars', 'Beds by type', view.bedTypes.map((item) => item.id), [{ name: 'In use', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Free', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU beds. Emergency bays are outside this domain.')} />
+      <Slot figure={fig('line', 'Free vs blocked beds', view.labels, [{ name: 'Free', values: view.monthlyAvailable }, { name: 'Blocked', values: view.monthlyBlocked }], 'beds', 'Free and blocked stay inside the ready-to-use total.')} />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Bed Inventory & Availability', 'Bed Occupancy']} />
     </Page>
   );
@@ -413,39 +413,39 @@ export function BedsPlacementPage() {
   const turnover = view.staffed ? view.discharges / view.staffed : 0;
   const transferTotal = view.transfersIn + view.transfersOut;
   return (
-    <Page title="Allocation & Turnover" kpis={[
-      score('Pending Requests', num(view.pendingRequests), compare(view, prior, (item) => item.pendingRequests), 'Open bed requests waiting for assignment. Not an emergency waitlist.', `${num(view.pendingRequests)} requests.`, undefined, view.pendingRequests > view.available ? 'alert' : 'watch'),
-      score('Assignment Median', `${num(view.assignmentMedianMin)} min`, compare(view, prior, (item) => item.assignmentMedianMin), 'Median request-to-assignment minutes. Not door-to-provider wait.', `Median ${num(view.assignmentMedianMin)} minutes.`, undefined, view.assignmentMedianMin >= 60 ? 'alert' : view.assignmentMedianMin >= 45 ? 'watch' : 'good'),
-      score('Unallocated Requests', num(view.unallocated), compare(view, prior, (item) => item.unallocated), 'Pending requests still without a vacant bed.', `${num(view.unallocated)} unallocated.`, undefined, view.unallocated > 0 ? 'alert' : 'good'),
-      score('Assignment Completion', pct(completionRate), compare(view, prior, (item) => item.assignmentCompleted / (item.assignmentCompleted + item.assignmentCancelled || 1), true), 'Completed assignments ÷ completed plus cancelled.', `${num(view.assignmentCompleted)} completed.`, undefined, rateTone(completionRate, 0.95, 0.9, false)),
-      score('Cancellation Rate', pct(cancelRate), compare(view, prior, (item) => item.assignmentCancelled / (item.assignmentCompleted + item.assignmentCancelled || 1), true), 'Cancelled assignments ÷ completed plus cancelled.', `${num(view.assignmentCancelled)} cancelled.`, undefined, rateTone(cancelRate, 0.03, 0.05)),
-      score('Bed Turnover', num(turnover, 2), compare(view, prior, (item) => item.staffed ? item.discharges / item.staffed : 0), 'Discharges ÷ operational beds. This is bed turnover, not staff turnover.', `${num(view.discharges)} releases / ${num(view.staffed)} beds.`, undefined, 'neutral'),
-      score('Awaiting Cleaning', num(view.cleaningAwaiting), compare(view, prior, (item) => item.cleaningAwaiting), 'Constructed share of blocked beds. Not a cleaning-clock extract.', `${num(view.cleaningAwaiting)} beds.`, undefined, view.cleaningAwaiting > 0 ? 'watch' : 'good'),
-      score('Occupation Duration', `${num(view.occupationDurationDays, 1)} days`, compare(view, prior, (item) => item.occupationDurationDays), 'Inpatient length of stay median. Not emergency length of stay.', `Median ${num(view.occupationDurationDays, 1)} days.`, undefined, 'neutral'),
+    <Page title="Bed Assignment" kpis={[
+      score('Open bed requests', num(view.pendingRequests), compare(view, prior, (item) => item.pendingRequests), 'Open bed requests waiting for assignment. Not an emergency waitlist.', `${num(view.pendingRequests)} requests.`, undefined, view.pendingRequests > view.available ? 'alert' : 'watch'),
+      score('Time to assign a bed', `${num(view.assignmentMedianMin)} min`, compare(view, prior, (item) => item.assignmentMedianMin), 'Median request-to-assignment minutes. Not door-to-provider wait.', `Median ${num(view.assignmentMedianMin)} minutes.`, undefined, view.assignmentMedianMin >= 60 ? 'alert' : view.assignmentMedianMin >= 45 ? 'watch' : 'good'),
+      score('Requests still waiting', num(view.unallocated), compare(view, prior, (item) => item.unallocated), 'Pending requests still without a vacant bed.', `${num(view.unallocated)} unallocated.`, undefined, view.unallocated > 0 ? 'alert' : 'good'),
+      score('Assignments completed', pct(completionRate), compare(view, prior, (item) => item.assignmentCompleted / (item.assignmentCompleted + item.assignmentCancelled || 1), true), 'Completed assignments ÷ completed plus cancelled.', `${num(view.assignmentCompleted)} completed.`, undefined, rateTone(completionRate, 0.95, 0.9, false)),
+      score('Assignments cancelled', pct(cancelRate), compare(view, prior, (item) => item.assignmentCancelled / (item.assignmentCompleted + item.assignmentCancelled || 1), true), 'Cancelled assignments ÷ completed plus cancelled.', `${num(view.assignmentCancelled)} cancelled.`, undefined, rateTone(cancelRate, 0.03, 0.05)),
+      score('Times each bed turns', num(turnover, 2), compare(view, prior, (item) => item.staffed ? item.discharges / item.staffed : 0), 'Discharges ÷ operational beds. This is bed turnover, not staff turnover.', `${num(view.discharges)} releases / ${num(view.staffed)} beds.`, undefined, 'neutral'),
+      score('Beds waiting to clean', num(view.cleaningAwaiting), compare(view, prior, (item) => item.cleaningAwaiting), 'Constructed share of blocked beds. Not a cleaning-clock extract.', `${num(view.cleaningAwaiting)} beds.`, undefined, view.cleaningAwaiting > 0 ? 'watch' : 'good'),
+      score('Typical stay in a bed', `${num(view.occupationDurationDays, 1)} days`, compare(view, prior, (item) => item.occupationDurationDays), 'Inpatient length of stay median. Not emergency length of stay.', `Median ${num(view.occupationDurationDays, 1)} days.`, undefined, 'neutral'),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Admissions and releases', view.labels, [{ name: 'Admissions', values: view.monthlyAdmissions }, { name: 'Releases', values: view.monthlyDischarges }], 'patients', 'Bed admissions and discharges in the period. Emergency visits are excluded.')} />
+      <Slot span="span-8" figure={fig('area', 'Patients in and out of beds', view.labels, [{ name: 'Admitted to a bed', values: view.monthlyAdmissions }, { name: 'Left a bed', values: view.monthlyDischarges }], 'patients', 'Bed admissions and discharges in the period. Emergency visits are excluded.')} />
       <section className="gc-panel gc-insight span-4">
-        <h2>Placement pressure</h2>
+        <h2>Assignment pressure</h2>
         <div className="gc-exception-list">
           <div className={`gc-exception gc-tone-${view.pendingRequests > view.available ? 'alert' : 'watch'}`}>
-            <strong>Pending vs vacant</strong>
-            <span>{num(view.pendingRequests)} requests · {num(view.available)} vacant</span>
+            <strong>Requests vs free beds</strong>
+            <span>{num(view.pendingRequests)} requests · {num(view.available)} free</span>
           </div>
           <div className={`gc-exception gc-tone-${view.unallocated > 0 ? 'alert' : 'good'}`}>
-            <strong>Unallocated requests</strong>
-            <span>{num(view.unallocated)} still without a bed</span>
+            <strong>Still waiting for a bed</strong>
+            <span>{num(view.unallocated)} requests</span>
           </div>
           <div className={`gc-exception gc-tone-${view.cleaningAwaiting > 0 ? 'watch' : 'good'}`}>
-            <strong>Beds awaiting cleaning</strong>
+            <strong>Beds waiting to clean</strong>
             <span>{num(view.cleaningAwaiting)} inside the blocked total</span>
           </div>
         </div>
         <p className="gc-next">Assignment P90, vacancy duration, and discharge-to-ready clocks are blank in this scenario.</p>
       </section>
-      <Slot figure={fig('flow', 'Bed movement', ['Admissions', 'Transfers in', 'Releases', 'Transfers out'], [{ name: 'Moves', values: [view.admissions, view.transfersIn, view.discharges, view.transfersOut] }], 'patients', 'Admissions occupy beds. Releases free beds. Transfers move occupancy between beds.')} />
-      <Slot figure={fig('bars', 'Internal transfers', view.labels, [{ name: 'Transfers', values: view.monthlyTransfers }], 'moves', `${num(transferTotal)} internal transfers in the period.`)} />
-      <Slot figure={fig('bars', 'Blocked bed reasons', ['Cleaning', 'Maintenance'], [{ name: 'Beds', values: [view.cleaningAwaiting, view.maintenanceAwaiting] }], 'beds', 'Constructed split of blocked beds. Closure reason codes are not extracted.')} />
-      <Slot figure={fig('bars', 'Ward vacant capacity', view.wards.map((ward) => ward.id), [{ name: 'Vacant', values: view.wards.map((ward) => ward.available) }], 'beds', 'Vacant beds by ward from the same snapshot.')} />
+      <Slot figure={fig('flow', 'How beds move', ['Admitted', 'Transfer in', 'Left bed', 'Transfer out'], [{ name: 'Moves', values: [view.admissions, view.transfersIn, view.discharges, view.transfersOut] }], 'patients', 'Admissions occupy beds. Releases free beds. Transfers move occupancy between beds.')} />
+      <Slot figure={fig('bars', 'Moves between wards', view.labels, [{ name: 'Transfers', values: view.monthlyTransfers }], 'moves', `${num(transferTotal)} internal transfers in the period.`)} />
+      <Slot figure={fig('bars', 'Why beds are blocked', ['Cleaning', 'Maintenance'], [{ name: 'Beds', values: [view.cleaningAwaiting, view.maintenanceAwaiting] }], 'beds', 'Constructed split of blocked beds. Closure reason codes are not extracted.')} />
+      <Slot figure={fig('bars', 'Free beds by ward', view.wards.map((ward) => ward.id), [{ name: 'Free', values: view.wards.map((ward) => ward.available) }], 'beds', 'Vacant beds by ward from the same snapshot.')} />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Bed Allocation & Placement', 'Bed Turnover & Readiness', 'Bed Movement & Utilization']} />
     </Page>
   );
@@ -460,32 +460,32 @@ export function BedsCapacityPage() {
   const demandCurve = share.map((part) => Math.max(0, Math.round(view.expectedDemand * part)));
   const projectedCurve = share.map((_, index) => Math.max(0, view.available + releaseCurve[index] - demandCurve[index]));
   return (
-    <Page title="Capacity Planning" kpis={[
-      score('Expected Releases', num(view.expectedReleases), compare(view, prior, (item) => item.expectedReleases), 'Illustrative next-day releases from the period discharge rate. Not a validated discharge model.', `${num(view.expectedReleases)} beds.`, undefined, 'good'),
-      score('Expected Demand', num(view.expectedDemand), compare(view, prior, (item) => item.expectedDemand), 'Illustrative next-day demand from the period admission rate.', `${num(view.expectedDemand)} beds.`, undefined, 'watch'),
-      score('Projected Available', num(view.projectedAvailable), compare(view, prior, (item) => item.projectedAvailable), 'Vacant plus expected releases minus expected demand. A planning sketch.', `${num(view.projectedAvailable)} beds.`, undefined, view.projectedAvailable <= 2 ? 'alert' : 'watch'),
-      score('Capacity Shortfall', num(view.shortfall), compare(view, prior, (item) => item.shortfall), 'Pending requests minus vacant beds when demand exceeds vacant capacity.', `${num(view.shortfall)} short.`, 'value-kpi_bed_shortfall', view.shortfall > 0 ? 'alert' : 'good'),
-      score('ICU Occupancy', pct(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0), compare(view, prior, (item) => item.icuStaffed ? item.icuOccupied / item.icuStaffed : 0, true), 'ICU occupied ÷ ICU operational beds. Emergency bays are not ICU beds.', `${num(view.icuOccupied)} / ${num(view.icuStaffed)}.`, undefined, occTone(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0)),
-      score('General Occupancy', pct(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0), compare(view, prior, (item) => item.bedTypes[0]?.staffed ? item.bedTypes[0].occupied / item.bedTypes[0].staffed : 0, true), 'General occupied ÷ general operational beds.', `${num(view.bedTypes[0]?.occupied ?? 0)} / ${num(view.bedTypes[0]?.staffed ?? 0)}.`, undefined, occTone(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0)),
+    <Page title="Bed Capacity Outlook" kpis={[
+      score('Beds expected free tomorrow', num(view.expectedReleases), compare(view, prior, (item) => item.expectedReleases), 'Illustrative next-day releases from the period discharge rate. Not a validated discharge model.', `${num(view.expectedReleases)} beds.`, undefined, 'good'),
+      score('Beds expected needed tomorrow', num(view.expectedDemand), compare(view, prior, (item) => item.expectedDemand), 'Illustrative next-day demand from the period admission rate.', `${num(view.expectedDemand)} beds.`, undefined, 'watch'),
+      score('Beds likely free tomorrow', num(view.projectedAvailable), compare(view, prior, (item) => item.projectedAvailable), 'Vacant plus expected releases minus expected demand. A planning sketch.', `${num(view.projectedAvailable)} beds.`, undefined, view.projectedAvailable <= 2 ? 'alert' : 'watch'),
+      score('Beds short vs requests', num(view.shortfall), compare(view, prior, (item) => item.shortfall), 'Pending requests minus vacant beds when demand exceeds vacant capacity.', `${num(view.shortfall)} short.`, 'value-kpi_bed_shortfall', view.shortfall > 0 ? 'alert' : 'good'),
+      score('ICU beds in use', pct(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0), compare(view, prior, (item) => item.icuStaffed ? item.icuOccupied / item.icuStaffed : 0, true), 'ICU occupied ÷ ICU operational beds. Emergency bays are not ICU beds.', `${num(view.icuOccupied)} / ${num(view.icuStaffed)}.`, undefined, occTone(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0)),
+      score('General beds in use', pct(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0), compare(view, prior, (item) => item.bedTypes[0]?.staffed ? item.bedTypes[0].occupied / item.bedTypes[0].staffed : 0, true), 'General occupied ÷ general operational beds.', `${num(view.bedTypes[0]?.occupied ?? 0)} / ${num(view.bedTypes[0]?.staffed ?? 0)}.`, undefined, occTone(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0)),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Capacity outlook sketch', horizons, [
-        { name: 'Projected available', values: projectedCurve },
-        { name: 'Expected releases', values: releaseCurve },
-        { name: 'Expected demand', values: demandCurve },
+      <Slot span="span-8" figure={fig('line', 'Bed outlook next 48 hours', horizons, [
+        { name: 'Likely free', values: projectedCurve },
+        { name: 'Expected frees', values: releaseCurve },
+        { name: 'Expected need', values: demandCurve },
       ], 'beds', 'Illustrative 4–48h sketch from period rates. Not a validated forecast.')} />
       <section className="gc-panel gc-insight span-4">
-        <h2>Planning exceptions</h2>
+        <h2>Capacity watch list</h2>
         <div className="gc-exception-list">
           <div className={`gc-exception gc-tone-${view.shortfall > 0 ? 'alert' : 'good'}`}>
-            <strong>Capacity shortfall</strong>
-            <span>{num(view.shortfall)} · pending above vacant</span>
+            <strong>Beds short vs requests</strong>
+            <span>{num(view.shortfall)} · requests above free beds</span>
           </div>
           <div className={`gc-exception gc-tone-${view.projectedAvailable <= 2 ? 'alert' : 'watch'}`}>
-            <strong>Projected available</strong>
+            <strong>Likely free tomorrow</strong>
             <span>{num(view.projectedAvailable)} after next-day sketch</span>
           </div>
           <div className={`gc-exception gc-tone-${projectedCurve[4] <= 2 ? 'alert' : 'watch'}`}>
-            <strong>48h projected available</strong>
+            <strong>Likely free in 48 hours</strong>
             <span>{num(projectedCurve[4])} beds in the sketch</span>
           </div>
           <div className="gc-exception gc-tone-neutral">
@@ -495,9 +495,9 @@ export function BedsCapacityPage() {
         </div>
         <p className="gc-next">What-if opening or closing beds is illustrative only. AI does not move a patient.</p>
       </section>
-      <Slot figure={fig('bars', 'Utilization by bed type', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the snapshot.')} />
-      <Slot figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy from occupied ÷ staffed. Monthly averages are not summed.')} />
-      <Donut title="Operational bed mix" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
+      <Slot figure={fig('bars', 'Beds by type right now', view.bedTypes.map((item) => item.id), [{ name: 'In use', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Free', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the snapshot.')} />
+      <Slot figure={fig('bars', 'Ward fill rate', view.wards.map((ward) => ward.id), [{ name: 'In use %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy from occupied ÷ staffed. Monthly averages are not summed.')} />
+      <Donut title="Ready beds by type" note="General and ICU beds ready to use. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
       <AiIndex compact />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Capacity Planning']} />
     </Page>
