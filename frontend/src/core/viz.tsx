@@ -6,7 +6,7 @@ import { allScreens } from './stories';
 
 type Series = { name: string; values: number[] };
 
-export type ChartType = 'bars' | 'line' | 'funnel' | 'flow' | 'waterfall';
+export type ChartType = 'bars' | 'line' | 'funnel' | 'flow' | 'waterfall' | 'area' | 'stacked' | 'heatmap' | 'pareto' | 'bullet';
 
 export type Figure = {
   title: string;
@@ -18,6 +18,8 @@ export type Figure = {
   type: ChartType;
   domain: string;
   subjects: string[];
+  rows?: string[];
+  matrix?: number[][];
 };
 
 function labels(lang: Lang): string[] {
@@ -431,32 +433,37 @@ function formatTick(value: number, digits: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: digits });
 }
 
-export function Chart({ figure }: { figure: Figure }) {
+export function Chart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
   const flat = figure.series.flatMap((item) => item.values);
-  const allZero = flat.every((value) => value === 0);
+  const allZero = flat.length > 0 && flat.every((value) => value === 0);
   return (
     <figure className={`gc-chart is-${figure.type}`} data-chart-state={allZero ? 'zero' : 'ok'} data-chart-domain={figure.domain}>
       <figcaption>
         <strong>{figure.title}</strong>
         <span>{figure.note}</span>
-        {figure.series.length > 1 ? (
+        {figure.series.length > 1 && figure.type !== 'heatmap' ? (
           <ul className="gc-legend">
             {figure.series.map((item, index) => (
-              <li key={item.name}><i style={{ background: index === 0 ? '#0f6e6a' : '#8c6a3d' }} />{item.name}</li>
+              <li key={item.name}><i style={{ background: PALETTE[index % PALETTE.length] }} />{item.name}</li>
             ))}
           </ul>
         ) : null}
       </figcaption>
-      {figure.type === 'line' ? <LineChart figure={figure} /> : null}
+      {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} /> : null}
       {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} /> : null}
       {figure.type === 'waterfall' ? <WaterfallChart figure={figure} /> : null}
-      {figure.type === 'bars' ? <BarChart figure={figure} /> : null}
-      <ValueTable figure={figure} />
+      {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} /> : null}
+      {figure.type === 'stacked' ? <StackedChart figure={figure} /> : null}
+      {figure.type === 'heatmap' ? <HeatmapChart figure={figure} /> : null}
+      {figure.type === 'bullet' ? <BulletChart figure={figure} /> : null}
+      {compact ? null : <ValueTable figure={figure} />}
     </figure>
   );
 }
 
-function BarChart({ figure }: { figure: Figure }) {
+const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#9a5b4a'];
+
+function BarChart({ figure, pareto = false }: { figure: Figure; pareto?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat.map((value) => Math.abs(value)));
@@ -489,14 +496,125 @@ function BarChart({ figure }: { figure: Figure }) {
           const h = (Math.abs(value) / max) * innerH;
           const x = padL + categoryIndex * groupW + (groupW - series.length * barW) / 2 + seriesIndex * barW;
           const y = padT + innerH - h;
-          return <rect key={`${category}-${item.name}`} x={x} y={y} width={Math.max(barW - 3, 2)} height={Math.max(h, value === 0 ? 0 : 1.5)} rx="3" fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'}><title>{`${category} ${item.name}: ${value}`}</title></rect>;
+          return <rect key={`${category}-${item.name}`} x={x} y={y} width={Math.max(barW - 3, 2)} height={Math.max(h, value === 0 ? 0 : 1.5)} rx="3" fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${category} ${item.name}: ${value}`}</title></rect>;
         }),
       )}
+      {pareto ? <ParetoLine figure={figure} padL={padL} padT={padT} innerH={innerH} groupW={groupW} /> : null}
       {categories.map((category, index) => (
         <text key={category} x={padL + index * groupW + groupW / 2} y={height - 12} textAnchor="middle">
           {category.length > 16 ? `${category.slice(0, 14)}…` : category}
         </text>
       ))}
+    </svg>
+  );
+}
+
+function ParetoLine({ figure, padL, padT, innerH, groupW }: { figure: Figure; padL: number; padT: number; innerH: number; groupW: number }) {
+  const values = figure.series[0]?.values ?? [];
+  const total = values.reduce((sum, value) => sum + value, 0) || 1;
+  let running = 0;
+  const points = values.map((value, index) => {
+    running += value;
+    const y = padT + innerH - (running / total) * innerH;
+    return `${padL + index * groupW + groupW / 2},${y}`;
+  }).join(' ');
+  return <polyline points={points} fill="none" stroke="#8c6a3d" strokeWidth="2" />;
+}
+
+function StackedChart({ figure }: { figure: Figure }) {
+  const { categories, series, digits, title, note } = figure;
+  const totals = categories.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
+  const max = axisMax(totals);
+  const width = 720;
+  const height = 240;
+  const padL = 52;
+  const padR = 12;
+  const padT = 16;
+  const padB = 36;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+  const groupW = innerW / Math.max(categories.length, 1);
+  const barW = Math.min(28, groupW * 0.62);
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${note}`}>
+      <title>{title}</title>
+      {[0, max / 2, max].map((tick) => {
+        const y = padT + innerH - (tick / max) * innerH;
+        return <g key={tick}><line x1={padL} x2={width - padR} y1={y} y2={y} /><text x={padL - 8} y={y + 4} textAnchor="end">{formatTick(tick, digits)}</text></g>;
+      })}
+      {categories.map((category, categoryIndex) => {
+        let stack = 0;
+        return series.map((item, seriesIndex) => {
+          const value = item.values[categoryIndex] ?? 0;
+          const h = (value / max) * innerH;
+          const y = padT + innerH - stack - h;
+          stack += h;
+          const x = padL + categoryIndex * groupW + (groupW - barW) / 2;
+          return <rect key={`${category}-${item.name}`} x={x} y={y} width={barW} height={Math.max(h, 0)} fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${category} ${item.name}: ${value}`}</title></rect>;
+        });
+      })}
+      {categories.map((category, index) => (
+        <text key={category} x={padL + index * groupW + groupW / 2} y={height - 12} textAnchor="middle">{category}</text>
+      ))}
+    </svg>
+  );
+}
+
+function HeatmapChart({ figure }: { figure: Figure }) {
+  const rows = figure.rows ?? [];
+  const matrix = figure.matrix ?? [];
+  const peak = Math.max(...matrix.flat(), 1);
+  const width = 720;
+  const cellW = 48;
+  const cellH = 22;
+  const padL = 48;
+  const height = 28 + rows.length * cellH;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
+      <title>{figure.title}</title>
+      {figure.categories.map((block, index) => (
+        <text key={block} x={padL + index * cellW + cellW / 2} y="14" textAnchor="middle" fontSize="11">{block}</text>
+      ))}
+      {rows.map((day, row) => (
+        <g key={day}>
+          <text x="4" y={28 + row * cellH + 15} fontSize="11">{day}</text>
+          {(matrix[row] ?? []).map((value, column) => {
+            const tone = 0.15 + 0.85 * (value / peak);
+            return (
+              <rect key={`${day}-${figure.categories[column]}`} x={padL + column * cellW} y={22 + row * cellH} width={cellW - 3} height={cellH - 3} rx="3" fill={`rgba(15,110,106,${tone.toFixed(2)})`}>
+                <title>{`${day} ${figure.categories[column]}:00: ${value.toLocaleString('en-US')} arrivals`}</title>
+              </rect>
+            );
+          })}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function BulletChart({ figure }: { figure: Figure }) {
+  const required = figure.series[0]?.values ?? [];
+  const filled = figure.series[1]?.values ?? [];
+  const max = Math.max(...required, ...filled, 1);
+  const width = 720;
+  const row = 32;
+  const height = 20 + figure.categories.length * row;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
+      <title>{figure.title}</title>
+      {figure.categories.map((category, index) => {
+        const y = 8 + index * row;
+        const need = ((required[index] ?? 0) / max) * 460;
+        const have = ((filled[index] ?? 0) / max) * 460;
+        return (
+          <g key={category}>
+            <text x="8" y={y + 16} fontSize="12">{category}</text>
+            <rect x="168" y={y + 6} width={need} height="14" rx="3" fill="#d7e4e2" />
+            <rect x="168" y={y + 8} width={have} height="10" rx="3" fill="#0f6e6a" />
+            <text x={176 + need} y={y + 17} fontSize="12">{`${filled[index] ?? 0} / ${required[index] ?? 0}`}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -512,7 +630,7 @@ function axisMax(values: number[]): number {
   return nice * power;
 }
 
-function LineChart({ figure }: { figure: Figure }) {
+function LineChart({ figure, area = false }: { figure: Figure; area?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat);
@@ -539,10 +657,12 @@ function LineChart({ figure }: { figure: Figure }) {
       ))}
       {series.map((item, seriesIndex) => {
         const points = item.values.map((value, index) => `${padL + index * step},${yOf(value)}`).join(' ');
+        const floor = item.values.map((_, index) => `${padL + index * step},${yOf(0)}`).reverse().join(' ');
         return (
           <g key={item.name}>
-            <polyline points={points} fill="none" stroke={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'} strokeWidth="2.5" />
-            {item.values.map((value, index) => <circle key={`${item.name}-${categories[index]}`} cx={padL + index * step} cy={yOf(value)} r="3.2" fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'}><title>{`${categories[index]} ${item.name}: ${value}`}</title></circle>)}
+            {area ? <polygon points={`${points} ${floor}`} fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'} opacity="0.18" /> : null}
+            <polyline points={points} fill="none" stroke={PALETTE[seriesIndex % PALETTE.length]} strokeWidth="2.5" />
+            {item.values.map((value, index) => <circle key={`${item.name}-${categories[index]}`} cx={padL + index * step} cy={yOf(value)} r="3.2" fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${categories[index]} ${item.name}: ${value}`}</title></circle>)}
           </g>
         );
       })}

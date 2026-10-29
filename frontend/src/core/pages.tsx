@@ -9,6 +9,7 @@ import { decisionKey, useShowcase } from '@/showcase/state';
 import { AREAS, CHALLENGES, LAYERS, PRESENTATION, allScreens, areaFor, featuredKpis, findScreen } from './stories';
 import { Chart, screenCharts } from './viz';
 import { visibleAlerts } from './alerts';
+import { DomainTabs } from './boards';
 import { useCopilot } from './Copilot';
 
 export const COUNTRIES = [
@@ -257,6 +258,7 @@ export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
       </nav>
       <p className="gc-kicker">{screen.decision}</p>
       <h1>{screen.title}</h1>
+      <DomainTabs screenId={screen.id} />
       <p>
         {(() => {
           const count = visibleAlerts(store.hospital, store.year, store.department, screen.id).alerts.filter((alert) => alert.severity !== 'info').length;

@@ -17,6 +17,7 @@ import {
   StoryPage,
 } from '@/core/pages';
 import { CommandCenter } from '@/core/command';
+import { DomainBoard } from '@/core/boards';
 
 function ToStory() {
   const { screenId = 'command' } = useParams();
@@ -94,6 +95,7 @@ export const routes = [
       { path: 'operations', element: <OperationsHub /> },
       { path: 'operations/:area', element: <AreaPage /> },
       { path: 'story/:screenId', element: <StoryPage /> },
+      { path: 'board/:domain/:tab', element: <DomainBoard /> },
       { path: 'experience', element: <ExperiencePage /> },
       { path: 'intelligence', element: <IntelligencePage /> },
       { path: 'kpis', element: <ExplorerPage /> },

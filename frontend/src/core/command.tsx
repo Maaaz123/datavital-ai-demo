@@ -6,6 +6,7 @@ import { alertsFor } from './alerts';
 import { useCopilot } from './Copilot';
 import { showMeasure, useScope } from './pages';
 import { Chart, screenCharts } from './viz';
+import { commandFigures } from './boards';
 
 const GROUPS = [
   { title: 'Demand', keys: ['kpi_encounter_volume', 'kpi_ed_visit_volume', 'kpi_appointment_volume'] },
@@ -25,12 +26,11 @@ export function CommandCenter() {
     .sort((a, b) => rank(a.severity) - rank(b.severity));
   const lead = ranked[0];
   const charts = [
-    { figure: screenCharts('command', hospital, year, lang)[0], wide: true },
-    { figure: screenCharts('command', hospital, year, lang)[1], wide: false },
-    { figure: screenCharts('beds', hospital, year, lang)[0], wide: false },
-    { figure: screenCharts('emergency', hospital, year, lang)[1], wide: false },
-    { figure: screenCharts('claims', hospital, year, lang)[0], wide: false },
-    { figure: screenCharts('rcm', hospital, year, lang)[0], wide: true },
+    ...commandFigures(hospital, year).map((figure) => ({ figure, span: figure.type === 'heatmap' ? 'span-8' : 'span-4' })),
+    { figure: screenCharts('command', hospital, year, lang)[0], span: 'span-6' },
+    { figure: screenCharts('beds', hospital, year, lang)[0], span: 'span-6' },
+    { figure: screenCharts('claims', hospital, year, lang)[0], span: 'span-6' },
+    { figure: screenCharts('rcm', hospital, year, lang)[0], span: 'span-6' },
   ];
 
   return (
@@ -61,7 +61,7 @@ export function CommandCenter() {
           </section>
         ))}
       </div>
-      <div className="gc-board">
+      <div className="gc-dense">
         <section className="gc-panel gc-insight">
           <h2>Priority issue</h2>
           {lead ? (
@@ -91,9 +91,9 @@ export function CommandCenter() {
           </ul>
           <Link to="/story/actions">Review the action list</Link>
         </section>
-        {charts.map(({ figure, wide }) => (
-          <div key={figure.title} className={wide ? 'gc-span' : undefined}>
-            <Chart figure={figure} />
+        {charts.map(({ figure, span }) => (
+          <div key={figure.title} className={span}>
+            <Chart figure={figure} compact />
             <button type="button" className="gc-text-btn" onClick={() => copilot.focusChart(figure.title)}>
               Investigate {figure.title}
             </button>

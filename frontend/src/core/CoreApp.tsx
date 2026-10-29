@@ -5,7 +5,7 @@ import { deptLabel, tx } from '@/showcase/copy';
 import { DEPARTMENTS, DISCLAIMER, HOSPITALS, YEARS } from '@/showcase/engine';
 import { ShowcaseState, useShowcase } from '@/showcase/state';
 import { CopilotButton, CopilotPanel, CopilotState, useCopilot } from './Copilot';
-import { AREAS, findScreen } from './stories';
+import { AREAS, allScreens, findScreen } from './stories';
 import './core.css';
 
 function Shell() {
@@ -17,6 +17,7 @@ function Shell() {
   const [menu, setMenu] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [group, setGroup] = useState<string | null>(null);
+  const [finder, setFinder] = useState('');
   const presenting = location.pathname === '/present';
 
   useEffect(() => {
@@ -45,6 +46,13 @@ function Shell() {
             </button>
           </div>
           <nav className="gc-nav" aria-label="Primary">
+            <label className="gc-finder">
+              Find a workspace
+              <input aria-label="Find a workspace" value={finder} onChange={(event) => setFinder(event.target.value)} />
+            </label>
+            {finder.trim() ? allScreens().filter((item) => item.title.toLowerCase().includes(finder.trim().toLowerCase())).slice(0, 8).map((item) => (
+              <NavLink key={item.id} to={`/story/${item.id}`} data-mark={mark(item.title)}>{item.title}</NavLink>
+            )) : null}
             <NavLink to="/" end data-mark="EC">Command Center</NavLink>
             {AREAS.map((area) => (
               <div key={area.id}>

@@ -2,7 +2,7 @@ import { EXTENSIONS, SCREENS, type ScreenDef } from '@/showcase/catalog';
 
 export type ChartKind = 'wait' | 'census' | 'beds' | 'claims' | 'hospitals' | 'journey' | 'ledger' | 'workforce' | 'acuity' | 'trust';
 
-export type AreaId = 'executive' | 'clinical' | 'financial' | 'experience' | 'quality' | 'workforce' | 'governance';
+export type AreaId = 'executive' | 'clinical' | 'financial' | 'experience' | 'quality' | 'workforce' | 'ai' | 'governance' | 'admin';
 
 const FEATURED: Record<string, string[]> = {
   hub: ['kpi_bed_occupancy_rate', 'kpi_ed_door_to_provider_median_minutes', 'kpi_claim_denied_rate', 'demo_satisfaction_index'],
@@ -119,21 +119,21 @@ const KIND: Record<string, ChartKind> = {
 export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; screens: string[] }[] = [
   {
     id: 'executive',
-    title: 'Hospital performance',
+    title: 'Executive Intelligence',
     titleAr: 'الذكاء التنفيذي',
     lede: 'One picture of pressure, flow, and money before anyone opens a department.',
     screens: ['hub', 'command', 'stability', 'journey', 'revenue', 'risk', 'actions', 'comparison'],
   },
   {
     id: 'clinical',
-    title: 'Hospital operations',
+    title: 'Clinical Operations',
     titleAr: 'العمليات السريرية',
     lede: 'Emergency, beds, stays, theatres, laboratory, imaging, and pharmacy each keep their own picture.',
     screens: ['emergency', 'beds', 'inpatient', 'outpatient', 'appointments', 'dialysis', 'mortality', 'surgery', 'laboratory', 'radiology', 'pharmacy', 'diagnoses', 'ward-transfer', 'assessments-vitals', 'maternal-neonatal', 'morgue'],
   },
   {
     id: 'financial',
-    title: 'Financial performance',
+    title: 'Financial Performance',
     titleAr: 'الذكاء المالي',
     lede: 'Claims, denials, authorizations, and collections stay inside one reconciled ledger.',
     screens: ['rcm', 'claims', 'eligibility', 'pre-authorization', 'claims-processing', 'billing-collections'],
@@ -147,17 +147,31 @@ export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; 
   },
   {
     id: 'quality',
-    title: 'Quality & Safety',
+    title: 'Quality & Patient Safety',
     titleAr: 'الجودة والسلامة',
     lede: 'Safety signals and infection surveillance, each on its own cohort.',
     screens: ['clinical-quality', 'infection-prevention'],
   },
   {
+    id: 'ai',
+    title: 'AI & Decision Intelligence',
+    titleAr: 'الذكاء والقرارات',
+    lede: 'Decision patterns stay estimates until a named person reviews them.',
+    screens: ['ai-governance', 'ai-overview', 'ai-cases', 'ai-case', 'predictions', 'insights', 'assistant'],
+  },
+  {
     id: 'governance',
-    title: 'AI oversight',
-    titleAr: 'حوكمة البيانات والذكاء',
-    lede: 'Definitions, evidence, and decision support. Forecasts stay labelled as estimates.',
-    screens: ['access', 'audit', 'quality', 'quality-detail', 'metadata', 'kpi-catalog', 'semantic-views', 'verified-queries', 'ai-governance', 'ai-overview', 'ai-cases', 'ai-case', 'predictions', 'insights', 'assistant'],
+    title: 'Performance & Data Governance',
+    titleAr: 'حوكمة البيانات',
+    lede: 'Measure coverage, evidence, and reporting quality for administrators.',
+    screens: ['audit', 'quality', 'quality-detail', 'metadata', 'kpi-catalog', 'semantic-views', 'verified-queries'],
+  },
+  {
+    id: 'admin',
+    title: 'Administration & Settings',
+    titleAr: 'الإدارة',
+    lede: 'Who may review a management action.',
+    screens: ['access'],
   },
   {
     id: 'workforce',
