@@ -6,6 +6,7 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
@@ -39,6 +40,7 @@ function siteName(code: string, lang: Lang): string {
 export function promptForPath(path: string): string {
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
+  if (/surgery/.test(path)) return 'Which surgical specialties have the largest backlog?';
   if (/appointments/.test(path)) return 'Which specialties have the highest no-show rates?';
   if (/outpatient/.test(path)) return 'Which clinics have the longest waiting times?';
   if (/inpatient/.test(path)) return 'Why is the median length of stay increasing?';
@@ -64,7 +66,7 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
-  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments') {
+  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments' || department === 'Surgery') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
       const result = runWhatIf(department as WhatIfDomain, hospital, year, intent, period);
@@ -87,6 +89,7 @@ export function answerQuestion(
   if (department === 'Inpatient') return answerInpatient(q, hospital, year, name, lang, period);
   if (department === 'Outpatient') return answerOutpatient(q, hospital, year, name, lang, period);
   if (department === 'Appointments') return answerAppointments(q, hospital, year, name, lang, period);
+  if (department === 'Surgery') return answerSurgery(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -689,6 +692,108 @@ function answerAppointments(
     action: tx(lang, 'Review Command outcomes, then Access openings, then Attendance losses, then Recovery actions.', 'راجع نتائج القيادة ثم وصول الوصول ثم خسائر الحضور ثم إجراءات الاسترداد.'),
     role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
     benefit: tx(lang, 'A sequenced Appointments review keeps booking, access, attendance, and recovery visible without duplicating OPD clinic waiting.', 'مراجعة مواعيد متسلسلة تبقي الحجز والوصول والحضور والاسترداد واضحة.'),
+  });
+}
+
+function answerSurgery(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildSurgeryView(hospital, year, period);
+  const hotBacklog = [...view.specialties].sort((a, b) => b.backlog - a.backlog)[0];
+  const hotWait = [...view.specialties].sort((a, b) => b.medianWait - a.medianWait)[0];
+  const lowUtil = [...view.rooms].sort((a, b) => a.utilization - b.utilization)[0];
+  const hotCancel = [...view.specialties].sort((a, b) => b.cancelled - a.cancelled)[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|appointment no-?show|slot fill|clinic wait|arrival-to-provider|inpatient los/.test(q)
+    && !/surg|theatre|or util|turnover|first.?case|backlog|cancel|checklist|complication/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Surgery focus', 'خارج تركيز الجراحة'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Bed Occupancy stays in Beds. Appointment Slot Fill stays in Appointments. Clinic waiting stays in Outpatient. ED flow stays in Emergency.', 'إشغال الأسرة في الأسرة. ملء المواعيد في المواعيد. انتظار العيادة في العيادات الخارجية.'),
+      explanation: tx(lang, 'Surgery owns theatre activity, OR utilization, elective surgical wait, and illustrative safety process signals.', 'الجراحة تملك نشاط غرف العمليات والاستخدام والانتظار الجراحي وإشارات السلامة.'),
+      action: tx(lang, 'Stay on Surgery screens for volume, OR hours, backlog, quality, and capacity recovery questions.', 'ابقَ في شاشات الجراحة.'),
+      role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/backlog|waiting list|largest backlog|access delay|wait/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Surgical access & backlog · ${name} · ${view.periodLabel}`, `الوصول والطابور الجراحي · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Closing elective backlog ${view.closingBacklog.toLocaleString('en-US')} · median wait ${view.medianWaitDays.toFixed(1)} days · overdue ${view.overdueCases.toLocaleString('en-US')} beyond ${view.waitTargetDays}-day target · largest backlog ${hotBacklog.id}.`, `الطابور ${view.closingBacklog.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Opening ${view.openingBacklog.toLocaleString('en-US')} + added ${view.addedToWaitlist.toLocaleString('en-US')} − completed from waitlist ${view.completedFromWaitlist.toLocaleString('en-US')} − other exits ${view.otherExits.toLocaleString('en-US')} = closing backlog. Longest wait specialty ${hotWait.id} (${hotWait.medianWait.toFixed(1)} days). Emergency cases do not enter elective backlog.`, `أطول انتظار ${hotWait.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): elective demand above completed elective throughput and specialty template imbalance. Waiting time alone is not clinical urgency.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Prioritize openings for ${hotBacklog.id} overdue cases and review Demand vs Capacity on Surgical Access & Backlog.`, `أعطِ أولوية لـ ${hotBacklog.id}.`),
+      role: tx(lang, 'Surgical services lead', 'قائد الخدمات الجراحية'),
+      benefit: tx(lang, 'Clear backlog ownership focuses elective capacity where waits accumulate.', 'ملكية الطابور الواضحة تركز السعة الانتخابية.'),
+    });
+  }
+
+  if (/losing|unused|utiliz|or hour|turnover|late start|first.?case|delay/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `OR hours & schedule reliability · ${name} · ${view.periodLabel}`, `ساعات غرف العمليات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `OR Utilization ${((view.orUtilization) * 100).toFixed(1)}% (${view.usedHours.toLocaleString('en-US')} used of ${view.staffedHours.toLocaleString('en-US')} staffed) · unused ${view.unusedHours.toLocaleString('en-US')} h · late starts ${view.lateStartHours.toLocaleString('en-US')} h · first-case on-time ${((view.firstCaseOnTimeRate) * 100).toFixed(1)}% · lowest room ${lowUtil.id} at ${((lowUtil.utilization) * 100).toFixed(1)}%.`, `الاستخدام ${((view.orUtilization) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Median turnover ${view.medianTurnoverMin} min · overtime ${view.overtimeHours.toLocaleString('en-US')} h. Utilization = (procedure + turnover) ÷ staffed hours.`, `التدوير الوسيط ${view.medianTurnoverMin} د.`),
+      explanation: tx(lang, 'Potential reasons (not proven): late first cases, extended turnover, and same-day cancellation gaps leave staffed hours unused.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Start with first-case reliability and turnover on ${lowUtil.id}, then review Recoverable Hours by Driver.`, `ابدأ بموعد الحالة الأولى على ${lowUtil.id}.`),
+      role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
+      benefit: tx(lang, 'Recovering staffed hours raises throughput without claiming new theatres.', 'استرداد الساعات المجهزة يرفع الإنتاجية دون ادعاء غرف جديدة.'),
+    });
+  }
+
+  if (/quality|return|complication|checklist|infection|safety|deteriorat/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Surgical quality & safety · ${name} · ${view.periodLabel}`, `جودة وسلامة الجراحة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Unplanned OR returns ${((view.unplannedReturnRate) * 100).toFixed(1)}% · complications ${((view.complicationRate) * 100).toFixed(1)}% · checklist ${((view.checklistRate) * 100).toFixed(1)}% · infection flags ${((view.infectionRate) * 100).toFixed(1)}%.`, `العودة غير المخططة ${((view.unplannedReturnRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Denominators are ${view.completed.toLocaleString('en-US')} completed cases. ${view.qualityOverlapNote}`, `المقام ${view.completed.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Illustrative synthetic flags — not validated clinical evidence and not patient-level treatment advice.', 'إشارات اصطناعية توضيحية — ليست دليلاً سريرياً موثقاً.'),
+      action: tx(lang, 'Pair Checklist Completion with Unplanned Returns Trend and Safety Events by Type before changing clinical pathways.', 'اربط اكتمال القائمة مع اتجاه العودة والأحداث.'),
+      role: tx(lang, 'Surgical quality lead', 'قائد جودة الجراحة'),
+      benefit: tx(lang, 'Separating process compliance from outcome flags prevents false summing of overlapping events.', 'فصل الامتثال عن نتائج السلامة يمنع الجمع الخاطئ.'),
+    });
+  }
+
+  if (/additional|capacity|recoverable|extra case|throughput|optimization/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Surgical capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة الجراحة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Recoverable OR Hours ${view.recoverableOrHours.toLocaleString('en-US')} · feasible Additional Cases ${view.additionalCases.toLocaleString('en-US')} · capacity gain ${view.capacityGainHours.toFixed(1)} h (${view.scenarioImprovementPct.toFixed(1)}% of staffed).`, `ساعات قابلة للاسترداد ${view.recoverableOrHours.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Eligible backlog ${view.eligibleBacklogCases.toLocaleString('en-US')} · bed-related cancels ${view.bedRelatedCancels.toLocaleString('en-US')} · bed occ context ${((view.bedOccupancyContext) * 100).toFixed(1)}% (Beds-owned). Drivers are exclusive — no double count.`, `الطابور المؤهل ${view.eligibleBacklogCases.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Estimates are illustrative. Not all recovered hours become cases; bed and staffing constraints remain.', 'التقديرات توضيحية.'),
+      action: tx(lang, `Sequence first-case improvement, turnover reduction, and same-day cancel prevention before adding elective slots for ${hotBacklog.id}.`, `رتّب تحسين البداية والتدوير وتقليل الإلغاء لـ ${hotBacklog.id}.`),
+      role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating achievable surgical throughput.', 'السيناريوهات المقيدة تمنع المبالغة في الإنتاجية.'),
+    });
+  }
+
+  if (/cancel/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Surgical cancellations · ${name} · ${view.periodLabel}`, `إلغاءات الجراحة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Cancelled ${view.cancelled.toLocaleString('en-US')} of ${view.scheduled.toLocaleString('en-US')} (${((view.cancellationRate) * 100).toFixed(1)}%) · same-day ${view.sameDayCancels.toLocaleString('en-US')} (${((view.sameDayCancelRate) * 100).toFixed(1)}% of scheduled) · highest cancel specialty ${hotCancel.id}.`, `الملغى ${view.cancelled.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Top cancel reasons include bed holds (${view.bedRelatedCancels.toLocaleString('en-US')}). Completed + Cancelled = Scheduled.`, `حجوزات الأسرة ${view.bedRelatedCancels.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): postoperative bed unavailability, earlier OR overrun, and staffing gaps. Clinical cancellations stay clinical.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review OR Delay Reasons and bed-related cancel pathways with Bed Manager — without duplicating Bed Occupancy as a Surgery KPI.`, `راجع أسباب التأخير مع مدير الأسرة.`),
+      role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
+      benefit: tx(lang, 'Avoidable operational cancels protect completed case volume.', 'الإلغاءات التشغيلية التي يمكن تجنبها تحمي الحالات المكتملة.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Surgery' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `OR & Surgery at ${name} · ${view.periodLabel}`, `غرف العمليات والجراحة في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Completed ${view.completed.toLocaleString('en-US')} · OR util ${((view.orUtilization) * 100).toFixed(1)}% · backlog ${view.closingBacklog.toLocaleString('en-US')} · same-day cancel ${((view.sameDayCancelRate) * 100).toFixed(1)}%.`, topAlert ? topAlert.title : `المكتمل ${view.completed.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `Completed + Cancelled = Scheduled. ${view.methodology.orUtilization} ${view.methodology.waitClock}`, `المكتمل + الملغى = المجدول.`),
+    explanation: tx(lang, 'Potential reasons (not proven): schedule reliability, elective access pressure, and bed-constrained recovery pathways move together.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command volume, OR hours, Access backlog (${hotBacklog.id}), then Capacity Optimization.`, topAlert?.action ?? `راجع الحجم وساعات غرف العمليات والطابور.`),
+    role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
+    benefit: tx(lang, 'A sequenced Surgery review keeps volume, OR efficiency, access, quality, and capacity distinct.', 'مراجعة جراحية متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

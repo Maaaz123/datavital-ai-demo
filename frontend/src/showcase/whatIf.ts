@@ -3,9 +3,10 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery';
 
 export type WhatIfResult = {
   id: string;
@@ -51,6 +52,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What could happen if appointment demand increases by 15%?',
     'What if scheduling capacity is redistributed across specialties?',
   ],
+  Surgery: [
+    'What if first-case on-time starts improve by 15%?',
+    'What if turnover time decreases by 15%?',
+    'What if same-day cancellations decrease by 20%?',
+    'What if OR allocated hours are redistributed across specialties?',
+    'What if elective surgical capacity increases by 10%?',
+    'What if bed-related surgical delays fall by 25%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -70,6 +79,14 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Surgery intents before appointment/OR-adjacent generics.
+  if (/first.?case|on-?time start/.test(q) && /(improv|increas)/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/turnover/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'surg-turnover-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/same.?day cancel/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'surg-cancel-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/redistribut|rebalance/.test(q) && /or |theatre|surgical|allocated/.test(q)) return { kind: 'surg-redistribute', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/elective/.test(q) && /capacit/.test(q) && /increas/.test(q)) return { kind: 'surg-elective-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/bed.?related|postop(erative)? bed|surgical delay/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'surg-bed-delay-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
 
   // Outpatient intents before ED arrival/demand so "outpatient arrivals" is not classified as ED.
   if (/no-?show/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'appt-noshow-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -97,6 +114,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/surgery|theatre|operating room|\bor\b|turnover|first.?case|surgical backlog/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/appointment|no-?show|slot|lead time|waitlist|schedul/.test(q)) return { kind: 'appt-noshow-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/outpatient|clinic|wait|referral|document/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   return null;
@@ -115,6 +133,7 @@ export function runWhatIf(
   if (domain === 'Beds') return bedsWhatIf(fact, resolved);
   if (domain === 'Outpatient') return outpatientWhatIf(hospital, year, period, resolved);
   if (domain === 'Appointments') return appointmentsWhatIf(hospital, year, period, resolved);
+  if (domain === 'Surgery') return surgeryWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -123,6 +142,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Beds') return { kind: 'beds-unblock-5', amount: 5 };
   if (domain === 'Outpatient') return { kind: 'opd-demand-up', amount: 0.15 };
   if (domain === 'Appointments') return { kind: 'appt-noshow-down', amount: 0.2 };
+  if (domain === 'Surgery') return { kind: 'surg-first-case-up', amount: 0.15 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -505,6 +525,113 @@ function appointmentsWhatIf(
     implications: `Focusing ${hotNoShow.id} reminders and confirmation pathways concentrates impact where no-shows accumulate.`,
     followUp: 'No-show Rate, Attendance Rate, and Slots Lost to No-shows & Late Cancellations',
     owner: 'Outpatient access manager',
+  };
+}
+
+function surgeryWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildSurgeryView(hospital, year, period);
+  const hotBacklog = [...view.specialties].sort((a, b) => b.backlog - a.backlog)[0];
+  const lowUtil = [...view.rooms].sort((a, b) => a.utilization - b.utilization)[0];
+
+  if (intent.kind === 'surg-turnover-down') {
+    const savedMin = view.medianTurnoverMin * intent.amount;
+    const savedHours = Math.round((view.turnoverHours * intent.amount) * 10) / 10;
+    const feasibleCases = Math.floor((savedHours * 0.55) / Math.max(view.avgCaseHours, 0.5));
+    return {
+      id: intent.kind,
+      title: 'Turnover reduction scenario',
+      current: `Median Turnover ${num(view.medianTurnoverMin)} min · Turnover hours ${num(view.turnoverHours)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible turnover time`,
+      estimated: `About ${num(savedMin, 1)} minutes median · ~${num(savedHours, 1)} hours recovered · up to ${num(feasibleCases)} extra cases if staffing and beds allow`,
+      assumptions: 'Not all saved minutes become new procedures. Bed and staffing constraints still apply. Illustrative only.',
+      implications: `Recovered minutes help ${hotBacklog.id} backlog first if openings are released deliberately.`,
+      followUp: 'Median Turnover, Recoverable OR Hours, and Additional Cases',
+      owner: 'Theatre lead',
+    };
+  }
+
+  if (intent.kind === 'surg-cancel-down') {
+    const nextRate = view.sameDayCancelRate * (1 - intent.amount);
+    const saved = Math.round(view.scheduled * (view.sameDayCancelRate - nextRate));
+    return {
+      id: intent.kind,
+      title: 'Same-day cancellation reduction scenario',
+      current: `Same-Day Cancel Rate ${pct(view.sameDayCancelRate)} (${num(view.sameDayCancels)} of ${num(view.scheduled)}) (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} relative reduction in same-day cancellations`,
+      estimated: `Rate near ${pct(nextRate)} · about ${num(saved)} additional completed cases if those slots proceed`,
+      assumptions: 'Clinical cancellations remain clinical. Only operationally avoidable same-day cancels convert. Not a validated forecast.',
+      implications: 'Protecting the day-of schedule raises throughput without adding theatre sessions.',
+      followUp: 'Same-Day Cancel Rate, Completed Cases, and Cancellation Trend',
+      owner: 'Theatre lead',
+    };
+  }
+
+  if (intent.kind === 'surg-redistribute') {
+    const moved = Math.round(view.staffedHours * 0.05);
+    return {
+      id: intent.kind,
+      title: 'OR block redistribution scenario',
+      current: `Staffed OR hours ${num(view.staffedHours)} · lowest room util ${lowUtil.id} ${pct(lowUtil.utilization)} · largest backlog ${hotBacklog.id} (${view.periodLabel})`,
+      change: `Illustrative redistribution of about ${num(moved)} staffed hours toward higher-backlog specialties (total hours conserved)`,
+      estimated: `Hospital staffed hours remain ${num(view.staffedHours)} · ${hotBacklog.id} access eases if openings move there`,
+      assumptions: 'Total staffed capacity conserved unless extra staffing is explicitly added. Equipment constraints assumed feasible.',
+      implications: 'Redistribution improves access without claiming new theatres were opened.',
+      followUp: 'Backlog by Specialty, OR Utilization by Room, and Median Wait',
+      owner: 'Surgical services lead',
+    };
+  }
+
+  if (intent.kind === 'surg-elective-up') {
+    const extraSlots = Math.round(view.electiveScheduled * intent.amount);
+    const bedLimited = Math.round(extraSlots * 0.35);
+    const feasible = Math.max(0, extraSlots - bedLimited);
+    return {
+      id: intent.kind,
+      title: 'Elective capacity increase scenario',
+      current: `Elective scheduled ${num(view.electiveScheduled)} · closing backlog ${num(view.closingBacklog)} · bed occ context ${pct(view.bedOccupancyContext)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} rise in elective case slots`,
+      estimated: `About ${num(extraSlots)} added slots · ~${num(feasible)} feasible after bed constraint (~${num(bedLimited)} bed-limited)`,
+      assumptions: 'Room, staffing, and postoperative bed availability constrain conversion. Bed Occupancy remains owned by Beds & Capacity.',
+      implications: 'Added elective slots without bed relief overstate completed-case gains.',
+      followUp: 'Elective completed volume, Surgical Backlog, and Additional Cases',
+      owner: 'Surgical services lead',
+    };
+  }
+
+  if (intent.kind === 'surg-bed-delay-down') {
+    const nextBedCancels = Math.round(view.bedRelatedCancels * (1 - intent.amount));
+    const saved = view.bedRelatedCancels - nextBedCancels;
+    return {
+      id: intent.kind,
+      title: 'Bed-related surgical delay reduction scenario',
+      current: `Bed-related cancellations ${num(view.bedRelatedCancels)} · bed occupancy context ${pct(view.bedOccupancyContext)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in bed-related surgical delays/cancellations`,
+      estimated: `About ${num(saved)} fewer bed-related cancellations · bed occupancy KPI stays in Beds & Capacity`,
+      assumptions: 'References Beds context as a constraint. Does not move or create beds. Illustrative only.',
+      implications: 'Coordinating postoperative bed release protects OR schedules without duplicating Bed Occupancy as a Surgery KPI.',
+      followUp: 'Same-Day Cancel Rate, bed-related cancel reasons, and Beds vacant/blocked context',
+      owner: 'Theatre lead with Bed Manager',
+    };
+  }
+
+  const nextOnTime = Math.min(0.98, view.firstCaseOnTimeRate + intent.amount);
+  const recovered = Math.round(view.lateStartHours * (intent.amount / Math.max(1 - view.firstCaseOnTimeRate, 0.05)));
+  const feasibleCases = Math.floor((recovered * 0.5) / Math.max(view.avgCaseHours, 0.5));
+  return {
+    id: 'surg-first-case-up',
+    title: 'First-case on-time improvement scenario',
+    current: `First-Case On-Time ${pct(view.firstCaseOnTimeRate)} · Late Start Hours ${num(view.lateStartHours)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(intent.amount, 0)} point rise in first-case on-time starts`,
+    estimated: `On-time near ${pct(nextOnTime)} · about ${num(recovered)} late-start hours recovered · up to ${num(feasibleCases)} extra cases if openings are used`,
+    assumptions: 'Recovered start minutes are not automatically booked. Staffing and bed constraints remain. Illustrative only.',
+    implications: `Improving starts on ${lowUtil.id} and high-backlog ${hotBacklog.id} concentrates operational value.`,
+    followUp: 'First-Case On-Time, Late Start Hours, and Recoverable OR Hours',
+    owner: 'Theatre lead',
   };
 }
 

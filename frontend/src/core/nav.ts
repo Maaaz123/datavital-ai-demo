@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize';
 };
 
 export type NavDomain = {
@@ -180,6 +180,50 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'surgery',
+    label: 'Surgery',
+    mark: 'OR',
+    match: (path) => path.startsWith('/surgery'),
+    screens: [
+      {
+        to: '/surgery',
+        short: 'Command',
+        title: 'Surgical Command Center',
+        purpose: 'Surgical volume, cancellations, and throughput',
+        end: true,
+        glyph: 'surg',
+      },
+      {
+        to: '/surgery/or',
+        short: 'OR',
+        title: 'OR Utilization & Scheduling',
+        purpose: 'Theatre utilization, turnover, and late starts',
+        glyph: 'or',
+      },
+      {
+        to: '/surgery/access',
+        short: 'Access',
+        title: 'Surgical Access & Backlog',
+        purpose: 'Elective waitlist and surgical waiting times',
+        glyph: 'surg-access',
+      },
+      {
+        to: '/surgery/quality',
+        short: 'Quality',
+        title: 'Surgical Quality & Safety',
+        purpose: 'Returns, complications, and checklist compliance',
+        glyph: 'surg-quality',
+      },
+      {
+        to: '/surgery/optimization',
+        short: 'Capacity',
+        title: 'Surgical Capacity Optimization',
+        purpose: 'Recoverable hours and feasible extra cases',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -195,9 +239,9 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow' || kind === 'recover') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }
