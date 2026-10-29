@@ -449,11 +449,11 @@ export function Chart({ figure, compact = false }: { figure: Figure; compact?: b
           </ul>
         ) : null}
       </figcaption>
-      {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} /> : null}
-      {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} /> : null}
+      {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} compact={compact} /> : null}
+      {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} compact={compact} /> : null}
       {figure.type === 'waterfall' ? <WaterfallChart figure={figure} /> : null}
-      {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} /> : null}
-      {figure.type === 'stacked' ? <StackedChart figure={figure} /> : null}
+      {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} compact={compact} /> : null}
+      {figure.type === 'stacked' ? <StackedChart figure={figure} compact={compact} /> : null}
       {figure.type === 'heatmap' ? <HeatmapChart figure={figure} /> : null}
       {figure.type === 'bullet' ? <BulletChart figure={figure} /> : null}
       {compact ? null : <ValueTable figure={figure} />}
@@ -463,16 +463,16 @@ export function Chart({ figure, compact = false }: { figure: Figure; compact?: b
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#9a5b4a'];
 
-function BarChart({ figure, pareto = false }: { figure: Figure; pareto?: boolean }) {
+function BarChart({ figure, pareto = false, compact = false }: { figure: Figure; pareto?: boolean; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat.map((value) => Math.abs(value)));
   const width = 720;
-  const height = 240;
+  const height = compact ? 168 : 240;
   const padL = 52;
   const padR = 12;
-  const padT = 16;
-  const padB = 36;
+  const padT = compact ? 10 : 16;
+  const padB = compact ? 28 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const groupW = innerW / Math.max(categories.length, 1);
@@ -521,16 +521,16 @@ function ParetoLine({ figure, padL, padT, innerH, groupW }: { figure: Figure; pa
   return <polyline points={points} fill="none" stroke="#8c6a3d" strokeWidth="2" />;
 }
 
-function StackedChart({ figure }: { figure: Figure }) {
+function StackedChart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const totals = categories.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
   const max = axisMax(totals);
   const width = 720;
-  const height = 240;
+  const height = compact ? 168 : 240;
   const padL = 52;
   const padR = 12;
-  const padT = 16;
-  const padB = 36;
+  const padT = compact ? 10 : 16;
+  const padB = compact ? 28 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const groupW = innerW / Math.max(categories.length, 1);
@@ -564,24 +564,25 @@ function HeatmapChart({ figure }: { figure: Figure }) {
   const rows = figure.rows ?? [];
   const matrix = figure.matrix ?? [];
   const peak = Math.max(...matrix.flat(), 1);
-  const width = 720;
-  const cellW = 48;
-  const cellH = 22;
-  const padL = 48;
-  const height = 28 + rows.length * cellH;
+  const cols = Math.max(figure.categories.length, 1);
+  const cellW = 52;
+  const cellH = 20;
+  const padL = 36;
+  const width = padL + cols * cellW + 8;
+  const height = 26 + rows.length * cellH;
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
       <title>{figure.title}</title>
       {figure.categories.map((block, index) => (
-        <text key={block} x={padL + index * cellW + cellW / 2} y="14" textAnchor="middle" fontSize="11">{block}</text>
+        <text key={block} x={padL + index * cellW + cellW / 2} y="12" textAnchor="middle" fontSize="11">{block}</text>
       ))}
       {rows.map((day, row) => (
         <g key={day}>
-          <text x="4" y={28 + row * cellH + 15} fontSize="11">{day}</text>
+          <text x="2" y={22 + row * cellH + 12} fontSize="11">{day}</text>
           {(matrix[row] ?? []).map((value, column) => {
             const tone = 0.15 + 0.85 * (value / peak);
             return (
-              <rect key={`${day}-${figure.categories[column]}`} x={padL + column * cellW} y={22 + row * cellH} width={cellW - 3} height={cellH - 3} rx="3" fill={`rgba(15,110,106,${tone.toFixed(2)})`}>
+              <rect key={`${day}-${figure.categories[column]}`} x={padL + column * cellW} y={20 + row * cellH} width={cellW - 4} height={cellH - 4} rx="3" fill={`rgba(15,110,106,${tone.toFixed(2)})`}>
                 <title>{`${day} ${figure.categories[column]}:00: ${value.toLocaleString('en-US')} arrivals`}</title>
               </rect>
             );
@@ -630,18 +631,18 @@ function axisMax(values: number[]): number {
   return nice * power;
 }
 
-function LineChart({ figure, area = false }: { figure: Figure; area?: boolean }) {
+function LineChart({ figure, area = false, compact = false }: { figure: Figure; area?: boolean; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat);
   const min = 0;
   const span = Math.max(max - min, 1);
   const width = 720;
-  const height = 240;
+  const height = compact ? 168 : 240;
   const padL = 58;
   const padR = 16;
-  const padT = 18;
-  const padB = 36;
+  const padT = compact ? 12 : 18;
+  const padB = compact ? 28 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const step = innerW / Math.max(categories.length - 1, 1);
@@ -673,24 +674,25 @@ function LineChart({ figure, area = false }: { figure: Figure; area?: boolean })
   );
 }
 
-function StageChart({ figure }: { figure: Figure }) {
+function StageChart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
   const values = figure.series[0]?.values ?? [];
   const max = Math.max(...values, 1);
   const width = 720;
-  const row = 36;
-  const height = 28 + values.length * row;
+  const row = compact ? 26 : 36;
+  const height = 16 + values.length * row;
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
       <title>{figure.title}</title>
       {figure.categories.map((category, index) => {
         const value = values[index] ?? 0;
-        const bar = Math.max(8, (value / max) * 460);
-        const y = 16 + index * row;
+        const bar = Math.max(8, (value / max) * (compact ? 420 : 460));
+        const y = index * row + 2;
+        const barH = compact ? 14 : 18;
         return (
           <g key={category}>
-            <text x="8" y={y + 16} fontSize="13">{category}</text>
-            <rect x="210" y={y + 4} width={bar} height="18" rx="9" fill={index === 0 ? '#0f6e6a' : '#1e3a5f'} />
-            <text x={220 + bar} y={y + 17} fontSize="13">{value.toLocaleString('en-US', { maximumFractionDigits: figure.digits })}</text>
+            <text x="8" y={y + barH} fontSize={compact ? 12 : 13}>{category}</text>
+            <rect x={compact ? 156 : 210} y={y + 2} width={bar} height={barH} rx="7" fill={index === 0 ? '#0f6e6a' : '#1e3a5f'} />
+            <text x={(compact ? 164 : 220) + bar} y={y + barH} fontSize={compact ? 12 : 13}>{value.toLocaleString('en-US', { maximumFractionDigits: figure.digits })}</text>
           </g>
         );
       })}

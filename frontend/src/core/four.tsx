@@ -159,10 +159,10 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
 function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string }) {
   const copilot = useCopilot();
   return (
-    <div className={span}>
+    <section className={`gc-panel gc-slot ${span}`}>
       <Chart figure={figure} compact />
-      <button type="button" className="gc-text-btn" onClick={() => copilot.focusChart(figure.title)}>Investigate {figure.title}</button>
-    </div>
+      <button type="button" className="gc-text-btn" aria-label={`Investigate ${figure.title}`} onClick={() => copilot.focusChart(figure.title)}>Investigate</button>
+    </section>
   );
 }
 
@@ -173,6 +173,7 @@ function fig(type: Figure['type'], title: string, categories: string[], series: 
 function Alerts() {
   const store = useShowcase();
   const copilot = useCopilot();
+  const view = useView();
   const { period } = usePeriod();
   const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Emergency' && alert.severity !== 'info');
   return (
@@ -191,7 +192,12 @@ function Alerts() {
       {period === 'year'
         ? null
         : <p>These alerts use the full reporting year. The scores above use the selected period.</p>}
-      {alerts[0] ? <Link to="/emergency/ai-decisions">Open the decision review</Link> : <p>No open emergency alert for this hospital and year.</p>}
+      <div className="gc-next">
+        <h2>Management action</h2>
+        <p>Review midday coverage while the median wait is {num(view.median, 1)} minutes.</p>
+        <button type="button" className="gc-btn primary" onClick={() => copilot.setOpen(true)}>Review in the copilot</button>
+        {alerts[0] ? <Link to="/emergency/ai-decisions">Open the decision review</Link> : <p>No open emergency alert for this hospital and year.</p>}
+      </div>
     </section>
   );
 }
@@ -215,7 +221,6 @@ function compare(view: View, prior: View, pick: (item: View) => number, rate = f
 export function OverviewPage() {
   const view = useView();
   const prior = usePrior();
-  const copilot = useCopilot();
   return (
     <Page title="Emergency Overview" kpis={[
       score('ED Visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'ED arrivals in the selected period.', `${num(view.arrivals)} arrivals.`),
@@ -232,12 +237,6 @@ export function OverviewPage() {
       <Slot figure={fig('bars', 'Triage distribution', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Arrivals', values: view.acuity }], 'visits', 'The five ESI counts sum to arrivals.')} />
       <Slot figure={fig('flow', 'Patient disposition', ['Arrivals', 'Admitted', 'Discharged', 'Left'], [{ name: 'Visits', values: [view.arrivals, view.admitted, view.discharged, view.left] }], 'visits', 'Admitted, discharged, and left sum to arrivals.')} />
       <Slot figure={fig('bars', 'Boarding trend', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Monthly counts sum to period boarding.')} />
-      <section className="gc-panel span-12">
-        <h2>Management action</h2>
-        <p>Review midday physician and bed-desk coverage while the door-to-provider median is {num(view.median, 1)} minutes.</p>
-        <button type="button" className="gc-btn primary" onClick={() => copilot.setOpen(true)}>Review in the copilot</button>
-        <Link to="/emergency/ai-decisions">Open AI Decisions</Link>
-      </section>
     </Page>
   );
 }
@@ -256,19 +255,19 @@ export function FlowPage() {
       score('Left Without Being Seen', num(view.left), compare(view, prior, (item) => item.left), 'Left without being seen is left before triage plus left after triage. Triage completed is arrivals minus those who left before triage. Deaths stay inside the visit cohort and are not another exit.', `${num(view.before)} before triage and ${num(view.after)} after triage.`),
     ]}>
       <Slot span="span-8" figure={fig('area', 'Hourly arrivals', view.hours.map((_, index) => `${index}`), [{ name: 'Arrivals', values: view.hours }], 'visits', 'The 24 hours sum to period arrivals.')} />
-      <section className="gc-panel span-4">
+      <section className="gc-panel gc-insight span-4">
         <h2>Peak demand</h2>
         <ol>
           {view.peaks.map((item) => <li key={item.name}>{item.name} · {num(item.count)} arrivals</li>)}
         </ol>
-        <p>These hours are inside the 24-hour total.</p>
+        <p className="gc-next">These hours are inside the 24-hour total.</p>
       </section>
       <Slot figure={fig('bars', 'Arrivals by day of week', view.days.map((item) => item.name), [{ name: 'Arrivals', values: view.days.map((item) => item.count) }], 'visits', 'The seven days sum to period arrivals.')} />
       <Slot figure={fig('bars', 'Waiting time distribution', view.bins.map((item) => item.name), [{ name: 'Arrivals', values: view.bins.map((item) => item.count) }], 'visits', 'Bins sum to arrivals around the period median.')} />
       <Slot figure={waitHeatFig(view)} />
       <Slot figure={fig('flow', 'Patient journey', ['Arrivals', 'Triaged', 'Admitted', 'Discharged', 'Left before triage', 'Left after triage'], [{ name: 'Visits', values: [view.arrivals, view.triageCompleted, view.admitted, view.discharged, view.before, view.after] }], 'visits', 'Triaged visits exclude patients who left before triage.')} />
       <Slot figure={fig('stacked', 'Triage by acuity and time', ['Night', 'Day', 'Evening'], view.acuity.map((value, index) => ({ name: `ESI-${index + 1}`, values: splitSafe(value, [0.22, 0.46, 0.32]) })), 'visits', 'Shift splits still sum to arrivals.')} />
-      <div className="span-6"><Donut title="Arrival mode" note="Walk-in, ambulance, transfer, and other sum to arrivals." parts={view.modes.map((item) => ({ name: item.name, value: item.count }))} /></div>
+      <section className="gc-panel gc-slot span-6"><Donut title="Arrival mode" note="Walk-in, ambulance, transfer, and other sum to arrivals." parts={view.modes.map((item) => ({ name: item.name, value: item.count }))} /></section>
     </Page>
   );
 }
@@ -289,10 +288,10 @@ export function CapacityQualityPage() {
       score('Return Visit Rate', pct(view.arrivals ? view.revisit / view.arrivals : 0), 'Scenario figure', 'Returns within 72 hours divided by arrivals. This is a scenario share of 3.4%, not a tracked cohort.', `${num(view.revisit)} return visits.`),
     ]}>
       <Slot span="span-8" figure={fig('bullet', 'ED staffing coverage', ['Emergency'], [{ name: 'Required', values: [view.required] }, { name: 'Filled', values: [view.filled] }], 'FTE', 'Annual emergency staffing. A quarter does not create a second census.')} />
-      <section className="gc-panel span-4">
+      <section className="gc-panel gc-insight span-4">
         <h2>Staffing gap</h2>
         <p>Required {num(view.required)} FTE. Filled {num(view.filled)} FTE. Gap {num(view.required - view.filled)} FTE.</p>
-        <p>The three shifts below sum to those totals.</p>
+        <p className="gc-next">The three shifts sum to those totals.</p>
       </section>
       <Slot figure={fig('bars', 'Staffing by shift', view.shifts.map((item) => item.name), [{ name: 'Required', values: view.shifts.map((item) => item.required) }, { name: 'Filled', values: view.shifts.map((item) => item.filled) }], 'FTE', 'Shifts sum to the emergency staffing totals.')} />
       <Slot figure={fig('bars', 'Hospital bed status', ['Occupied', 'Available', 'Blocked'], [{ name: 'Beds', values: [view.beds.occupied, view.beds.available, view.beds.blocked] }], 'beds', 'Occupied, available, and blocked sum to staffed beds.')} />
@@ -386,7 +385,7 @@ export function DecisionsPage() {
       <Slot span="span-6" figure={fig('bars', 'Boarding evidence', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Counts sum to the period boarding total.')} />
       <section className="gc-panel span-12">
         <h2>Ask DataVital AI</h2>
-        <div className="gc-inline">
+        <div className="gc-ask">
           {['Why is emergency waiting time increasing?', 'How many emergency arrivals are there this year?', 'Which operational interventions should be reviewed?'].map((item) => (
             <button type="button" className="gc-btn quiet" key={item} onClick={() => setQuestion(item)}>{item}</button>
           ))}
@@ -442,7 +441,7 @@ function Donut({ title, note, parts }: { title: string; note: string; parts: { n
           <text key={part.name} x="128" y={28 + index * 18} fontSize="12">{part.name} {num(part.value)}</text>
         ))}
       </svg>
-      <button type="button" className="gc-text-btn" onClick={() => copilot.focusChart(title)}>Investigate {title}</button>
+      <button type="button" className="gc-text-btn" aria-label={`Investigate ${title}`} onClick={() => copilot.focusChart(title)}>Investigate</button>
     </figure>
   );
 }

@@ -1,10 +1,10 @@
 :root {
   color-scheme: light;
-  --paper: #f6f3ee;
-  --paper-2: #fffdf9;
+  --paper: #eef1f4;
+  --paper-2: #ffffff;
   --ink: #142033;
-  --ink-soft: #3c4b60;
-  --line: #e4ddd2;
+  --ink-soft: #5c6778;
+  --line: #e3e6eb;
   --teal: #0f6e6a;
   --teal-deep: #0b4f4c;
   --gold: #8c6a3d;
@@ -14,7 +14,7 @@
 
 .gc-shell {
   min-height: 100vh;
-  background: var(--paper);
+  background: #eef1f4;
   color: var(--ink);
 }
 
@@ -112,12 +112,29 @@
 .gc-tabs a.active { background: #142033; color: #fff; }
 .gc-ed .gc-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .gc-ed .gc-tabs a { text-align: center; border-radius: 8px; }
-.gc-ed .gc-ribbon { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
-.gc-ed .gc-score { border-radius: 14px; padding: 12px 14px; box-shadow: none; }
+.gc-ed .gc-ribbon { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); align-items: stretch; }
+.gc-ed .gc-score { display: flex; flex-direction: column; align-items: flex-start; height: 100%; min-height: 92px; border-radius: 12px; padding: 10px 12px; background: #fff; border: 1px solid #e6e8ec; box-shadow: none; }
 .gc-ed .gc-score span { color: #6d7584; font-size: 0.72rem; font-weight: 550; letter-spacing: 0; }
-.gc-ed .gc-score strong { margin: 4px 0 2px; color: #111; font-size: 1.28rem; font-weight: 680; letter-spacing: -0.04em; line-height: 1.15; white-space: nowrap; }
-.gc-ed .gc-score em { color: #6d7584; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ed .gc-score strong { margin: 6px 0 0; color: #111; font-size: 1.28rem; font-weight: 680; letter-spacing: -0.04em; line-height: 1.15; white-space: nowrap; overflow-wrap: normal; }
+.gc-ed .gc-score em { margin-top: auto; padding-top: 6px; color: #6d7584; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.gc-ed .gc-dense { gap: 10px; margin-top: 10px; align-items: stretch; }
+.gc-ed .gc-panel { border-radius: 12px; padding: 12px 14px; background: #fff; box-shadow: none; height: 100%; }
+.gc-ed .gc-panel h2 { margin: 0 0 8px; font-size: 0.95rem; }
+.gc-ed .gc-slot { display: flex; flex-direction: column; }
+.gc-ed .gc-slot .gc-chart { margin: 0; }
+.gc-ed .gc-slot .gc-chart svg { background: transparent; border-radius: 0; }
+.gc-ed .gc-slot .gc-text-btn { align-self: flex-start; margin-top: 4px; padding: 0; color: #0f6e6a; font-size: 0.78rem; font-weight: 680; }
+.gc-ed .gc-chart figcaption { gap: 2px; margin-bottom: 4px; }
+.gc-ed .gc-chart figcaption strong { font-size: 0.95rem; letter-spacing: -0.02em; }
 .gc-ed .gc-chart figcaption span { display: block; margin: 0; color: #6d7584; font-size: 0.78rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ed .gc-insight { display: flex; flex-direction: column; }
+.gc-ed .gc-next { margin-top: auto; padding-top: 12px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+.gc-ed p.gc-next { display: block; }
+.gc-ed .gc-next h2 { margin: 0; }
+.gc-ed .gc-next .gc-btn { justify-self: start; }
+.gc-ed .gc-ask { display: grid; gap: 8px; margin-top: 8px; }
+.gc-ed .gc-ask .gc-btn { justify-content: flex-start; text-align: start; width: 100%; }
+.gc-ed .gc-alert-list { gap: 8px; }
 .gc-ed .gc-btn.primary { background: #111; color: #fff; border-color: #111; }
 .gc-progress-steps { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 2px 0 14px; }
 .gc-progress-steps button { appearance: none; background: transparent; border: 0; padding: 0; min-width: 0; text-align: start; font: inherit; cursor: pointer; color: inherit; }
@@ -138,7 +155,15 @@
 
 .gc-workspace { min-width: 0; }
 .gc-frame .gc-banner, .gc-frame .gc-top, .gc-frame .gc-main { width: auto; margin-inline: 0; }
-.gc-frame .gc-banner { margin: 0 20px; border-radius: 12px; }
+.gc-frame .gc-banner {
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid #e6e8ec;
+  border-radius: 0;
+  background: #fff;
+  padding: 6px 20px 8px;
+  font-size: 0.75rem;
+}
 .gc-frame .gc-top {
   width: auto;
   margin: 0;
@@ -149,12 +174,12 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
-  background: #fffdf9;
+  background: #fff;
 }
 .gc-top .gc-inline { margin-top: 0; flex-wrap: nowrap; }
 .gc-top .gc-scope { flex-wrap: nowrap; min-width: 0; }
 .gc-top .gc-scope select { max-width: 12.5rem; }
-.gc-frame .gc-main { padding: 8px 20px 48px; }
+.gc-frame .gc-main { padding: 12px 16px 20px; }
 .gc-story h1 { font-size: clamp(1.7rem, 2.4vw, 2.35rem); letter-spacing: -0.03em; line-height: 1.1; }
 
 .gc-copilot-launch {
@@ -183,7 +208,7 @@
   max-width: 100%;
   min-height: 100vh;
   border-left: 1px solid var(--line);
-  background: #fffdf9;
+  background: #fff;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -397,13 +422,13 @@
 .gc-chart { margin: 12px 0 0; }
 .gc-chart figcaption { display: grid; gap: 4px; margin-bottom: 8px; }
 .gc-chart figcaption span, .gc-chart caption { color: var(--ink-soft); font-size: 0.9rem; }
-.gc-chart svg { width: 100%; height: auto; background: #fbfaf7; border-radius: 16px; }
+.gc-chart svg { width: 100%; height: auto; background: transparent; border-radius: 0; }
 .gc-legend { display: flex; gap: 14px; margin: 8px 0 0; padding: 0; list-style: none; color: var(--ink); font-size: 0.92rem; }
 .gc-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 99px; vertical-align: baseline; }
 .gc-path li { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 8px 12px; }
 .gc-viz { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; align-items: start; margin: 12px 0 18px; }
 .gc-chart svg text { fill: #243044; font-size: 12px; font-family: inherit; }
-.gc-chart svg line { stroke: #eadfce; }
+.gc-chart svg line { stroke: #e3e6eb; }
 .gc-chart table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.92rem; }
 .gc-chart th, .gc-chart td, .gc-table th, .gc-table td { text-align: start; padding: 8px 6px; border-bottom: 1px solid var(--line); }
 .gc-table { width: 100%; border-collapse: collapse; }
