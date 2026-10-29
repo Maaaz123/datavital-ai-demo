@@ -154,10 +154,10 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
   );
 }
 
-function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string }) {
+function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | false }) {
   const copilot = useCopilot();
   return (
-    <section className={`gc-panel gc-slot ${span}`}>
+    <section className={`gc-panel gc-slot${span ? ` ${span}` : ''}`}>
       <Chart
         figure={figure}
         compact
@@ -175,14 +175,14 @@ function fig(type: Figure['type'], title: string, categories: string[], series: 
   return { type, title, categories, series, unit, digits: 0, note, domain: 'emergency', subjects: [title], ...extra };
 }
 
-function Alerts() {
+function Alerts({ packed = false }: { packed?: boolean } = {}) {
   const store = useShowcase();
   const copilot = useCopilot();
   const view = useView();
   const { period } = usePeriod();
   const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Emergency' && alert.severity !== 'info');
   return (
-    <section className="gc-panel gc-insight span-4">
+    <section className={`gc-panel gc-insight${packed ? '' : ' span-4'}`}>
       <h2>Priority alerts</h2>
       <ul className="gc-alert-list">
         {alerts.map((alert) => (
@@ -317,10 +317,16 @@ export function OverviewPage() {
       score('Left without being seen (LWBS)', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by ED visits. Scenario definition is broader than pre-provider walkaways alone.', `${num(view.left)} of ${num(view.arrivals)} visits.`, undefined, rateTone(leftRate, 0.015, 0.025)),
       score('ED boarding beyond 4 hours', pct(boardRate), compare(view, prior, (item) => item.admitted ? item.boarding / item.admitted : 0, true), 'Admitted visits still in the ED more than 4 hours after the admit decision, divided by emergency admissions. Not hospital bed occupancy.', `${num(view.boarding)} of ${num(view.admitted)} emergency admissions.`, undefined, rateTone(boardRate, 0.04, 0.08)),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'ED visit volume over time', view.labels, [{ name: 'Visits', values: view.monthlyArrivals }], 'visits', 'Monthly ED visits sum to the selected period total.')} />
-      <Alerts />
-      <Slot figure={heatFig(view)} />
-      <Slot figure={fig('bars', 'Acuity mix on arrival (ESI)', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Visits', values: view.acuity }], 'visits', 'The five ESI counts sum to ED visits in the selected period.')} />
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'ED visit volume over time', view.labels, [{ name: 'Visits', values: view.monthlyArrivals }], 'visits', 'Monthly ED visits sum to the selected period total.')} />
+          <Slot span={false} figure={heatFig(view)} />
+        </div>
+        <div className="gc-ed-pack-col">
+          <Alerts packed />
+          <Slot span={false} figure={fig('bars', 'Acuity mix on arrival (ESI)', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Visits', values: view.acuity }], 'visits', 'The five ESI counts sum to ED visits in the selected period.')} />
+        </div>
+      </div>
       <Slot figure={fig('flow', 'ED disposition outcomes', ['Arrivals', 'Admitted', 'Discharged', 'Left without being seen'], [{ name: 'Visits', values: [view.arrivals, view.admitted, view.discharged, view.left] }], 'visits', 'Admitted + discharged + left without being seen = arrivals for the selected period.')} />
       <Slot figure={fig('bars', 'ED boarding beyond 4 hours', view.labels, [{ name: 'Boarded visits', values: view.monthlyBoard }], 'patients', 'Count of admitted visits still in the ED more than 4 hours after the admit decision. Monthly counts sum to the period boarding total; the ribbon KPI is the rate versus emergency admissions.')} />
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Demand & Arrivals']} />
@@ -345,24 +351,30 @@ export function FlowPage() {
       score('ED discharge rate', pct(view.arrivals ? view.discharged / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.discharged / item.arrivals : 0, true), 'ED visits discharged from the department divided by ED visits.', `${num(view.discharged)} discharged of ${num(view.arrivals)} visits.`, undefined, 'good'),
       score('Left without being seen (LWBS)', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by arrivals. Deaths remain inside the visit cohort and are not a fourth exit.', `${num(view.before)} before triage · ${num(view.after)} after triage.`, undefined, rateTone(leftRate, 0.015, 0.025)),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Arrivals by hour of day', view.hours.map((_, index) => `${index}`), [{ name: 'Visits', values: view.hours }], 'visits', 'Constructed hourly shape of period arrivals. The 24 hours sum to the selected period total.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Peak arrival hours</h2>
-        <div className="gc-peak-list">
-          {view.peaks.map((item, index) => (
-            <div key={item.name} className={`gc-peak ${index === 0 ? 'gc-peak-hot' : index === 1 ? 'gc-peak-warm' : 'gc-peak-cool'}`} style={{ animationDelay: `${index * 70}ms` }}>
-              <span className="gc-peak-rank">{index + 1}</span>
-              <div>
-                <strong>{item.name}</strong>
-                <em>{num(item.count)} arrivals · {pct(item.count / arrivalTotal)} of period arrivals</em>
-              </div>
-            </div>
-          ))}
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'Arrivals by hour of day', view.hours.map((_, index) => `${index}`), [{ name: 'Visits', values: view.hours }], 'visits', 'Constructed hourly shape of period arrivals. The 24 hours sum to the selected period total.')} />
+          <Slot span={false} figure={fig('bars', 'Arrivals by weekday', view.days.map((item) => item.name), [{ name: 'Visits', values: view.days.map((item) => item.count) }], 'visits', 'Constructed weekday mix. The seven days sum to period arrivals.')} />
         </div>
-        <p className="gc-next">These hours are inside the 24-hour arrival total, not an extra population.</p>
-      </section>
-      <Slot figure={fig('bars', 'Arrivals by weekday', view.days.map((item) => item.name), [{ name: 'Visits', values: view.days.map((item) => item.count) }], 'visits', 'Constructed weekday mix. The seven days sum to period arrivals.')} />
-      <Slot figure={fig('bars', 'Door-to-provider time distribution', view.bins.map((item) => item.name), [{ name: 'Visits', values: view.bins.map((item) => item.count) }], 'visits', 'Visit bins shaped around the period median. Bins sum to arrivals.')} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Peak arrival hours</h2>
+            <div className="gc-peak-list">
+              {view.peaks.map((item, index) => (
+                <div key={item.name} className={`gc-peak ${index === 0 ? 'gc-peak-hot' : index === 1 ? 'gc-peak-warm' : 'gc-peak-cool'}`} style={{ animationDelay: `${index * 70}ms` }}>
+                  <span className="gc-peak-rank">{index + 1}</span>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <em>{num(item.count)} arrivals · {pct(item.count / arrivalTotal)} of period arrivals</em>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="gc-next">These hours are inside the 24-hour arrival total, not an extra population.</p>
+          </section>
+          <Slot span={false} figure={fig('bars', 'Door-to-provider time distribution', view.bins.map((item) => item.name), [{ name: 'Visits', values: view.bins.map((item) => item.count) }], 'visits', 'Visit bins shaped around the period median. Bins sum to arrivals.')} />
+        </div>
+      </div>
       <Slot figure={waitHeatFig(view)} />
       <Slot figure={fig('bars', 'Triage and disposition volumes', ['Arrivals', 'Triaged', 'Admitted', 'Discharged', 'Left before triage', 'Left after triage'], [{ name: 'Visits', values: [view.arrivals, view.triageCompleted, view.admitted, view.discharged, view.before, view.after] }], 'visits', 'Stage volumes for the same period. Admitted + discharged + left before + left after = arrivals. Triaged excludes left-before-triage.')} />
       <Slot figure={fig('stacked', 'Acuity mix by time of day', ['Night', 'Day', 'Evening'], view.acuity.map((value, index) => ({ name: `ESI-${index + 1}`, values: splitSafe(value, [0.22, 0.46, 0.32]) })), 'visits', 'Constructed time-of-day split of ESI counts. Stacks still sum to arrivals. Not a staffing roster.')} />
@@ -391,27 +403,33 @@ export function QualityPage() {
       score('Left without being seen (LWBS)', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by ED visits.', `${num(view.left)} of ${num(view.arrivals)} visits.`, undefined, rateTone(leftRate, 0.015, 0.025)),
       score('High-acuity arrivals (ESI-1–2)', num(high), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 volume. Door-to-provider is not split by acuity in this scenario.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'LWBS and unplanned 72-hour returns', view.labels, [{ name: 'Left without being seen', values: view.monthlyLeft }, { name: 'Unplanned 72-hour returns', values: view.monthlyRevisit }], 'visits', 'LWBS visits sum to the period total. Returns are a fixed 3.4% scenario share of arrivals — not a patient-linked revisit cohort and not based on eligible discharges.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Safety watch list</h2>
-        <div className="gc-exception-list">
-          <div className={`gc-exception gc-tone-${rateTone(leftRate, 0.015, 0.025)}`}>
-            <strong>Left without being seen (LWBS)</strong>
-            <span>{pct(leftRate)} · {num(view.left)} visits</span>
-          </div>
-          <div className={`gc-exception gc-tone-${rateTone(revisitRate, 0.03, 0.05)}`}>
-            <strong>Unplanned 72-hour return rate</strong>
-            <span>{pct(revisitRate)} of arrivals · not patient-linked</span>
-          </div>
-          <div className={`gc-exception gc-tone-${mortality > 0 ? 'alert' : 'good'}`}>
-            <strong>ED mortality</strong>
-            <span>{pct(mortality)} · {num(view.deaths)} / {num(view.arrivals)}</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('line', 'LWBS and unplanned 72-hour returns', view.labels, [{ name: 'Left without being seen', values: view.monthlyLeft }, { name: 'Unplanned 72-hour returns', values: view.monthlyRevisit }], 'visits', 'LWBS visits sum to the period total. Returns are a fixed 3.4% scenario share of arrivals — not a patient-linked revisit cohort and not based on eligible discharges.')} />
+          <Slot span={false} figure={fig('bars', 'ED mortality by month', view.labels, [{ name: 'Deaths', values: view.monthlyDeaths }], 'deaths', `${num(view.deaths)} ED cohort deaths among ${num(view.arrivals)} visits (${pct(mortality)}). Not inpatient mortality.`)} />
         </div>
-        <p className="gc-next">High-acuity waiting time, returns resulting in admission, and left against medical advice are not available in this scenario.</p>
-      </section>
-      <Slot figure={fig('bars', 'ED mortality by month', view.labels, [{ name: 'Deaths', values: view.monthlyDeaths }], 'deaths', `${num(view.deaths)} ED cohort deaths among ${num(view.arrivals)} visits (${pct(mortality)}). Not inpatient mortality.`)} />
-      <Slot figure={fig('bars', 'High-acuity arrivals (ESI-1–2)', ['ESI-1', 'ESI-2'], [{ name: 'Visits', values: [view.acuity[0], view.acuity[1]] }], 'visits', 'ESI-1 and ESI-2 are part of the five-level acuity mix. Their door-to-provider times are not separated.')} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Safety watch list</h2>
+            <div className="gc-exception-list">
+              <div className={`gc-exception gc-tone-${rateTone(leftRate, 0.015, 0.025)}`}>
+                <strong>Left without being seen (LWBS)</strong>
+                <span>{pct(leftRate)} · {num(view.left)} visits</span>
+              </div>
+              <div className={`gc-exception gc-tone-${rateTone(revisitRate, 0.03, 0.05)}`}>
+                <strong>Unplanned 72-hour return rate</strong>
+                <span>{pct(revisitRate)} of arrivals · not patient-linked</span>
+              </div>
+              <div className={`gc-exception gc-tone-${mortality > 0 ? 'alert' : 'good'}`}>
+                <strong>ED mortality</strong>
+                <span>{pct(mortality)} · {num(view.deaths)} / {num(view.arrivals)}</span>
+              </div>
+            </div>
+            <p className="gc-next">High-acuity waiting time, returns resulting in admission, and left against medical advice are not available in this scenario.</p>
+          </section>
+          <Slot span={false} figure={fig('bars', 'High-acuity arrivals (ESI-1–2)', ['ESI-1', 'ESI-2'], [{ name: 'Visits', values: [view.acuity[0], view.acuity[1]] }], 'visits', 'ESI-1 and ESI-2 are part of the five-level acuity mix. Their door-to-provider times are not separated.')} />
+        </div>
+      </div>
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Quality & Outcomes']} />
     </Page>
   );

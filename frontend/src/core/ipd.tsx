@@ -357,25 +357,31 @@ export function IpdStayPage() {
       </div>
       <Slot figure={fig('bars', 'Length of stay by specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.los) }], 'days', 'Specialty medians around the hospital median. Raw gaps are not proof of better or worse care.')} />
       <Slot figure={fig('bars', 'Discharge destinations', view.destinations.map((item) => item.id), [{ name: 'Discharges', values: view.destinations.map((item) => item.count) }], 'patients', 'Destinations partition completed discharges and sum to the period discharge total. Inpatient deaths are counted separately (not a discharge destination).')} />
-      <Slot span="span-8" figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative cumulative sketch from the period daily discharge rate (24–96h). Not a validated forecast.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Discharge pipeline</h2>
-        <div className="gc-exception-list">
-          <div className="gc-exception gc-tone-good">
-            <strong>Expected next day</strong>
-            <span>{num(view.expectedDischarges)} discharges</span>
-          </div>
-          <div className={`gc-exception gc-tone-${rateTone(view.delayedDischargeRate, 0.06, 0.1)}`}>
-            <strong>Delayed discharge rate</strong>
-            <span>{pct(view.delayedDischargeRate)} of census</span>
-          </div>
-          <div className={`gc-exception gc-tone-${rateTone(1 - view.dischargeSummaryRate, 0.12, 0.2)}`}>
-            <strong>Discharge summary completion</strong>
-            <span>{pct(view.dischargeSummaryRate)} illustrative · delay duration clocks not available</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative cumulative sketch from the period daily discharge rate (24–96h). Not a validated forecast.')} />
         </div>
-        <p className="gc-next">Bed cleaning and assignment after discharge stay in Beds & Capacity. Observed-to-expected LOS remains unavailable.</p>
-      </section>
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Discharge pipeline</h2>
+            <div className="gc-exception-list">
+              <div className="gc-exception gc-tone-good">
+                <strong>Expected next day</strong>
+                <span>{num(view.expectedDischarges)} discharges</span>
+              </div>
+              <div className={`gc-exception gc-tone-${rateTone(view.delayedDischargeRate, 0.06, 0.1)}`}>
+                <strong>Delayed discharge rate</strong>
+                <span>{pct(view.delayedDischargeRate)} of census</span>
+              </div>
+              <div className={`gc-exception gc-tone-${rateTone(1 - view.dischargeSummaryRate, 0.12, 0.2)}`}>
+                <strong>Discharge summary completion</strong>
+                <span>{pct(view.dischargeSummaryRate)} illustrative · delay duration clocks not available</span>
+              </div>
+            </div>
+            <p className="gc-next">Bed cleaning and assignment after discharge stay in Beds & Capacity. Observed-to-expected LOS remains unavailable.</p>
+          </section>
+        </div>
+      </div>
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Inpatient Length of Stay', 'Discharge Management']} />
     </Page>
   );

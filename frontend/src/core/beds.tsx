@@ -164,10 +164,10 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
   );
 }
 
-function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string }) {
+function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | false }) {
   const copilot = useCopilot();
   return (
-    <section className={`gc-panel gc-slot ${span}`}>
+    <section className={`gc-panel gc-slot${span ? ` ${span}` : ''}`}>
       <Chart
         figure={figure}
         compact
@@ -185,14 +185,14 @@ function fig(type: Figure['type'], title: string, categories: string[], series: 
   return { type, title, categories, series, unit, digits: 0, note, domain: 'beds', subjects: [title], ...extra };
 }
 
-function Alerts() {
+function Alerts({ packed = false }: { packed?: boolean } = {}) {
   const store = useShowcase();
   const copilot = useCopilot();
   const view = useView();
   const { period } = usePeriod();
   const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Beds' && alert.severity !== 'info');
   return (
-    <section className="gc-panel gc-insight span-4">
+    <section className={`gc-panel gc-insight${packed ? '' : ' span-4'}`}>
       <h2>Priority alerts</h2>
       <ul className="gc-alert-list">
         {alerts.map((alert) => (
@@ -384,10 +384,16 @@ export function BedsOverviewPage() {
       score('Bed occupancy rate', pct(view.occupancy), compare(view, prior, (item) => item.occupancy, true), 'Occupied ÷ operational bed capacity at the snapshot. Point-in-time rate; monthly snapshots are not summed into annual occupancy.', `${num(view.occupied)} / ${num(view.staffed)}.`, 'value-kpi_bed_occupancy_rate', occTone(view.occupancy)),
       score('Capacity shortfall', num(view.shortfall), compare(view, prior, (item) => item.shortfall), 'Pending bed requests minus vacant beds when demand exceeds vacant capacity.', `${num(view.pendingRequests)} pending · ${num(view.available)} vacant.`, undefined, view.shortfall > 0 ? 'alert' : 'good'),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Occupied beds over time', view.labels, [{ name: 'Occupied', values: view.monthlyOccupied }], 'beds', 'Month-end occupied snapshots. These census points are not summed into an annual occupancy rate.')} />
-      <Alerts />
-      <Slot figure={fig('bars', 'Operational bed composition', ['Occupied', 'Vacant', 'Blocked'], [{ name: 'Beds', values: [view.occupied, view.available, view.blocked] }], 'beds', `Occupied + vacant + blocked = ${num(view.staffed)} operational bed capacity at the snapshot.`)} />
-      <Slot figure={fig('bars', 'Beds by ward', view.wards.map((ward) => ward.id), [{ name: 'Occupied', values: view.wards.map((ward) => ward.occupied) }, { name: 'Vacant', values: view.wards.map((ward) => ward.available) }, { name: 'Blocked', values: view.wards.map((ward) => ward.blocked) }], 'beds', 'Ward split of the hospital bed snapshot. Occupied + vacant + blocked = ward operational beds.')} />
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'Occupied beds over time', view.labels, [{ name: 'Occupied', values: view.monthlyOccupied }], 'beds', 'Month-end occupied snapshots. These census points are not summed into an annual occupancy rate.')} />
+          <Slot span={false} figure={fig('bars', 'Operational bed composition', ['Occupied', 'Vacant', 'Blocked'], [{ name: 'Beds', values: [view.occupied, view.available, view.blocked] }], 'beds', `Occupied + vacant + blocked = ${num(view.staffed)} operational bed capacity at the snapshot.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
+          <Alerts packed />
+          <Slot span={false} figure={fig('bars', 'Beds by ward', view.wards.map((ward) => ward.id), [{ name: 'Occupied', values: view.wards.map((ward) => ward.occupied) }, { name: 'Vacant', values: view.wards.map((ward) => ward.available) }, { name: 'Blocked', values: view.wards.map((ward) => ward.blocked) }], 'beds', 'Ward split of the hospital bed snapshot. Occupied + vacant + blocked = ward operational beds.')} />
+        </div>
+      </div>
       <Slot figure={fig('bars', 'Beds by type', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU beds from the same snapshot. Emergency bays are outside Beds & Capacity.')} />
       <Slot figure={fig('line', 'Vacant vs blocked beds', view.labels, [{ name: 'Vacant', values: view.monthlyAvailable }, { name: 'Blocked', values: view.monthlyBlocked }], 'beds', 'Vacant and blocked stay inside the operational bed total at each snapshot.')} />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Bed Inventory & Availability', 'Bed Occupancy']} />
@@ -414,27 +420,33 @@ export function BedsPlacementPage() {
       score('Beds awaiting cleaning', num(view.cleaningAwaiting), compare(view, prior, (item) => item.cleaningAwaiting), 'Constructed share of blocked beds used as a readiness signal. Not a cleaning-clock extract.', `${num(view.cleaningAwaiting)} beds inside the blocked total.`, undefined, view.cleaningAwaiting > 0 ? 'watch' : 'good'),
       score('Bed occupation duration', `${num(view.occupationDurationDays, 1)} days`, compare(view, prior, (item) => item.occupationDurationDays), 'Inpatient length-of-stay median used as bed occupation duration. Not emergency length of stay.', `Median ${num(view.occupationDurationDays, 1)} days.`, undefined, 'neutral'),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Bed admissions and releases', view.labels, [{ name: 'Bed admissions', values: view.monthlyAdmissions }, { name: 'Bed releases', values: view.monthlyDischarges }], 'patients', 'Period bed admissions and discharges. Emergency visits that did not occupy an inpatient bed are excluded.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Assignment pressure</h2>
-        <div className="gc-exception-list">
-          <div className={`gc-exception gc-tone-${view.pendingRequests > view.available ? 'alert' : 'watch'}`}>
-            <strong>Requests vs vacant beds</strong>
-            <span>{num(view.pendingRequests)} requests · {num(view.available)} vacant</span>
-          </div>
-          <div className={`gc-exception gc-tone-${view.unallocated > 0 ? 'alert' : 'good'}`}>
-            <strong>Unallocated bed requests</strong>
-            <span>{num(view.unallocated)} requests</span>
-          </div>
-          <div className={`gc-exception gc-tone-${view.cleaningAwaiting > 0 ? 'watch' : 'good'}`}>
-            <strong>Beds awaiting cleaning</strong>
-            <span>{num(view.cleaningAwaiting)} inside the blocked total</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'Bed admissions and releases', view.labels, [{ name: 'Bed admissions', values: view.monthlyAdmissions }, { name: 'Bed releases', values: view.monthlyDischarges }], 'patients', 'Period bed admissions and discharges. Emergency visits that did not occupy an inpatient bed are excluded.')} />
+          <Slot span={false} figure={fig('bars', 'Bed movement volumes', ['Admissions', 'Transfers in', 'Releases', 'Transfers out'], [{ name: 'Moves', values: [view.admissions, view.transfersIn, view.discharges, view.transfersOut] }], 'patients', 'Period volumes. Admissions occupy beds; releases free beds; transfers move occupancy without a new admission.')} />
         </div>
-        <p className="gc-next">Assignment P90, vacancy duration, and discharge-to-ready clocks are not available in this scenario.</p>
-      </section>
-      <Slot figure={fig('bars', 'Bed movement volumes', ['Admissions', 'Transfers in', 'Releases', 'Transfers out'], [{ name: 'Moves', values: [view.admissions, view.transfersIn, view.discharges, view.transfersOut] }], 'patients', 'Period volumes. Admissions occupy beds; releases free beds; transfers move occupancy without a new admission.')} />
-      <Slot figure={fig('bars', 'Internal transfer events over time', view.labels, [{ name: 'Transfer events (in + out)', values: view.monthlyTransfers }], 'moves', `${num(transferTotal)} transfer endpoints in the selected period (transfers in + transfers out). Each move may appear once at each endpoint — not a count of unique patients.`)} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Assignment pressure</h2>
+            <div className="gc-exception-list">
+              <div className={`gc-exception gc-tone-${view.pendingRequests > view.available ? 'alert' : 'watch'}`}>
+                <strong>Requests vs vacant beds</strong>
+                <span>{num(view.pendingRequests)} requests · {num(view.available)} vacant</span>
+              </div>
+              <div className={`gc-exception gc-tone-${view.unallocated > 0 ? 'alert' : 'good'}`}>
+                <strong>Unallocated bed requests</strong>
+                <span>{num(view.unallocated)} requests</span>
+              </div>
+              <div className={`gc-exception gc-tone-${view.cleaningAwaiting > 0 ? 'watch' : 'good'}`}>
+                <strong>Beds awaiting cleaning</strong>
+                <span>{num(view.cleaningAwaiting)} inside the blocked total</span>
+              </div>
+            </div>
+            <p className="gc-next">Assignment P90, vacancy duration, and discharge-to-ready clocks are not available in this scenario.</p>
+          </section>
+          <Slot span={false} figure={fig('bars', 'Internal transfer events over time', view.labels, [{ name: 'Transfer events (in + out)', values: view.monthlyTransfers }], 'moves', `${num(transferTotal)} transfer endpoints in the selected period (transfers in + transfers out). Each move may appear once at each endpoint — not a count of unique patients.`)} />
+        </div>
+      </div>
       <Slot figure={fig('bars', 'Blocked bed readiness reasons', ['Cleaning', 'Maintenance'], [{ name: 'Beds', values: [view.cleaningAwaiting, view.maintenanceAwaiting] }], 'beds', 'Constructed split of blocked beds. Cleaning + maintenance = blocked total. Closure reason codes are not extracted.')} />
       <Slot figure={fig('bars', 'Vacant beds by ward', view.wards.map((ward) => ward.id), [{ name: 'Vacant', values: view.wards.map((ward) => ward.available) }], 'beds', 'Vacant beds by ward from the same operational snapshot.')} />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Bed Allocation & Placement', 'Bed Turnover & Readiness', 'Bed Movement & Utilization']} />
@@ -459,35 +471,41 @@ export function BedsCapacityPage() {
       score('ICU occupancy rate', pct(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0), compare(view, prior, (item) => item.icuStaffed ? item.icuOccupied / item.icuStaffed : 0, true), 'ICU occupied ÷ ICU operational beds at the current snapshot. Emergency bays are not ICU beds.', `${num(view.icuOccupied)} / ${num(view.icuStaffed)}.`, undefined, occTone(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0)),
       score('General bed occupancy rate', pct(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0), compare(view, prior, (item) => item.bedTypes[0]?.staffed ? item.bedTypes[0].occupied / item.bedTypes[0].staffed : 0, true), 'General occupied ÷ general operational beds at the current snapshot.', `${num(view.bedTypes[0]?.occupied ?? 0)} / ${num(view.bedTypes[0]?.staffed ?? 0)}.`, undefined, occTone(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0)),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Illustrative bed availability outlook (next 48 hours)', horizons, [
-        { name: 'Projected available', values: projectedCurve },
-        { name: 'Expected releases', values: releaseCurve },
-        { name: 'Expected demand', values: demandCurve },
-      ], 'beds', 'Illustrative 4–48h sketch from period admission and discharge rates. Projected available is simulated future capacity, not the current vacant-bed count. Not a validated forecast.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Capacity watch list</h2>
-        <div className="gc-exception-list">
-          <div className={`gc-exception gc-tone-${view.shortfall > 0 ? 'alert' : 'good'}`}>
-            <strong>Capacity shortfall</strong>
-            <span>{num(view.shortfall)} · requests above vacant beds</span>
-          </div>
-          <div className={`gc-exception gc-tone-${view.projectedAvailable <= 2 ? 'alert' : 'watch'}`}>
-            <strong>Projected available tomorrow</strong>
-            <span>{num(view.projectedAvailable)} after next-day sketch</span>
-          </div>
-          <div className={`gc-exception gc-tone-${projectedCurve[4] <= 2 ? 'alert' : 'watch'}`}>
-            <strong>Projected available in 48 hours</strong>
-            <span>{num(projectedCurve[4])} beds in the sketch</span>
-          </div>
-          <div className="gc-exception gc-tone-neutral">
-            <strong>Forecast accuracy</strong>
-            <span>Not available</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('line', 'Illustrative bed availability outlook (next 48 hours)', horizons, [
+            { name: 'Projected available', values: projectedCurve },
+            { name: 'Expected releases', values: releaseCurve },
+            { name: 'Expected demand', values: demandCurve },
+          ], 'beds', 'Illustrative 4–48h sketch from period admission and discharge rates. Projected available is simulated future capacity, not the current vacant-bed count. Not a validated forecast.')} />
+          <Slot span={false} figure={fig('bars', 'Beds by type (snapshot)', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the current snapshot.')} />
         </div>
-        <p className="gc-next">What-if opening or closing beds is illustrative only. AI does not move a patient.</p>
-      </section>
-      <Slot figure={fig('bars', 'Beds by type (snapshot)', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the current snapshot.')} />
-      <Donut title="Operational beds by type" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Capacity watch list</h2>
+            <div className="gc-exception-list">
+              <div className={`gc-exception gc-tone-${view.shortfall > 0 ? 'alert' : 'good'}`}>
+                <strong>Capacity shortfall</strong>
+                <span>{num(view.shortfall)} · requests above vacant beds</span>
+              </div>
+              <div className={`gc-exception gc-tone-${view.projectedAvailable <= 2 ? 'alert' : 'watch'}`}>
+                <strong>Projected available tomorrow</strong>
+                <span>{num(view.projectedAvailable)} after next-day sketch</span>
+              </div>
+              <div className={`gc-exception gc-tone-${projectedCurve[4] <= 2 ? 'alert' : 'watch'}`}>
+                <strong>Projected available in 48 hours</strong>
+                <span>{num(projectedCurve[4])} beds in the sketch</span>
+              </div>
+              <div className="gc-exception gc-tone-neutral">
+                <strong>Forecast accuracy</strong>
+                <span>Not available</span>
+              </div>
+            </div>
+            <p className="gc-next">What-if opening or closing beds is illustrative only. AI does not move a patient.</p>
+          </section>
+          <Donut packed title="Operational beds by type" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
+        </div>
+      </div>
       <Slot span="span-12" figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy = occupied ÷ staffed at the snapshot. Monthly averages are not summed.')} />
       <AiIndex />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Capacity Planning']} />
@@ -495,14 +513,14 @@ export function BedsCapacityPage() {
   );
 }
 
-function Donut({ title, note, parts }: { title: string; note: string; parts: { name: string; value: number }[] }) {
+function Donut({ title, note, parts, packed = false }: { title: string; note: string; parts: { name: string; value: number }[]; packed?: boolean }) {
   const copilot = useCopilot();
   const total = parts.reduce((sum, part) => sum + part.value, 0) || 1;
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <section className="gc-panel gc-slot span-6">
+    <section className={`gc-panel gc-slot${packed ? '' : ' span-6'}`}>
       <figure className="gc-chart" data-chart-state="ok">
         <figcaption className="gc-chart-head">
           <div className="gc-chart-copy">

@@ -302,15 +302,15 @@
 .gc-ed .gc-dense > *:nth-child(6) { animation-delay: 240ms; }
 .gc-ed .gc-dense > *:nth-child(7) { animation-delay: 280ms; }
 .gc-ed .gc-dense > *:nth-child(8) { animation-delay: 320ms; }
-.gc-ed .gc-peak-list { display: grid; gap: 8px; flex: 1; align-content: stretch; }
+.gc-ed .gc-peak-list { display: grid; gap: 6px; flex: 0 0 auto; align-content: start; }
 .gc-ed .gc-peak {
   display: grid;
   grid-template-columns: 34px 1fr;
   gap: 10px;
   align-items: center;
   border-radius: 12px;
-  padding: 12px 14px;
-  min-height: 64px;
+  padding: 8px 12px;
+  min-height: 0;
   border: 1px solid transparent;
   animation: gc-slide 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -656,7 +656,9 @@
 }
 .gc-ai-orb svg { width: 16px; height: 16px; }
 .gc-ed .gc-insight { display: flex; flex-direction: column; }
-.gc-ed .gc-next { margin-top: auto; padding-top: 12px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+.gc-ed .gc-next { margin-top: 10px; padding-top: 10px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
+.gc-ed .gc-insight .gc-ai-cta,
+.gc-ed .gc-insight .gc-text-btn { justify-self: start; }
 .gc-ed p.gc-next { display: block; }
 .gc-ed .gc-next h2 { margin: 0; }
 .gc-ed .gc-next .gc-btn { justify-self: start; }
