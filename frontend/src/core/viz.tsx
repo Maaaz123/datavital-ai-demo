@@ -459,7 +459,7 @@ export function Chart({ figure }: { figure: Figure }) {
 function BarChart({ figure }: { figure: Figure }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
-  const max = Math.max(...flat.map((value) => Math.abs(value)), 1);
+  const max = axisMax(flat.map((value) => Math.abs(value)));
   const width = 720;
   const height = 240;
   const padL = 52;
@@ -504,7 +504,8 @@ function BarChart({ figure }: { figure: Figure }) {
 function axisMax(values: number[]): number {
   const peak = Math.max(...values, 0);
   if (peak <= 0) return 1;
-  const padded = peak * 1.18;
+  if (peak <= 100) return 100;
+  const padded = peak * 1.12;
   const power = 10 ** Math.floor(Math.log10(padded));
   const fraction = padded / power;
   const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;

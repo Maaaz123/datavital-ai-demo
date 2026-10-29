@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { AlertStatus } from '@/core/alerts';
 
 const STORAGE_KEY = 'datavital-demo-showcase';
 
@@ -27,6 +28,7 @@ type Persisted = {
   facility: string;
   approvalPolicy: 'lead' | 'committee';
   approvals: Record<string, Approval>;
+  alertStatus: Record<string, AlertStatus>;
   cases: ExperienceCase[];
   tourStep: number;
 };
@@ -50,6 +52,7 @@ function fresh(): Persisted {
     facility: 'General hospital',
     approvalPolicy: 'lead',
     approvals: {},
+    alertStatus: {},
     cases: INITIAL_CASES,
     tourStep: 0,
   };
@@ -80,7 +83,7 @@ function load(): Persisted {
     const raw = storage().getItem(STORAGE_KEY);
     if (!raw) return fresh();
     const parsed = JSON.parse(raw) as Persisted;
-    return { ...fresh(), ...parsed, cases: parsed.cases?.length ? parsed.cases : INITIAL_CASES };
+    return { ...fresh(), ...parsed, cases: parsed.cases?.length ? parsed.cases : INITIAL_CASES, alertStatus: parsed.alertStatus ?? {} };
   } catch {
     return fresh();
   }
@@ -95,6 +98,7 @@ type Store = Persisted & {
   setApprovalPolicy: (approvalPolicy: 'lead' | 'committee') => void;
   toggleLang: () => void;
   decide: (key: string, decision: Approval) => void;
+  setAlertStatus: (id: string, status: AlertStatus) => void;
   advanceCase: (id: string) => void;
   setTourStep: (step: number) => void;
   reset: () => void;
@@ -136,6 +140,7 @@ export function ShowcaseState({ children }: { children: ReactNode }) {
       setApprovalPolicy: (approvalPolicy) => setState((s) => ({ ...s, approvalPolicy })),
       toggleLang: () => setState((s) => ({ ...s, lang: s.lang === 'en' ? 'ar' : 'en' })),
       decide: (key, decision) => setState((s) => ({ ...s, approvals: { ...s.approvals, [key]: decision } })),
+      setAlertStatus: (id, status) => setState((s) => ({ ...s, alertStatus: { ...s.alertStatus, [id]: status } })),
       advanceCase: (id) =>
         setState((s) => ({
           ...s,

@@ -10,7 +10,6 @@ import {
   LibraryPage,
   LifecyclePage,
   OperationsHub,
-  Overview,
   PlatformPage,
   PresentPage,
   SettingsPage,
@@ -86,7 +85,7 @@ export const routes = [
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <Overview /> },
+      { index: true, element: <StoryPage forcedId="command" /> },
       { path: 'platform', element: <PlatformPage /> },
       { path: 'challenge', element: <Challenge /> },
       { path: 'solution', element: <Solution /> },

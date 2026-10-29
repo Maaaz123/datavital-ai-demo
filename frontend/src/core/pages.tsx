@@ -8,6 +8,8 @@ import { formatDelta, formatMeasure, measure, type Measure } from '@/showcase/me
 import { decisionKey, useShowcase } from '@/showcase/state';
 import { AREAS, CHALLENGES, LAYERS, PRESENTATION, allScreens, areaFor, featuredKpis, findScreen } from './stories';
 import { Chart, screenCharts } from './viz';
+import { visibleAlerts } from './alerts';
+import { useCopilot } from './Copilot';
 
 export const COUNTRIES = [
   { id: 'sa', name: 'Saudi Arabia', currency: 'SAR', factor: 1, tz: 'Asia/Riyadh', languages: 'Arabic and English', occupancyTarget: 85 },
@@ -228,9 +230,11 @@ export function AreaPage() {
   );
 }
 
-export function StoryPage() {
-  const { screenId = '' } = useParams();
+export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
+  const params = useParams();
+  const screenId = forcedId || params.screenId || '';
   const { store, lang } = useScope();
+  const copilot = useCopilot();
   const screen = findScreen(screenId);
   const [assistant, setAssistant] = useState(false);
   const [query, setQuery] = useState('');
@@ -253,7 +257,7 @@ export function StoryPage() {
   return (
     <article className="gc-story">
       <nav className="gc-crumbs" aria-label="Breadcrumb">
-        <Link to="/">Overview</Link>
+        <Link to="/">{tx(lang, 'Command Center', 'مركز القيادة')}</Link>
         <span>/</span>
         <Link to={`/operations/${area.id}`}>{area.title}</Link>
         <span>/</span>
@@ -261,9 +265,26 @@ export function StoryPage() {
       </nav>
       <p className="gc-kicker">{screen.decision}</p>
       <h1>{lang === 'ar' ? screen.titleAr : screen.title}</h1>
+      <p>
+        {(() => {
+          const count = visibleAlerts(store.hospital, store.year, store.department, screen.id).alerts.filter((alert) => alert.severity !== 'info').length;
+          return tx(lang, `${count} ${count === 1 ? 'signal' : 'signals'} on this workspace.`, `${count} ${count === 1 ? 'إشارة' : 'إشارات'} في مساحة العمل هذه.`);
+        })()}
+        {' '}
+        <button type="button" className="gc-text-btn" onClick={() => { copilot.setTab('alerts'); copilot.setOpen(true); }}>
+          {tx(lang, 'Open alerts', 'فتح التنبيهات')}
+        </button>
+      </p>
       {store.department !== 'All' && area.id !== 'workforce' ? <p>This department filter does not narrow this workspace. Counts stay on the hospital cohort.</p> : null}
       <div className="gc-viz">
-        {charts.map((figure) => <Chart key={figure.title} figure={figure} />)}
+        {charts.map((figure) => (
+          <div key={figure.title}>
+            <Chart figure={figure} />
+            <button type="button" className="gc-text-btn" onClick={() => copilot.focusChart(figure.title)}>
+              {tx(lang, `Discuss ${figure.title} with Copilot`, `ناقش ${figure.title} مع المساعد`)}
+            </button>
+          </div>
+        ))}
       </div>
       <div className="gc-kpis">
         {cards.map(({ kpi, item }) => (

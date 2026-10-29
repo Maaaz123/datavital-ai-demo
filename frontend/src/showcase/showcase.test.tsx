@@ -51,7 +51,7 @@ describe('marketing demo coverage', () => {
   it('renders the public home and the disclosure', () => {
     renderAt('/');
     expect(screen.getByRole('status').textContent).toMatch(/synthetic data and simulated AI/i);
-    expect(screen.getByRole('heading', { level: 1, name: /From Hospital Data to Intelligent Decisions/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Executive Command Center/ })).toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
 

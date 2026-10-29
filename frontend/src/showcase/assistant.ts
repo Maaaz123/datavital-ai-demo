@@ -1,6 +1,7 @@
 import { tx, type Lang } from './copy';
 import { HOSPITALS } from './engine';
 import { CURRENCY, scenarioFor } from './facts';
+import { alertsFor } from '@/core/alerts';
 
 export type AssistantAnswer = {
   title: string;
@@ -73,6 +74,17 @@ export function answerQuestion(question: string, hospital: string, year: number,
       benefit: tx(lang, 'Illustrative only: a few snapshot beds returning to available.', 'توضيحي فقط: عودة بضعة أسرة في اللقطة إلى المتاح.'),
     });
   }
+  if ((q.includes('satisfaction') || q.includes('رضا')) && (q.includes('trend') || q.includes('changed') || q.includes('تغير'))) {
+    return pack(lang, {
+      title: tx(lang, `Satisfaction at ${name} in ${year}`, `الرضا في ${name} عام ${year}`),
+      observation: tx(lang, `Index ${current.satisfaction.toFixed(1)} / 100, versus ${prior.satisfaction.toFixed(1)} in the comparison year.`, `المؤشر ${current.satisfaction.toFixed(1)} / 100، مقابل ${prior.satisfaction.toFixed(1)} في سنة المقارنة.`),
+      evidence: tx(lang, `Surveys returned ${current.surveysReturned.toLocaleString('en-US')} of ${current.surveysSent.toLocaleString('en-US')}. Complaints opened ${current.complaintsOpened.toLocaleString('en-US')}.`, `الاستبيانات المعادة ${current.surveysReturned.toLocaleString('en-US')} من ${current.surveysSent.toLocaleString('en-US')}. الشكاوى المفتوحة ${current.complaintsOpened.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'The index is a labelled demo assumption. The change is not a validated experience model.', 'المؤشر افتراض للعرض. التغير ليس نموذجاً متحققاً للتجربة.'),
+      action: tx(lang, 'Open the patient experience dashboard and review discharge, follow-up, and service recovery.', 'افتح لوحة تجربة المريض وراجع الخروج والمتابعة واستعادة الخدمة.'),
+      role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
+      benefit: tx(lang, 'Illustrative only.', 'توضيحي فقط.'),
+    });
+  }
   if (q.includes('satisfaction') || q.includes('patient') || q.includes('رضا') || q.includes('تجرب')) {
     return pack(lang, {
       title: tx(lang, `Satisfaction is lowest at ${siteName(lowSat.code, lang)}`, `الرضا هو الأدنى في ${siteName(lowSat.code, lang)}`),
@@ -85,16 +97,29 @@ export function answerQuestion(question: string, hospital: string, year: number,
     });
   }
   if (q.includes('denial') || q.includes('claim') || q.includes('رفض') || q.includes('مطال')) {
-    const rate = denialSites.annual.claimsDenied / denialSites.annual.claimsSubmitted;
-    const priorRate = scenarioFor(denialSites.code, Math.max(2024, year - 1)).focus.claimsDenied / scenarioFor(denialSites.code, Math.max(2024, year - 1)).focus.claimsSubmitted;
+    const across = q.includes('where') || q.includes('which hospital') || q.includes('increasing') || q.includes('أين');
+    if (across) {
+      const rate = denialSites.annual.claimsDenied / denialSites.annual.claimsSubmitted;
+      const priorRate = scenarioFor(denialSites.code, Math.max(2024, year - 1)).focus.claimsDenied / scenarioFor(denialSites.code, Math.max(2024, year - 1)).focus.claimsSubmitted;
+      return pack(lang, {
+        title: tx(lang, `Denials are highest at ${siteName(denialSites.code, lang)}`, `الرفض هو الأعلى في ${siteName(denialSites.code, lang)}`),
+        observation: tx(lang, `Denial rate ${(rate * 100).toFixed(1)}% in ${year}, versus ${(priorRate * 100).toFixed(1)}% in ${Math.max(2024, year - 1)}. The change is ${((rate - priorRate) * 100).toFixed(1)} percentage points.`, `معدل الرفض ${(rate * 100).toFixed(1)}٪ في ${year}، مقابل ${(priorRate * 100).toFixed(1)}٪ في ${Math.max(2024, year - 1)}. التغير ${((rate - priorRate) * 100).toFixed(1)} نقطة مئوية.`),
+        evidence: tx(lang, `Denied ${denialSites.annual.claimsDenied.toLocaleString('en-US')} of ${denialSites.annual.claimsSubmitted.toLocaleString('en-US')} submitted. Write-off ${CURRENCY} ${denialSites.annual.writeoff.toLocaleString('en-US')} is the amount inside the allowed-balance identity.`, `رُفض ${denialSites.annual.claimsDenied.toLocaleString('en-US')} من ${denialSites.annual.claimsSubmitted.toLocaleString('en-US')} مقدمة. الشطب ${CURRENCY} ${denialSites.annual.writeoff.toLocaleString('en-US')} هو المبلغ داخل مطابقة الرصيد المسموح.`),
+        explanation: tx(lang, 'Hypothesis: pre-authorization denials and claim denials are both higher at the south hospital in this story. Not a coding audit.', 'فرضية: رفض الموافقة المسبقة ورفض المطالبات كلاهما أعلى في المستشفى الجنوبي في هذه القصة. ليست مراجعة ترميز.'),
+        action: tx(lang, 'Review a simulated pre-submission check on the highest-denial payer mix.', 'راجع فحصاً محاكى قبل التقديم على مزيج الجهات الأعلى رفضاً.'),
+        role: tx(lang, 'Revenue cycle lead', 'قائد دورة الإيراد'),
+        benefit: tx(lang, 'Illustrative only: a smaller write-off in the story, not a collected cash result.', 'توضيحي فقط: شطب أصغر في القصة، وليس نتيجة نقد محصل.'),
+      });
+    }
+    const rate = current.claimsDenied / current.claimsSubmitted;
     return pack(lang, {
-      title: tx(lang, `Denials are highest at ${siteName(denialSites.code, lang)}`, `الرفض هو الأعلى في ${siteName(denialSites.code, lang)}`),
-      observation: tx(lang, `Denial rate ${(rate * 100).toFixed(1)}% in ${year}, versus ${(priorRate * 100).toFixed(1)}% in ${Math.max(2024, year - 1)}. The change is ${((rate - priorRate) * 100).toFixed(1)} percentage points.`, `معدل الرفض ${(rate * 100).toFixed(1)}٪ في ${year}، مقابل ${(priorRate * 100).toFixed(1)}٪ في ${Math.max(2024, year - 1)}. التغير ${((rate - priorRate) * 100).toFixed(1)} نقطة مئوية.`),
-      evidence: tx(lang, `Denied ${denialSites.annual.claimsDenied.toLocaleString('en-US')} of ${denialSites.annual.claimsSubmitted.toLocaleString('en-US')} submitted. Write-off ${CURRENCY} ${denialSites.annual.writeoff.toLocaleString('en-US')} is the amount inside the allowed-balance identity.`, `رُفض ${denialSites.annual.claimsDenied.toLocaleString('en-US')} من ${denialSites.annual.claimsSubmitted.toLocaleString('en-US')} مقدمة. الشطب ${CURRENCY} ${denialSites.annual.writeoff.toLocaleString('en-US')} هو المبلغ داخل مطابقة الرصيد المسموح.`),
-      explanation: tx(lang, 'Hypothesis: pre-authorization denials and claim denials are both higher at the south hospital in this story. Not a coding audit.', 'فرضية: رفض الموافقة المسبقة ورفض المطالبات كلاهما أعلى في المستشفى الجنوبي في هذه القصة. ليست مراجعة ترميز.'),
-      action: tx(lang, 'Review a simulated pre-submission check on the highest-denial payer mix.', 'راجع فحصاً محاكى قبل التقديم على مزيج الجهات الأعلى رفضاً.'),
+      title: tx(lang, `Claim denial rate at ${name} in ${year}`, `معدل رفض المطالبات في ${name} عام ${year}`),
+      observation: tx(lang, `Denial rate ${(rate * 100).toFixed(1)}%. Paid ${current.claimsPaid.toLocaleString('en-US')}, denied ${current.claimsDenied.toLocaleString('en-US')}, pending ${current.claimsPending.toLocaleString('en-US')}.`, `معدل الرفض ${(rate * 100).toFixed(1)}٪. المدفوع ${current.claimsPaid.toLocaleString('en-US')} والمرفوض ${current.claimsDenied.toLocaleString('en-US')} والمعلق ${current.claimsPending.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Those three dispositions sum to ${current.claimsSubmitted.toLocaleString('en-US')} submitted claims. Outstanding ${CURRENCY} ${current.outstanding.toLocaleString('en-US')} stays inside the allowed amount.`, `هذه الحالات الثلاث تجمع ${current.claimsSubmitted.toLocaleString('en-US')} مطالبة مقدمة. المتبقي ${CURRENCY} ${current.outstanding.toLocaleString('en-US')} يبقى داخل المبلغ المسموح.`),
+      explanation: tx(lang, 'This is the selected hospital and year. A higher rate at another site is a different scope.', 'هذا هو المستشفى والسنة المحددان. معدل أعلى في موقع آخر نطاق مختلف.'),
+      action: tx(lang, 'Open the claims dashboard and review the denial lifecycle before approving any action.', 'افتح لوحة المطالبات وراجع دورة الرفض قبل اعتماد أي إجراء.'),
       role: tx(lang, 'Revenue cycle lead', 'قائد دورة الإيراد'),
-      benefit: tx(lang, 'Illustrative only: a smaller write-off in the story, not a collected cash result.', 'توضيحي فقط: شطب أصغر في القصة، وليس نتيجة نقد محصل.'),
+      benefit: tx(lang, 'Illustrative only. Not a collected cash result.', 'توضيحي فقط. ليست نتيجة نقد محصل.'),
     });
   }
   if (q.includes('delay') || q.includes('intervention') || q.includes('تأخير') || q.includes('تدخل')) {
@@ -106,6 +131,43 @@ export function answerQuestion(question: string, hospital: string, year: number,
       action: tx(lang, 'Review one queue at a time: emergency midday coverage, then laboratory delayed orders.', 'راجع طابوراً واحداً في كل مرة: تغطية الطوارئ منتصف اليوم، ثم طلبات المختبر المتأخرة.'),
       role: tx(lang, 'Hospital operations lead', 'قائد عمليات المستشفى'),
       benefit: tx(lang, 'Illustrative only. Any shorter time on the outcome stage is not a measured hospital result.', 'توضيحي فقط. أي زمن أقصر في مرحلة النتيجة ليس نتيجة مستشفى مقيسة.'),
+    });
+  }
+  if (q.includes('alert') || q.includes('priority') || q.includes('تنبيه')) {
+    const ranked = alertsFor(hospital, year).filter((alert) => alert.severity === 'critical' || alert.severity === 'high');
+    const lines = (ranked.length ? ranked : alertsFor(hospital, year).slice(0, 3)).map((alert) => `${alert.severity}: ${alert.title} ${alert.observed}`).join('; ');
+    return pack(lang, {
+      title: tx(lang, `Priority alerts at ${name} in ${year}`, `تنبيهات الأولوية في ${name} عام ${year}`),
+      observation: lines,
+      evidence: tx(lang, 'Each alert uses a documented threshold on this hospital and year. Informational signals stay out of the priority list.', 'كل تنبيه يستخدم عتبة موثقة لهذا المستشفى وهذه السنة. الإشارات المعلوماتية تبقى خارج قائمة الأولوية.'),
+      explanation: tx(lang, 'Priority is the threshold result, not a model score. Changing hospital or year changes the list.', 'الأولوية نتيجة العتبة، وليست درجة نموذج. تغيير المستشفى أو السنة يغير القائمة.'),
+      action: tx(lang, 'Open the highest alert and investigate it before approving an action.', 'افتح أعلى تنبيه وحققه قبل اعتماد إجراء.'),
+      role: tx(lang, 'Hospital operations lead', 'قائد عمليات المستشفى'),
+      benefit: tx(lang, 'Illustrative only.', 'توضيحي فقط.'),
+    });
+  }
+  if (q.includes('discharge') || q.includes('خروج')) {
+    return pack(lang, {
+      title: tx(lang, `Discharge flow at ${name} in ${year}`, `تدفق الخروج في ${name} عام ${year}`),
+      observation: tx(lang, `Inpatient median stay ${current.ipLosDays.toFixed(1)} days. Discharges ${current.discharges.toLocaleString('en-US')}.`, `وسيط التنويم ${current.ipLosDays.toFixed(1)} يوماً. الخروج ${current.discharges.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Occupied beds ${current.occupiedBeds} of ${current.staffedBeds} staffed. Open complaints ${current.complaintsOpened}.`, `الأسرة المشغولة ${current.occupiedBeds} من ${current.staffedBeds} مجهزاً. الشكاوى المفتوحة ${current.complaintsOpened}.`),
+      explanation: tx(lang, 'Hypothesis only: discharge timing and bed pressure can move together. That is not a proven cause.', 'فرضية فقط: توقيت الخروج وضغط الأسرة قد يتحركان معاً. هذا ليس سبباً مثبتاً.'),
+      action: tx(lang, 'Review discharge-ready patients, then the discharge-instruction case.', 'راجع المرضى الجاهزين للخروج، ثم حالة تعليمات الخروج.'),
+      role: tx(lang, 'Bed management lead', 'قائد إدارة الأسرة'),
+      benefit: tx(lang, 'Illustrative only. Not a measured hospital result.', 'توضيحي فقط. ليست نتيجة مستشفى مقيسة.'),
+    });
+  }
+  if (q.includes('department') || q.includes('operational review') || q.includes('أقسام')) {
+    const hot = alertsFor(hospital, year).filter((alert) => alert.severity !== 'info');
+    const names = [...new Set(hot.map((alert) => alert.department))].join(', ') || 'none above the informational line';
+    return pack(lang, {
+      title: tx(lang, `Departments to review at ${name} in ${year}`, `أقسام للمراجعة في ${name} عام ${year}`),
+      observation: tx(lang, `Departments with a medium or higher signal: ${names}.`, `أقسام بإشارة متوسطة أو أعلى: ${names}.`),
+      evidence: tx(lang, 'The list is the alert engine for this hospital and year. It is not a second hospital.', 'القائمة هي محرك التنبيه لهذا المستشفى وهذه السنة. ليست مستشفى آخر.'),
+      explanation: tx(lang, 'A department appears because one of its KPIs crossed a documented line. That is detection, not a root cause.', 'يظهر القسم لأن أحد مؤشراته تجاوز خطاً موثقاً. هذا رصد، وليس سبباً جذرياً.'),
+      action: tx(lang, 'Open one department dashboard and read the alert evidence before acting.', 'افتح لوحة قسم واحد واقرأ دليل التنبيه قبل التصرف.'),
+      role: tx(lang, 'Hospital operations lead', 'قائد عمليات المستشفى'),
+      benefit: tx(lang, 'Illustrative only.', 'توضيحي فقط.'),
     });
   }
   return pack(lang, {
