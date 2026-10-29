@@ -119,6 +119,7 @@
 .gc-ed .gc-score em { margin-top: auto; padding-top: 6px; color: #6d7584; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .gc-ed .gc-dense { gap: 10px; margin-top: 10px; align-items: stretch; }
 .gc-ed .gc-panel { border-radius: 12px; padding: 12px 14px; background: #fff; box-shadow: none; height: 100%; }
+.gc-ed .gc-fit { align-self: start; height: auto; }
 .gc-ed .gc-panel h2 { margin: 0 0 8px; font-size: 0.95rem; }
 .gc-ed .gc-slot { display: flex; flex-direction: column; }
 .gc-ed .gc-slot .gc-chart { margin: 0; }
@@ -136,7 +137,15 @@
 .gc-ed .gc-ask .gc-btn { justify-content: flex-start; text-align: start; width: 100%; }
 .gc-ed .gc-alert-list { gap: 8px; }
 .gc-ed .gc-btn.primary { background: #111; color: #fff; border-color: #111; }
-.gc-progress-steps { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 2px 0 14px; }
+.gc-progress-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 2px 0 14px; }
+.gc-ed .gc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.gc-ed .gc-chips button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 0.78rem; cursor: pointer; color: inherit; }
+.gc-ed .gc-chips button[aria-pressed="true"] { background: #111; color: #fff; border-color: #111; }
+.gc-ed .gc-index-wrap { overflow-x: auto; }
+.gc-ed .gc-index { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.gc-ed .gc-index th { font-size: 0.72rem; font-weight: 650; color: #5c6778; text-align: start; }
+.gc-ed .gc-index th, .gc-ed .gc-index td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.gc-ed .gc-index td:nth-child(2) { white-space: nowrap; }
 .gc-progress-steps button { appearance: none; background: transparent; border: 0; padding: 0; min-width: 0; text-align: start; font: inherit; cursor: pointer; color: inherit; }
 .gc-progress-steps i { display: block; height: 4px; border-radius: 999px; background: #e6e1d8; }
 .gc-progress-steps button[aria-selected="true"] i,

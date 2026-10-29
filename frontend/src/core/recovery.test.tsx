@@ -5,6 +5,7 @@ import { routes } from '@/routes';
 import { clearDemoStorage } from '@/showcase/state';
 import { scenarioFor } from '@/showcase/facts';
 import { daysFor, hoursFor, leaveSplit, modesFor } from './derived';
+import { AI_CASES, indicatorsFor, type ScopeInput } from './scope';
 
 function Harness() {
   return useRoutes(routes);
@@ -74,23 +75,23 @@ describe('four emergency pages', () => {
 
   it('approves an estimate, isolates it by hospital, and restores it', () => {
     renderAt('/emergency/ai-decisions');
-    fireEvent.click(screen.getByRole('tab', { name: /3\. Investigation/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /2\. Investigation/ }));
     expect(screen.getByText(/Compare the median with the P90/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /5\. Forecast/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /3\. Prediction/ }));
     expect(screen.getByText(/Not a validated model/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /7\. Approval/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /5\. Approval/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
-    fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/No illustrative outcome/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /7\. Approval/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /5\. Approval/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
-    fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
-    fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/Record an approval or rejection/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H1' } });
-    fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/Decision: approved/)).toBeInTheDocument();
   });
 
@@ -118,5 +119,29 @@ describe('four emergency pages', () => {
     const quarter = months.slice(0, 3).reduce((sum, month) => sum + month.edArrivals, 0);
     expect(quarter).toBeLessThan(fact.edArrivals);
     expect(quarter).toBeGreaterThan(0);
+  });
+
+  it('keeps the 78 indicators separate and leaves unsupported clocks blank', () => {
+    const input: ScopeInput = {
+      arrivals: 100, admitted: 20, discharged: 78, left: 2, before: 1, deaths: 1,
+      triageCompleted: 99, median: 63.3, p90: 109.4, losMedian: 141, losP90: 233,
+      boarding: 2, revisit: 3, required: 10, filled: 8,
+      shifts: [{ name: 'Night', required: 2, filled: 2 }, { name: 'Day', required: 5, filled: 4 }, { name: 'Evening', required: 3, filled: 2 }],
+      bedsAvailable: 71, bays: 28,
+      modes: [{ name: 'Ambulance', count: 18 }],
+      peaks: [{ name: '11:00', count: 9 }],
+      priorArrivals: 90,
+      acuity: [8, 22, 40, 22, 8],
+    };
+    const rows = indicatorsFor(input);
+    expect(rows).toHaveLength(78);
+    expect(new Set(rows.map((row) => `${row.domain}:${row.name}`)).size).toBe(78);
+    expect(AI_CASES).toHaveLength(18);
+    const disposition = rows.find((row) => row.name === 'Time to Disposition Decision');
+    expect(disposition?.value).toBe('Not in scenario');
+    expect(disposition?.method).toMatch(/not derived from length of stay/i);
+    expect(rows.find((row) => row.name === 'Door-to-Provider Median')?.method).toMatch(/not length of stay/i);
+    expect(rows.find((row) => row.name === 'ED Length of Stay P50')?.method).toMatch(/not separated/i);
+    expect(rows.filter((row) => row.domain === 'Patient Experience').every((row) => row.value === 'Not in scenario')).toBe(true);
   });
 });

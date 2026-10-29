@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { answerQuestion } from '@/showcase/assistant';
-import { scenarioFor } from '@/showcase/facts';
+import { scenarioFor, SITE_SPECS } from '@/showcase/facts';
 import { decisionKey, useShowcase } from '@/showcase/state';
 import { alertsFor } from './alerts';
 import { useCopilot } from './Copilot';
@@ -18,6 +18,7 @@ import {
   waitHeatFor,
 } from './derived';
 import { sumKey, usePeriod, weighted } from './period';
+import { AI_CASES, indicatorsFor, type Indicator, type ScopeInput } from './scope';
 import { Chart, type Figure } from './viz';
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74'];
@@ -40,6 +41,10 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   const median = period === 'year' ? fact.edWaitMedianMin : weighted(rows, 'edWaitMedianMin');
   const p90 = period === 'year' ? fact.edWaitP90Min : weighted(rows, 'edWaitP90Min');
   const losMedian = period === 'year' ? fact.edLosMedianMin : weighted(rows, 'edLosMedianMin');
+  const losP90 = period === 'year' ? fact.edLosP90Min : weighted(rows, 'edLosP90Min');
+  const bays = hospital === 'ALL'
+    ? Object.values(SITE_SPECS).reduce((sum, site) => sum + site.edBays, 0)
+    : SITE_SPECS[hospital as keyof typeof SITE_SPECS]?.edBays ?? 0;
   const losHours = (period === 'year' ? fact.edLosAvgMin : weighted(rows, 'edLosAvgMin')) / 60;
   const beds = period === 'year'
     ? { staffed: fact.staffedBeds, occupied: fact.occupiedBeds, available: fact.availableBeds, blocked: fact.blockedBeds }
@@ -59,7 +64,7 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   return {
     arrivals, admitted, discharged, left, deaths, before, after,
     triageCompleted: arrivals - before,
-    median, p90, losMedian, losHours,
+    median, p90, losMedian, losP90, losHours, bays,
     beds, occupancy, boarding, revisit,
     required, filled,
     shifts: shiftNames.map((name, index) => ({ name, required: reqSplit[index], filled: fillSplit[index] })),
@@ -218,6 +223,71 @@ function compare(view: View, prior: View, pick: (item: View) => number, rate = f
   return deltaText(pick(view), pick(prior), rate);
 }
 
+function scopeInput(view: View, priorArrivals: number): ScopeInput {
+  return {
+    arrivals: view.arrivals,
+    admitted: view.admitted,
+    discharged: view.discharged,
+    left: view.left,
+    before: view.before,
+    deaths: view.deaths,
+    triageCompleted: view.triageCompleted,
+    median: view.median,
+    p90: view.p90,
+    losMedian: view.losMedian,
+    losP90: view.losP90,
+    boarding: view.boarding,
+    revisit: view.revisit,
+    required: view.required,
+    filled: view.filled,
+    shifts: view.shifts,
+    bedsAvailable: view.beds.available,
+    bays: view.bays,
+    modes: view.modes,
+    peaks: view.peaks,
+    priorArrivals,
+    acuity: view.acuity,
+  };
+}
+
+function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; domains: string[] }) {
+  const [domain, setDomain] = useState(domains[0]);
+  const rows = indicators.filter((item) => item.domain === domain);
+  const valued = indicators.filter((item) => item.status !== 'unavailable').length;
+  return (
+    <section className="gc-panel span-12">
+      <h2>{domains.length === 1 ? domain : 'Indicator scope'}</h2>
+      <p>{valued} of {indicators.length} requested indicators have an illustrative value. Blank rows are not estimated.</p>
+      {domain === 'Workforce & Productivity' || domain === 'Patient Experience' || domain === 'Operational Efficiency & Resources'
+        ? <p>Item names for this domain were not in the requirements list. Workforce rows use the staffing snapshot. Experience and efficiency rows stay blank.</p>
+        : null}
+      {domains.length > 1 ? (
+        <div className="gc-chips">
+          {domains.map((item) => (
+            <button key={item} type="button" aria-pressed={domain === item} onClick={() => setDomain(item)}>{item}</button>
+          ))}
+        </div>
+      ) : null}
+      <div className="gc-index-wrap">
+        <table className="gc-index">
+          <thead>
+            <tr><th>Indicator</th><th>Value</th><th>Basis</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((item) => (
+              <tr key={item.name}>
+                <td>{item.name}</td>
+                <td>{item.value}</td>
+                <td>{item.method}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export function OverviewPage() {
   const view = useView();
   const prior = usePrior();
@@ -226,7 +296,7 @@ export function OverviewPage() {
       score('ED Visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'ED arrivals in the selected period.', `${num(view.arrivals)} arrivals.`),
       score('Door-to-Provider Median', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Visit-weighted median door-to-provider time. This is not length of stay.', `Median ${num(view.median, 1)} minutes.`),
       score('Door-to-Provider P90', `${num(view.p90, 1)} minutes`, compare(view, prior, (item) => item.p90), 'Visit-weighted 90th percentile door-to-provider time.', `P90 ${num(view.p90, 1)} minutes.`),
-      score('ED Length of Stay', `${num(view.losHours, 1)} hours`, compare(view, prior, (item) => item.losHours), 'Average length of stay in hours. It is not the median divided by 60.', `Average ${num(view.losHours, 1)} hours.`, 'value-kpi_ed_avg_los_hours'),
+      score('ED LOS P50', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Period length of stay from arrival until the patient leaves the department. Admitted and discharged stays are not separated. The average is a different statistic and is not shown as the P50.', `P50 ${num(view.losMedian, 0)} minutes. Average ${num(view.losHours, 1)} hours.`, 'value-kpi_ed_avg_los_hours'),
       score('Boarding Beyond 4 Hours', pct(view.admitted ? view.boarding / view.admitted : 0), compare(view, prior, (item) => item.admitted ? item.boarding / item.admitted : 0, true), 'Patients boarding longer than 4 hours divided by emergency admissions in this period.', `${num(view.boarding)} of ${num(view.admitted)} admissions.`),
       score('Left Without Being Seen', pct(view.arrivals ? view.left / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Patients who left divided by emergency arrivals. Some left before triage and some after.', `${num(view.left)} of ${num(view.arrivals)} arrivals.`),
       score('Admission Rate', pct(view.arrivals ? view.admitted / view.arrivals : 0), compare(view, prior, (item) => item.arrivals ? item.admitted / item.arrivals : 0, true), 'Emergency visits admitted divided by emergency arrivals. Admitted visits are included in inpatient admissions.', `${num(view.admitted)} admitted.`),
@@ -237,6 +307,7 @@ export function OverviewPage() {
       <Slot figure={fig('bars', 'Triage distribution', ['ESI-1', 'ESI-2', 'ESI-3', 'ESI-4', 'ESI-5'], [{ name: 'Arrivals', values: view.acuity }], 'visits', 'The five ESI counts sum to arrivals.')} />
       <Slot figure={fig('flow', 'Patient disposition', ['Arrivals', 'Admitted', 'Discharged', 'Left'], [{ name: 'Visits', values: [view.arrivals, view.admitted, view.discharged, view.left] }], 'visits', 'Admitted, discharged, and left sum to arrivals.')} />
       <Slot figure={fig('bars', 'Boarding trend', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Monthly counts sum to period boarding.')} />
+      <IndicatorIndex indicators={indicatorsFor(scopeInput(view, prior.arrivals))} domains={['Patient Demand & Arrivals']} />
     </Page>
   );
 }
@@ -247,9 +318,10 @@ export function FlowPage() {
   return (
     <Page title="Patient Flow & Waiting" kpis={[
       score('Total ED Visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'An ED arrival is a patient who presents and is counted. A registered visit is that same arrival in this period.', `${num(view.arrivals)} arrivals.`),
-      score('Median Waiting Time', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Door-to-provider is minutes from arrival to the first provider. This score is the median.', `Median ${num(view.median, 1)} minutes.`),
-      score('P90 Waiting Time', `${num(view.p90, 1)} minutes`, compare(view, prior, (item) => item.p90), 'Door-to-provider 90th percentile for the same arrivals.', `P90 ${num(view.p90, 1)} minutes.`),
-      score('ED Length of Stay', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'ED length of stay is minutes from arrival until the patient leaves the department.', `Median stay ${num(view.losMedian, 0)} minutes.`),
+      score('Door-to-Provider P50', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Minutes from arrival to the first provider. This is not length of stay, disposition time, or the wait for a bed.', `P50 ${num(view.median, 1)} minutes.`),
+      score('Door-to-Provider P90', `${num(view.p90, 1)} minutes`, compare(view, prior, (item) => item.p90), 'Door-to-provider 90th percentile for the same arrivals.', `P90 ${num(view.p90, 1)} minutes.`),
+      score('ED LOS P50', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Minutes from arrival until the patient leaves the department. Admitted and discharged stays are not separated.', `P50 ${num(view.losMedian, 0)} minutes.`),
+      score('ED LOS P90', `${num(view.losP90, 0)} minutes`, compare(view, prior, (item) => item.losP90), 'Length-of-stay P90 for the same visits. It is stored separately from the P50.', `P90 ${num(view.losP90, 0)} minutes.`),
       score('Admitted', num(view.admitted), compare(view, prior, (item) => item.admitted), 'Admission is a visit accepted to an inpatient bed. Boarding is an admitted patient still in the department waiting for that bed, counted within admissions.', `${num(view.admitted)} admitted.`),
       score('Discharged', num(view.discharged), compare(view, prior, (item) => item.discharged), 'Discharge is a visit that leaves after care and is not admitted.', `${num(view.discharged)} discharged.`),
       score('Left Without Being Seen', num(view.left), compare(view, prior, (item) => item.left), 'Left without being seen is left before triage plus left after triage. Triage completed is arrivals minus those who left before triage. Deaths stay inside the visit cohort and are not another exit.', `${num(view.before)} before triage and ${num(view.after)} after triage.`),
@@ -268,6 +340,7 @@ export function FlowPage() {
       <Slot figure={fig('flow', 'Patient journey', ['Arrivals', 'Triaged', 'Admitted', 'Discharged', 'Left before triage', 'Left after triage'], [{ name: 'Visits', values: [view.arrivals, view.triageCompleted, view.admitted, view.discharged, view.before, view.after] }], 'visits', 'Triaged visits exclude patients who left before triage.')} />
       <Slot figure={fig('stacked', 'Triage by acuity and time', ['Night', 'Day', 'Evening'], view.acuity.map((value, index) => ({ name: `ESI-${index + 1}`, values: splitSafe(value, [0.22, 0.46, 0.32]) })), 'visits', 'Shift splits still sum to arrivals.')} />
       <section className="gc-panel gc-slot span-6"><Donut title="Arrival mode" note="Walk-in, ambulance, transfer, and other sum to arrivals." parts={view.modes.map((item) => ({ name: item.name, value: item.count }))} /></section>
+      <IndicatorIndex indicators={indicatorsFor(scopeInput(view, prior.arrivals))} domains={['Triage & Acuity', 'Waiting Times & Access', 'Patient Flow & Throughput']} />
     </Page>
   );
 }
@@ -307,11 +380,12 @@ export function CapacityQualityPage() {
         </ul>
         <p>No validated clinical benchmark is applied. Open a score for the count, denominator, and period.</p>
       </section>
+      <IndicatorIndex indicators={indicatorsFor(scopeInput(view, prior.arrivals))} domains={['Boarding & Capacity', 'Workforce & Productivity', 'Clinical Quality & Safety', 'Patient Experience', 'Operational Efficiency & Resources']} />
     </Page>
   );
 }
 
-const STEPS = ['Observation', 'Detection', 'Investigation', 'Drivers', 'Forecast', 'Action', 'Approval', 'Outcome'] as const;
+const STEPS = ['Detection', 'Investigation', 'Prediction', 'Recommendation', 'Approval', 'Outcome'] as const;
 
 export function DecisionsPage() {
   const store = useShowcase();
@@ -319,7 +393,10 @@ export function DecisionsPage() {
   const { period } = usePeriod();
   const copilot = useCopilot();
   const [step, setStep] = useState(0);
+  const [caseId, setCaseId] = useState('AI-14');
   const [question, setQuestion] = useState('Why is emergency waiting time increasing?');
+  const selected = AI_CASES.find((item) => item.id === caseId) ?? AI_CASES[0];
+  const reviewGap = view.median - 60;
   const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Emergency' && alert.severity !== 'info');
   const lead = alerts[0];
   const key = decisionKey(lead?.kpi ?? 'kpi_ed_door_to_provider_median_minutes', store.hospital, store.year, 'Emergency');
@@ -332,12 +409,12 @@ export function DecisionsPage() {
       score('ED Visits', num(view.arrivals), 'Context', 'Arrivals in the selected period.', `${num(view.arrivals)} arrivals.`),
       score('Left Without Being Seen', pct(view.arrivals ? view.left / view.arrivals : 0), 'Context', 'Left visits divided by arrivals.', `${num(view.left)} left.`),
     ]}>
-      <section className="gc-panel span-4">
+      <section className="gc-panel gc-fit span-4">
         <h2>Active emergency alerts</h2>
         <ul className="gc-alert-list">
           {alerts.map((alert) => (
             <li key={alert.id}>
-              <button type="button" onClick={() => { copilot.openAlert(alert, { stay: true }); setStep(2); }}>
+              <button type="button" onClick={() => { copilot.openAlert(alert, { stay: true }); setStep(1); }}>
                 <span className={`gc-sev gc-sev-${alert.severity}`}>{alert.severity}</span>
                 {alert.title} · {alert.observed}
               </button>
@@ -347,6 +424,13 @@ export function DecisionsPage() {
         {period === 'year' ? null : <p>These alerts use the full reporting year. The scores above use the selected period.</p>}
       </section>
       <section className="gc-panel span-8">
+        <h2>18 AI use cases</h2>
+        <div className="gc-chips">
+          {AI_CASES.map((item) => (
+            <button key={item.id} type="button" aria-pressed={caseId === item.id} onClick={() => setCaseId(item.id)}>{item.id}</button>
+          ))}
+        </div>
+        <p>{selected.id} {selected.name}. {selected.level}. {selected.inputs}</p>
         <div className="gc-progress-steps" role="tablist" aria-label="Decision stages">
           {STEPS.map((label, index) => (
             <button key={label} type="button" role="tab" aria-selected={step === index} aria-label={`${index + 1}. ${label}`} data-done={index < step ? 'true' : undefined} onClick={() => setStep(index)}>
@@ -355,13 +439,11 @@ export function DecisionsPage() {
             </button>
           ))}
         </div>
-        {step === 0 ? <p>Observation: median door-to-provider is {num(view.median, 1)} minutes and P90 is {num(view.p90, 1)} minutes for {num(view.arrivals)} arrivals.</p> : null}
-        {step === 1 ? <p>Detection: {lead ? `${lead.title} is ${lead.severity}. ${lead.rule}` : 'No open emergency alert.'}</p> : null}
-        {step === 2 ? <p>Investigation: {lead?.investigation ?? answer.explanation} Evidence: {lead?.evidence ?? answer.evidence}</p> : null}
-        {step === 3 ? <p>Potential drivers: {answer.explanation} These are not proven causes.</p> : null}
-        {step === 4 ? <p>Illustrative forecast: {answer.benefit} Not a validated model. This is not a forecast of a measured result.</p> : null}
-        {step === 5 ? <p>Recommended action: {lead?.action ?? answer.action} Expected impact is an estimate.</p> : null}
-        {step === 6 ? (
+        {step === 0 ? <p>Detection: observed door-to-provider median is {num(view.median, 1)} minutes. The hospital review line in this scenario is 60 minutes. Gap {reviewGap > 0 ? '+' : ''}{num(reviewGap, 1)} minutes. {lead ? `${lead.title} is ${lead.severity}. ${lead.rule}` : 'No open emergency alert.'}</p> : null}
+        {step === 1 ? <p>Investigation: {selected.id === 'AI-14' ? 'Compare the median with the P90. ' : null}{selected.analysis} These are not proven causes.</p> : null}
+        {step === 2 ? <p>Prediction: {selected.limit} Not a validated model.</p> : null}
+        {step === 3 ? <p>Recommendation: {lead?.action ?? answer.action} Expected impact is not calculated. A clinical and operational owner reviews the action before anyone acts.</p> : null}
+        {step === 4 ? (
           <div>
             <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
             <div className="gc-inline">
@@ -370,7 +452,7 @@ export function DecisionsPage() {
             </div>
           </div>
         ) : null}
-        {step === 7 ? (
+        {step === 5 ? (
           <div>
             {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
             {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
@@ -385,6 +467,7 @@ export function DecisionsPage() {
       <Slot span="span-6" figure={fig('bars', 'Boarding evidence', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Counts sum to the period boarding total.')} />
       <section className="gc-panel span-12">
         <h2>Ask DataVital AI</h2>
+        <p>Prepared emergency questions only. This is not a live model.</p>
         <div className="gc-ask">
           {['Why is emergency waiting time increasing?', 'How many emergency arrivals are there this year?', 'Which operational interventions should be reviewed?'].map((item) => (
             <button type="button" className="gc-btn quiet" key={item} onClick={() => setQuestion(item)}>{item}</button>
