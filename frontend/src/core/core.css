@@ -1305,6 +1305,18 @@ button.gc-assist-alert:hover { transform: translateY(-2px); box-shadow: 0 10px 2
 .gc-chart figcaption { display: grid; gap: 4px; margin-bottom: 8px; }
 .gc-chart figcaption span, .gc-chart caption { color: var(--ink-soft); font-size: 0.9rem; }
 .gc-chart svg { width: 100%; height: auto; background: transparent; border-radius: 0; }
+.gc-chart .gc-donut-body > svg,
+.gc-ed .gc-chart .gc-donut-body > svg,
+.gc-ed .gc-donut-wide .gc-donut-body > svg {
+  width: 132px;
+  max-width: 132px;
+  height: auto;
+  justify-self: center;
+}
+.gc-ed .gc-donut-wide .gc-donut-body > svg {
+  width: 148px;
+  max-width: 148px;
+}
 .gc-legend { display: flex; gap: 14px; margin: 8px 0 0; padding: 0; list-style: none; color: var(--ink); font-size: 0.92rem; }
 .gc-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 99px; vertical-align: baseline; }
 .gc-path li { border: 1px solid var(--line); background: white; border-radius: 999px; padding: 8px 12px; }
