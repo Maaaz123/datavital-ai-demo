@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { answerQuestion, ASSISTANT_PROMPTS } from '@/showcase/assistant';
+import { answerQuestion } from '@/showcase/assistant';
 import { tx } from '@/showcase/copy';
 import { HOSPITALS } from '@/showcase/engine';
 import { decisionKey, useShowcase } from '@/showcase/state';
@@ -131,9 +131,6 @@ export function CopilotPanel() {
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital);
   const name = hospitalName?.name;
   const count = emergencyCount(store.hospital, store.year, store.alertStatus);
-  const [question, setQuestion] = useState('');
-  const asked = question || 'Why is emergency waiting time increasing?';
-  const answer = answerQuestion(asked, store.hospital, store.year, 'Emergency', lang);
 
   useEffect(() => {
     if (!copilot.open) return;
@@ -202,17 +199,7 @@ export function CopilotPanel() {
         {copilot.tab === 'predictions' ? <Prediction alert={selected} /> : null}
         {copilot.tab === 'actions' ? <Actions alert={selected} mode="recommend" /> : null}
         {copilot.tab === 'approvals' ? <DecisionReview alert={selected} /> : null}
-        {copilot.tab === 'ask' ? (
-          <Ask
-            question={question}
-            setQuestion={setQuestion}
-            asked={asked}
-            answer={answer}
-            hospital={name ?? store.hospital}
-            year={store.year}
-            department={store.department}
-          />
-        ) : null}
+        {copilot.tab === 'ask' ? <Ask label={name ?? store.hospital} /> : null}
       </div>
     </aside>
   );
@@ -401,46 +388,91 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
   );
 }
 
-function Ask({
-  question,
-  setQuestion,
-  asked,
-  answer,
-  hospital,
-  year,
-  department,
-}: {
-  question: string;
-  setQuestion: (value: string) => void;
-  asked: string;
-  answer: ReturnType<typeof answerQuestion>;
-  hospital: string;
-  year: number;
-  department: string;
-}) {
+type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  title?: string;
+  body: string[];
+};
+
+function Ask({ label }: { label: string }) {
+  const store = useShowcase();
+  const [draft, setDraft] = useState('');
+  const [typing, setTyping] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([{
+    id: 'welcome',
+    role: 'assistant',
+    title: 'Vital Assist',
+    body: [
+      `Scoped to ${label}, ${store.year}, Emergency.`,
+      'Ask about arrivals, waiting time, boarding, or disposition. Answers stay inside this demo scope.',
+    ],
+  }]);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, typing]);
+
+  const send = () => {
+    const text = draft.trim();
+    if (!text || typing) return;
+    setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', body: [text] }]);
+    setDraft('');
+    setTyping(true);
+    window.setTimeout(() => {
+      const answer = answerQuestion(text, store.hospital, store.year, 'Emergency', store.lang);
+      setMessages((prev) => [...prev, {
+        id: `a-${Date.now()}`,
+        role: 'assistant',
+        title: answer.title,
+        body: [answer.observation, answer.evidence, answer.explanation, answer.action, answer.approval].filter(Boolean),
+      }]);
+      setTyping(false);
+    }, 700);
+  };
+
   return (
-    <form className="gc-assist-stack" onSubmit={(event) => event.preventDefault()}>
-      <section className="gc-assist-card">
-        <p className="gc-assist-note">Scope: {hospital}, {year}, department {department}.</p>
-        <label className="gc-field">
-          Ask Vital Assist
-          <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={asked} />
-        </label>
-        <div className="gc-inline">
-          {ASSISTANT_PROMPTS.slice(0, 4).map((prompt) => (
-            <button key={prompt.en} type="button" className="gc-btn quiet" onClick={() => setQuestion(prompt.en)}>{prompt.en}</button>
-          ))}
-        </div>
-      </section>
-      <section className="gc-assist-card">
-        <h3>{answer.title}</h3>
-        <p>{answer.observation}</p>
-        <p>{answer.evidence}</p>
-        <p>{answer.explanation}</p>
-        <p>{answer.action}</p>
-        <p className="gc-assist-note">Suggested next step: open the related dashboard, then record a human decision. {answer.approval}</p>
-      </section>
-    </form>
+    <div className="gc-chat">
+      <div className="gc-chat-stream" aria-live="polite">
+        {messages.map((message) => (
+          <div key={message.id} className={`gc-chat-bubble is-${message.role}`}>
+            {message.role === 'assistant' ? <span className="gc-chat-avatar" aria-hidden="true">✦</span> : null}
+            <div className="gc-chat-card">
+              {message.title ? <strong>{message.title}</strong> : null}
+              {message.body.map((line) => <p key={`${message.id}-${line.slice(0, 24)}`}>{line}</p>)}
+            </div>
+          </div>
+        ))}
+        {typing ? (
+          <div className="gc-chat-bubble is-assistant">
+            <span className="gc-chat-avatar" aria-hidden="true">✦</span>
+            <div className="gc-chat-card is-typing" aria-label="Vital Assist is typing">
+              <i /><i /><i />
+            </div>
+          </div>
+        ) : null}
+        <div ref={endRef} />
+      </div>
+      <form
+        className="gc-chat-composer"
+        onSubmit={(event) => {
+          event.preventDefault();
+          send();
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="Ask about this Emergency view…"
+          aria-label="Message Vital Assist"
+          disabled={typing}
+        />
+        <button type="submit" className="gc-chat-send" disabled={typing || !draft.trim()} aria-label="Send">
+          Send
+        </button>
+      </form>
+    </div>
   );
 }
 

@@ -455,7 +455,8 @@ export function Chart({ figure, compact = false, action }: { figure: Figure; com
       </figcaption>
       <ChartStage>
         {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} compact={compact} /> : null}
-        {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} compact={compact} /> : null}
+        {figure.type === 'funnel' ? <StageChart figure={figure} compact={compact} /> : null}
+        {figure.type === 'flow' ? <JourneyChart figure={figure} compact={compact} /> : null}
         {figure.type === 'waterfall' ? <WaterfallChart figure={figure} /> : null}
         {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} compact={compact} /> : null}
         {figure.type === 'stacked' ? <StackedChart figure={figure} compact={compact} /> : null}
@@ -640,11 +641,11 @@ function HeatmapChart({ figure }: { figure: Figure }) {
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
       <title>{figure.title}</title>
       {figure.categories.map((block, index) => (
-        <text key={block} x={padL + index * cellW + cellW / 2} y="12" textAnchor="middle" fontSize="11">{block}</text>
+        <text key={block} x={padL + index * cellW + cellW / 2} y="12" textAnchor="middle">{block}</text>
       ))}
       {rows.map((day, row) => (
         <g key={day}>
-          <text x="2" y={22 + row * cellH + 12} fontSize="11">{day}</text>
+          <text x="2" y={22 + row * cellH + 12}>{day}</text>
           {(matrix[row] ?? []).map((value, column) => {
             const tone = 0.15 + 0.85 * (value / peak);
             return (
@@ -684,10 +685,10 @@ function BulletChart({ figure }: { figure: Figure }) {
         const have = ((filled[index] ?? 0) / max) * 460;
         return (
           <g key={category}>
-            <text x="8" y={y + 16} fontSize="12">{category}</text>
+            <text x="8" y={y + 16}>{category}</text>
             <rect x="168" y={y + 6} width={need} height="14" rx="3" fill="#d7e4e2" />
             <rect x="168" y={y + 8} width={have} height="10" rx="3" fill="#0f6e6a" />
-            <text x={176 + need} y={y + 17} fontSize="12">{`${filled[index] ?? 0} / ${required[index] ?? 0}`}</text>
+            <text x={176 + need} y={y + 17}>{`${filled[index] ?? 0} / ${required[index] ?? 0}`}</text>
           </g>
         );
       })}
@@ -714,7 +715,7 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
   const span = Math.max(max - min, 1);
   const width = 720;
   const height = compact ? 168 : 240;
-  const padL = 58;
+  const padL = 52;
   const padR = 16;
   const padT = compact ? 12 : 18;
   const padB = compact ? 28 : 36;
@@ -722,11 +723,20 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
   const innerH = height - padT - padB;
   const step = innerW / Math.max(categories.length - 1, 1);
   const yOf = (value: number) => padT + innerH - ((value - min) / span) * innerH;
+  const gradId = `gc-area-${title.replace(/\W+/g, '').toLowerCase()}`;
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${note}`}>
+    <svg className="gc-line-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${note}`}>
       <title>{title}</title>
+      <defs>
+        {series.map((item, seriesIndex) => (
+          <linearGradient key={`${item.name}-grad`} id={`${gradId}-${seriesIndex}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={PALETTE[seriesIndex % PALETTE.length]} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={PALETTE[seriesIndex % PALETTE.length]} stopOpacity="0.02" />
+          </linearGradient>
+        ))}
+      </defs>
       {[min, min + span / 2, max].map((tick, index) => (
-        <g key={`${index}-${tick}`}>
+        <g key={`${index}-${tick}`} className="gc-axis">
           <line x1={padL} x2={width - padR} y1={yOf(tick)} y2={yOf(tick)} />
           <text x={padL - 8} y={yOf(tick) + 4} textAnchor="end">{formatTick(tick, digits)}</text>
         </g>
@@ -736,16 +746,26 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
         const floor = item.values.map((_, index) => `${padL + index * step},${yOf(0)}`).reverse().join(' ');
         return (
           <g key={item.name}>
-            {area ? <polygon className="gc-mark-soft" points={`${points} ${floor}`} fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'} opacity="0.18" /> : null}
-            <polyline className="gc-mark-line" points={points} fill="none" stroke={PALETTE[seriesIndex % PALETTE.length]} strokeWidth="2.5" />
+            {area ? <polygon className="gc-mark-soft" points={`${points} ${floor}`} fill={`url(#${gradId}-${seriesIndex})`} /> : null}
+            <polyline
+              className="gc-mark-line"
+              points={points}
+              fill="none"
+              stroke={PALETTE[seriesIndex % PALETTE.length]}
+              strokeWidth="2.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             {item.values.map((value, index) => (
               <circle
                 key={`${item.name}-${categories[index]}`}
-                className="gc-mark"
+                className="gc-mark gc-line-dot"
                 cx={padL + index * step}
                 cy={yOf(value)}
-                r="4"
-                fill={PALETTE[seriesIndex % PALETTE.length]}
+                r="3.5"
+                fill="#fff"
+                stroke={PALETTE[seriesIndex % PALETTE.length]}
+                strokeWidth="2.25"
                 data-tip-title={categories[index]}
                 data-tip-value={tipValue(value, digits, figure.unit, item.name)}
               />
@@ -754,9 +774,72 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
         );
       })}
       {categories.map((category, index) => (
-        <text key={category} x={padL + index * step} y={height - 12} textAnchor={index === 0 ? 'start' : index === categories.length - 1 ? 'end' : 'middle'}>{category}</text>
+        <text key={category} className="gc-axis-label" x={padL + index * step} y={height - 10} textAnchor={index === 0 ? 'start' : index === categories.length - 1 ? 'end' : 'middle'}>{category}</text>
       ))}
     </svg>
+  );
+}
+
+function JourneyChart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
+  const values = figure.series[0]?.values ?? [];
+  const nodes = figure.categories.map((name, index) => ({ name, value: values[index] ?? 0 }));
+  const find = (match: RegExp) => nodes.find((node) => match.test(node.name));
+  const arrivals = find(/^arrivals$/i) ?? nodes[0];
+  const triaged = find(/triaged/i);
+  const admitted = find(/admitted/i);
+  const discharged = find(/discharged/i);
+  const leftBefore = find(/before/i);
+  const leftAfter = find(/after/i) ?? (!triaged ? find(/^left$/i) : undefined);
+  const outcomes = [admitted, discharged, leftAfter, leftBefore].filter(Boolean) as { name: string; value: number }[];
+  const mainPath = triaged ? [arrivals, triaged] : [arrivals];
+  const endNodes = triaged
+    ? [admitted, discharged, leftAfter].filter(Boolean) as { name: string; value: number }[]
+    : outcomes;
+  const sideNode = triaged ? leftBefore : undefined;
+
+  return (
+    <div className={`gc-journey ${compact ? 'is-compact' : ''}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
+      <div className="gc-journey-main">
+        {mainPath.map((node, index) => (
+          <div key={node.name} className="gc-journey-step" style={{ animationDelay: `${index * 90}ms` }}>
+            {index > 0 ? <span className="gc-journey-rail" aria-hidden="true" /> : null}
+            <JourneyNode node={node} unit={figure.unit} tone={index === 0 ? 'source' : 'mid'} />
+          </div>
+        ))}
+      </div>
+      {sideNode ? (
+        <div className="gc-journey-side" style={{ animationDelay: '180ms' }}>
+          <span className="gc-journey-branch" aria-hidden="true" />
+          <JourneyNode node={sideNode} unit={figure.unit} tone="alert" />
+        </div>
+      ) : null}
+      <div className="gc-journey-ends">
+        {endNodes.map((node, index) => (
+          <div key={node.name} className="gc-journey-end" style={{ animationDelay: `${220 + index * 80}ms` }}>
+            <span className="gc-journey-drop" aria-hidden="true" />
+            <JourneyNode
+              node={node}
+              unit={figure.unit}
+              tone={/left|after|before/i.test(node.name) ? 'alert' : /admit/i.test(node.name) ? 'watch' : 'good'}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JourneyNode({ node, unit, tone }: { node: { name: string; value: number }; unit: string; tone: 'source' | 'mid' | 'good' | 'watch' | 'alert' }) {
+  return (
+    <div
+      className={`gc-journey-node is-${tone}`}
+      data-tip-title={node.name}
+      data-tip-value={tipValue(node.value, 0, unit)}
+    >
+      <strong>{node.name}</strong>
+      <span>{node.value.toLocaleString('en-US')}</span>
+      <em>{unit}</em>
+    </div>
   );
 }
 
@@ -776,7 +859,7 @@ function StageChart({ figure, compact = false }: { figure: Figure; compact?: boo
         const barH = compact ? 14 : 18;
         return (
           <g key={category}>
-            <text x="8" y={y + barH} fontSize={compact ? 12 : 13}>{category}</text>
+            <text x="8" y={y + barH}>{category}</text>
             <rect
               className="gc-mark"
               x={compact ? 156 : 210}
@@ -788,7 +871,7 @@ function StageChart({ figure, compact = false }: { figure: Figure; compact?: boo
               data-tip-title={category}
               data-tip-value={tipValue(value, figure.digits, figure.unit)}
             />
-            <text x={(compact ? 164 : 220) + bar} y={y + barH} fontSize={compact ? 12 : 13}>{value.toLocaleString('en-US', { maximumFractionDigits: figure.digits })}</text>
+            <text x={(compact ? 164 : 220) + bar} y={y + barH}>{value.toLocaleString('en-US', { maximumFractionDigits: figure.digits })}</text>
           </g>
         );
       })}
