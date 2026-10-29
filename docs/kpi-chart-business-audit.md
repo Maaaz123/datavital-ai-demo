@@ -65,4 +65,6 @@ Corrected hospital-management terminology, fixed misleading chart encodings (sna
 
 ## Deployment
 
-Commit hash and URL filled after publish.
+**Commit:** `686b00d` (`686b00d9a8f1612862da9d4398e2fdc85a743564`)
+
+**URL:** https://maaaz123.github.io/datavital-ai-demo/
