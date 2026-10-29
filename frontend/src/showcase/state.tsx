@@ -3,7 +3,7 @@ import type { AlertStatus } from '@/core/alerts';
 
 const STORAGE_KEY = 'datavital-demo-showcase';
 
-export type Approval = 'approved' | 'rejected';
+export type Approval = 'approved' | 'rejected' | 'deferred';
 
 export function decisionKey(kpiKey: string, hospital: string, year: number, department: string) {
   return `${kpiKey}|${hospital}|${year}|${department}`;

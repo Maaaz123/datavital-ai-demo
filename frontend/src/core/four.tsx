@@ -264,18 +264,13 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
   const [showBlank, setShowBlank] = useState(false);
   const scoped = indicators.filter((item) => domains.includes(item.domain));
   const rows = scoped.filter((item) => item.domain === domain && (showBlank || item.status !== 'unavailable'));
-  const valued = scoped.filter((item) => item.status !== 'unavailable').length;
-  const blank = scoped.length - valued;
+  const blank = scoped.filter((item) => item.status === 'unavailable').length;
   return (
     <section className="gc-panel span-12 gc-scope">
       <div className="gc-scope-head">
         <div>
-          <h2>Indicator scope</h2>
-          <p>{valued} live · {blank} blank · values stay honest to the scenario</p>
-        </div>
-        <div className="gc-scope-meter" aria-label={`${valued} of ${scoped.length} indicators`}>
-          <i style={{ width: `${scoped.length ? (valued / scoped.length) * 100 : 0}%` }} />
-          <span>{valued}/{scoped.length}</span>
+          <h2>Performance indicators</h2>
+          <p>Figures for this view. Hover a card for the measurement note.</p>
         </div>
       </div>
       {domains.length > 1 ? (
@@ -293,7 +288,7 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
             style={{ animationDelay: `${index * 35}ms` }}
             title={item.method}
           >
-            <span className="gc-scope-status">{item.status === 'unavailable' ? 'Blank' : item.status === 'constructed' ? 'Built' : 'Live'}</span>
+            <span className="gc-scope-status">{item.status === 'unavailable' ? 'Not available' : item.status === 'constructed' ? 'Estimated' : 'Available'}</span>
             <strong>{item.name}</strong>
             <em>{item.value}</em>
           </article>
@@ -301,7 +296,7 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
       </div>
       {blank > 0 ? (
         <button type="button" className="gc-text-btn" aria-pressed={showBlank} onClick={() => setShowBlank((value) => !value)}>
-          {showBlank ? 'Hide blank indicators' : `Show ${blank} blank indicators`}
+          {showBlank ? 'Hide indicators not available here' : 'Show indicators not available in this view'}
         </button>
       ) : null}
     </section>

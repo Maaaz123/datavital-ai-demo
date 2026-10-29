@@ -236,13 +236,13 @@ function Overview({ alerts, selected }: { alerts: DemoAlert[]; selected: DemoAle
   return (
     <div className="gc-assist-stack">
       <section className="gc-assist-card">
-        <h3>Current scope</h3>
-        <p>This dashboard is the live scope. Drivers are hypotheses. Forecasts are estimates, not validated predictions.</p>
+        <h3>Decision support</h3>
+        <p>Prepared operational logic for this domain and screen. Drivers are hypotheses. Forecasts are illustrative, not validated models.</p>
       </section>
       <section className={`gc-assist-card ${selected ? 'gc-tone-watch' : 'gc-tone-neutral'}`}>
         <h3>Primary signal</h3>
         {selected ? (
-          <p><strong>{selected.title}</strong> · observed {selected.observed}</p>
+          <p><strong>{selected.title}</strong> · {selected.observed} · {selected.period}</p>
         ) : (
           <p>No alert is defined for this screen.</p>
         )}
@@ -254,7 +254,7 @@ function Overview({ alerts, selected }: { alerts: DemoAlert[]; selected: DemoAle
               <SeverityMark severity={alert.severity} />
               <span>
                 <strong>{alert.title}</strong>
-                <em>{alert.observed}</em>
+                <em>{alert.observed} · {alert.period}</em>
               </span>
             </button>
           </li>
@@ -279,7 +279,9 @@ function AlertFeed({ alerts, statusOf }: { alerts: DemoAlert[]; statusOf: (alert
               <em>{alert.observed}</em>
             </span>
           </button>
-          <p className="gc-assist-note">{statusLabel(statusOf(alert))} · {alert.period} · {alert.department}</p>
+          <p className="gc-assist-note">{statusLabel(statusOf(alert))} · {alert.department} · {alert.hospital} · {alert.period}</p>
+          <p className="gc-assist-note">Threshold: {alert.threshold}</p>
+          <p className="gc-assist-note">Owner: {alert.owner}</p>
           <div className="gc-inline">
             <button type="button" className="gc-chip-btn is-watch" onClick={() => store.setAlertStatus(alert.id, 'acknowledged')}>Acknowledge</button>
             <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.openAlert(alert)}>Investigate</button>
@@ -297,15 +299,19 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
   return (
     <article className="gc-assist-stack">
       <section className={`gc-assist-card gc-tone-${severityTone(alert.severity)}`}>
-        <p className="gc-kicker">{statusLabel(status)}</p>
+        <p className="gc-kicker">{statusLabel(status)} · {alert.severity}</p>
         <h3>{alert.title}</h3>
-        <p>{alert.observed}</p>
+        <p>{alert.department} · {alert.hospital} · {alert.period}</p>
       </section>
       <ol className="gc-assist-steps">
-        <li><strong>Measurement</strong><span>{alert.observed}</span></li>
-        <li><strong>Detection</strong><span>{alert.rule}</span></li>
-        <li><strong>Hypotheses</strong><span>{alert.investigation} These are not proven causes.</span></li>
-        <li><strong>Evidence</strong><span>{alert.evidence}</span></li>
+        <li><strong>What happened</strong><span>{alert.observed}. {alert.comparison}</span></li>
+        <li><strong>Why it matters</strong><span>{alert.whyMatters} {alert.consequence}</span></li>
+        <li><strong>Supporting evidence</strong><span>{alert.evidence}</span></li>
+        <li><strong>Potential drivers</strong><span>{alert.drivers} These are hypotheses, not proven causes.</span></li>
+        <li><strong>What may happen next</strong><span>Illustrative only: if no action is taken, {alert.title.toLowerCase()} may stay near {alert.observed}. Not a validated forecast.</span></li>
+        <li><strong>Recommended actions</strong><span>{alert.action} Owner: {alert.owner}.</span></li>
+        <li><strong>Human review</strong><span>Status: {statusLabel(status)}. Approve, reject, or defer in Decide. Approval is not measured improvement.</span></li>
+        <li><strong>Outcome monitoring</strong><span>Follow up with: {alert.followUp}. Track measured change separately from estimated impact.</span></li>
       </ol>
       <div className="gc-inline">
         <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
@@ -320,8 +326,12 @@ function Prediction({ alert }: { alert: DemoAlert | null }) {
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
-        <h3>Illustrative prediction</h3>
-        <p>Not a validated model. If the current {alert.title.toLowerCase()} stayed near {alert.observed}, the story would continue at that level.</p>
+        <h3>Illustrative outlook</h3>
+        <p><strong>Horizon:</strong> next review period within {alert.period}.</p>
+        <p><strong>Inputs:</strong> {alert.title} at {alert.observed}; threshold {alert.threshold}.</p>
+        <p><strong>Method:</strong> scenario continuation — if the observed level holds, pressure stays similar.</p>
+        <p><strong>Expected range:</strong> not quantified. No confidence score is claimed.</p>
+        <p><strong>Limitation:</strong> not a validated predictive model. No clinical or financial validation is claimed.</p>
       </section>
       <section className="gc-assist-card gc-tone-watch">
         <h3>Comparison</h3>
@@ -340,14 +350,18 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
-        <h3>{alert.action}</h3>
-        <p>{alert.investigation}</p>
-      </section>
-      <section className="gc-assist-card gc-tone-neutral">
-        <p><strong>{alert.title}</strong> · observed {alert.observed}</p>
-        <p>Expected impact is an estimate. It is not a result that has already occurred.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : ''}</p>
-        <p>Owner: {alert.owner}</p>
-        <p>Decision: {decision ?? 'waiting for a person'}</p>
+        <h3>Recommended action</h3>
+        <p><strong>Problem:</strong> {alert.title} is {alert.observed} ({alert.severity}).</p>
+        <p><strong>Action:</strong> {alert.action}</p>
+        <p><strong>Evidence:</strong> {alert.evidence}</p>
+        <p><strong>Why it may help:</strong> {alert.consequence}</p>
+        <p><strong>Expected effect:</strong> not calculated. Impact remains an estimate until measured.</p>
+        <p><strong>Uncertainty:</strong> illustrative scenario logic only.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : ''}</p>
+        <p><strong>Owner:</strong> {alert.owner}</p>
+        <p><strong>Priority:</strong> {alert.severity}</p>
+        <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
+        <p><strong>Follow-up indicator:</strong> {alert.followUp}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}</p>
       </section>
       {mode === 'decide' ? null : (
         <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
@@ -367,20 +381,18 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
       : 'kpi_ed_door_to_provider_median_minutes';
   const key = decisionKey(lead?.kpi ?? defaultKpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
-  const medianMatch = lead?.observed.match(/([\d.]+)\s*minutes/i);
-  const median = medianMatch ? Number(medianMatch[1]) : 63.3;
-  const gap = median - 60;
   const beds = department === 'Beds';
   const ipd = department === 'Inpatient';
   const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
       : 'Door-to-provider wait · selected hospital and year';
+  const boxTone = decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch';
   return (
     <article className="gc-decision gc-assist-stack">
       <section className="gc-assist-card">
         <h3>Decision review</h3>
-        <p>{lead ? `${lead.title} · ${lead.observed}` : fallbackTitle}</p>
+        <p>{lead ? `${lead.title} · ${lead.observed} · ${lead.period}` : fallbackTitle}</p>
       </section>
       <div className="gc-progress-steps" role="tablist" aria-label="Decision stages">
         {STEPS.map((label, index) => (
@@ -393,47 +405,49 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
       <section className="gc-assist-card">
         {step === 0 ? (
           <p>
-            {beds
-              ? `Detection: ${lead?.observed ?? 'occupancy and pending requests'} against vacant capacity. ${lead?.rule ?? 'No open bed-capacity alert.'}`
-              : ipd
-                ? `Detection: ${lead?.observed ?? 'median stay and long-stay share'} against the inpatient review line. ${lead?.rule ?? 'No open inpatient alert.'}`
-                : `Detection: observed median is ${median.toFixed(1)} minutes. Review line 60 minutes. Gap ${gap > 0 ? '+' : ''}${gap.toFixed(1)} minutes. ${lead?.rule ?? 'No open emergency alert.'}`}
+            What happened: {lead?.observed ?? 'No open alert'} for {lead?.hospital ?? store.hospital} in {lead?.period ?? `Full year ${store.year}`}.
+            Threshold: {lead?.threshold ?? 'No threshold selected'}.
           </p>
         ) : null}
         {step === 1 ? (
           <p>
-            Investigation: {lead?.investigation ?? (beds ? 'Review blocked beds, pending requests, and expected releases together.' : ipd ? 'Review length of stay, ready-but-not-discharged, and specialty long stays together.' : 'Review arrivals and boarding together.')} These are not proven causes.
+            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : 'Waiting time affects ED flow.')}
+            {' '}Potential drivers: {lead?.drivers ?? lead?.investigation ?? 'Review domain evidence together.'} These are not proven causes.
           </p>
         ) : null}
         {step === 2 ? (
           <p>
-            {beds
-              ? 'Prediction: Not a validated model. Expected releases and demand are a planning sketch, not a 4–48 hour forecast.'
+            What may happen next (illustrative): {beds
+              ? 'Expected releases and demand are a planning sketch, not a validated 4–48 hour forecast.'
               : ipd
-                ? 'Prediction: Not a validated model. Expected discharges are a planning sketch. AI does not declare medical readiness.'
-                : 'Prediction: Not a validated model. Continued demand is not converted into a predicted wait.'}
+                ? 'Expected discharges are a planning sketch. AI does not declare medical readiness.'
+                : 'Continued demand is not converted into a predicted wait. Not a validated model.'}
           </p>
         ) : null}
         {step === 3 ? (
           <p>
-            Recommendation: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : 'Review the peak arrival hours against the door-to-provider median.')}
-            {' '}Expected impact is not calculated.{beds || ipd ? ' AI does not move or discharge a patient alone.' : ''}
+            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : 'Review the peak arrival hours against the door-to-provider median.')}
+            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : ''}
           </p>
         ) : null}
         {step === 4 ? (
-          <div className={`gc-decide-box ${decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch'}`}>
-            <p>Decision for this hospital, year, and {signal} signal: {decision ?? 'waiting for a person'}.</p>
+          <div className={`gc-decide-box ${boxTone}`}>
+            <p>Human review for {store.hospital}, {store.year}, {signal}: {decision ?? 'waiting for a person'}.</p>
+            <p>Approval is not evidence of improvement.</p>
             <div className="gc-inline">
               <button type="button" className="gc-chip-btn is-good" onClick={() => store.decide(key, 'approved')}>Approve</button>
               <button type="button" className="gc-chip-btn is-alert" onClick={() => store.decide(key, 'rejected')}>Reject</button>
+              <button type="button" className="gc-chip-btn is-watch" onClick={() => store.decide(key, 'deferred')}>Defer</button>
+              <button type="button" className="gc-chip-btn is-mute" onClick={() => { if (lead) store.setAlertStatus(lead.id, 'investigating'); setStep(1); }}>Review</button>
             </div>
           </div>
         ) : null}
         {step === 5 ? (
-          <div className={`gc-decide-box ${decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch'}`}>
-            {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
-            {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
-            {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
+          <div className={`gc-decide-box ${boxTone}`}>
+            {decision === 'approved' ? <p>Outcome monitoring: track {lead?.followUp ?? 'the same indicator'} separately from any estimated impact. This illustration is not a measured hospital result. Decision: approved.</p> : null}
+            {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection. Re-measure only if operations change independently.</p> : null}
+            {decision === 'deferred' ? <p>Decision deferred. Keep monitoring {lead?.followUp ?? 'the open signal'} without treating deferral as improvement.</p> : null}
+            {!decision ? <p>Record an approval or rejection before an outcome is shown. Defer is also available.</p> : null}
           </div>
         ) : null}
       </section>
@@ -454,17 +468,23 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
   const [typing, setTyping] = useState(false);
   const beds = department === 'Beds';
   const ipd = department === 'Inpatient';
+  const prompts = beds
+    ? ['Which wards have the greatest capacity pressure?', 'How many beds are currently available?', 'What is slowing down bed readiness?']
+    : ipd
+      ? ['Which clinical groups have prolonged stays?', 'Where are discharge delays increasing?', 'How has length of stay changed?']
+      : ['Why has the door-to-provider wait increased?', 'When is patient demand highest?', 'What explains the boarding trend?'];
   const [messages, setMessages] = useState<ChatMessage[]>([{
     id: 'welcome',
     role: 'assistant',
     title: 'Vital Assist',
     body: [
-      `Scoped to ${label}, ${store.year}, ${askScope}.`,
+      `Prepared answers for ${label}, ${store.year}, ${askScope}. This is not a live language model.`,
       beds
-        ? 'Ask about occupancy, vacant beds, blocked beds, allocation, or shortfall. Answers stay inside this demo scope.'
+        ? 'Ask about occupancy, vacant beds, blocked beds, allocation, or shortfall.'
         : ipd
-          ? 'Ask about admissions, length of stay, delayed discharge, or readmissions. Answers stay inside this demo scope.'
-          : 'Ask about arrivals, waiting time, boarding, or disposition. Answers stay inside this demo scope.',
+          ? 'Ask about admissions, length of stay, delayed discharge, or readmissions.'
+          : 'Ask about arrivals, waiting time, boarding, or disposition.',
+      `Try: ${prompts[0]}`,
     ],
   }]);
   const endRef = useRef<HTMLDivElement>(null);
@@ -473,8 +493,8 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, typing]);
 
-  const send = () => {
-    const text = draft.trim();
+  const send = (preset?: string) => {
+    const text = (preset ?? draft).trim();
     if (!text || typing) return;
     setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', body: [text] }]);
     setDraft('');
@@ -485,7 +505,15 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
         id: `a-${Date.now()}`,
         role: 'assistant',
         title: answer.title,
-        body: [answer.observation, answer.evidence, answer.explanation, answer.action, answer.approval].filter(Boolean),
+        body: [
+          `What happened: ${answer.observation}`,
+          `Why it matters: ${answer.benefit}`,
+          `Supporting evidence: ${answer.evidence}`,
+          `Potential drivers: ${answer.explanation}`,
+          `What may happen next: ${answer.outcome}`,
+          `Recommended actions: ${answer.action} · Owner: ${answer.role}`,
+          `Human review: ${answer.approval}`,
+        ].filter(Boolean),
       }]);
       setTyping(false);
     }, 700);
@@ -512,6 +540,11 @@ function Ask({ label, department, askScope }: { label: string; department: Domai
           </div>
         ) : null}
         <div ref={endRef} />
+      </div>
+      <div className="gc-inline" style={{ padding: '0 12px 8px', flexWrap: 'wrap' }}>
+        {prompts.map((prompt) => (
+          <button key={prompt} type="button" className="gc-chip-btn is-mute" disabled={typing} onClick={() => send(prompt)}>{prompt}</button>
+        ))}
       </div>
       <form
         className="gc-chat-composer"

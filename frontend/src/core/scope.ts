@@ -35,7 +35,7 @@ export type AiCase = {
 };
 
 const blank = (domain: string, name: string, method: string): Indicator => ({
-  domain, name, value: 'Not in scenario', status: 'unavailable', method,
+  domain, name, value: 'Not available', status: 'unavailable', method,
 });
 
 const row = (domain: string, name: string, value: string, status: IndicatorStatus, method: string): Indicator => ({
@@ -59,8 +59,8 @@ export function indicatorsFor(input: ScopeInput): Indicator[] {
   return [
     row('ED Demand & Arrivals', 'Total ED Visits', num(input.arrivals), 'scenario', 'Emergency visits in the selected hospital and period.'),
     blank('ED Demand & Arrivals', 'Unique ED Patients', 'Visits are not linked to a patient identifier, so unique patients are not counted.'),
-    row('ED Demand & Arrivals', 'Arrivals by Hour', 'Charted', 'constructed', 'Hourly counts are a fixed split of the period total. They are not a visit clock.'),
-    row('ED Demand & Arrivals', 'Arrivals by Day', 'Charted', 'constructed', 'Weekday counts are a fixed split of the period total.'),
+    row('ED Demand & Arrivals', 'Arrivals by Hour', 'Peak afternoon hours · see demand chart', 'constructed', 'Hourly counts are a fixed split of the period total. They are not a visit clock.'),
+    row('ED Demand & Arrivals', 'Arrivals by Day', 'Weekday mix · see demand chart', 'constructed', 'Weekday counts are a fixed split of the period total.'),
     row('ED Demand & Arrivals', 'Arrival Mode (Walk-in / Ambulance / Transfer)', input.modes.map((item) => `${item.name} ${num(item.count)}`).join(' · '), 'constructed', 'Walk-in, ambulance, and transfer are fixed shares. Other is the remainder, so the counts still equal arrivals.'),
     row('ED Demand & Arrivals', 'High-Acuity Arrival Volume', `${num(high)} · ${pct(high / arrivals)}`, 'scenario', 'ESI-1 plus ESI-2. ESI is assigned to every arrival. This is not a count of patients waiting now.'),
 

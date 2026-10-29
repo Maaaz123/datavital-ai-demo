@@ -122,7 +122,7 @@ describe('emergency and beds domains', () => {
     expect(screen.getByText(/Record an approval or rejection/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H1' } });
     fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
-    expect(screen.getByText(/Decision: approved/)).toBeInTheDocument();
+    expect(screen.getByText(/Decision: approved/i)).toBeInTheDocument();
   });
 
   it('sends legacy public routes back to Emergency Snapshot', () => {
@@ -161,7 +161,7 @@ describe('emergency and beds domains', () => {
     const edRows = indicatorsFor(ed);
     expect(edRows).toHaveLength(30);
     expect(AI_CASES).toHaveLength(10);
-    expect(edRows.find((row) => row.name === 'Arrival-to-Disposition Decision Time')?.value).toBe('Not in scenario');
+    expect(edRows.find((row) => row.name === 'Arrival-to-Disposition Decision Time')?.value).toBe('Not available');
     expect(edRows.some((row) => /workforce|experience|staffed beds|revenue/i.test(row.domain))).toBe(false);
 
     const beds: BedsScopeInput = {
@@ -181,7 +181,7 @@ describe('emergency and beds domains', () => {
     const bedRows = bedsIndicatorsFor(beds);
     expect(bedRows).toHaveLength(36);
     expect(BEDS_AI_CASES).toHaveLength(10);
-    expect(bedRows.find((row) => row.name === 'Licensed Beds')?.value).toBe('Not in scenario');
+    expect(bedRows.find((row) => row.name === 'Licensed Beds')?.value).toBe('Not available');
     expect(bedRows.some((row) => /emergency|workforce|experience|revenue/i.test(row.domain))).toBe(false);
 
     const ipd: IpdScopeInput = {
@@ -200,7 +200,7 @@ describe('emergency and beds domains', () => {
     const ipdRows = ipdIndicatorsFor(ipd);
     expect(ipdRows).toHaveLength(40);
     expect(IPD_AI_CASES).toHaveLength(12);
-    expect(ipdRows.find((row) => row.name === 'Observed-to-Expected LOS Ratio')?.value).toBe('Not in scenario');
+    expect(ipdRows.find((row) => row.name === 'Observed-to-Expected LOS Ratio')?.value).toBe('Not available');
     expect(ipdRows.find((row) => row.name === 'Current Inpatient Census (Patients)')?.method).toMatch(/not a bed occupancy rate/i);
     expect(ipdRows.some((row) => /bed occupancy|workforce|experience|emergency waiting/i.test(row.domain))).toBe(false);
   });
@@ -213,7 +213,7 @@ describe('emergency and beds domains', () => {
     const capacity = renderAt('/beds/capacity');
     expect(screen.getByRole('heading', { level: 1, name: 'Bed Capacity Outlook' })).toBeInTheDocument();
     expect(screen.queryByText(/Door-to-Provider|Left Without Being Seen|ESI-1/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/AI use cases/i)).toBeInTheDocument();
+    expect(screen.getByText(/AI decision support/i)).toBeInTheDocument();
     expect(screen.getByText(/Likely free in 48 hours/i)).toBeInTheDocument();
     capacity.unmount();
     const ipd = renderAt('/inpatient/outcomes');

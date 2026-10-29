@@ -52,7 +52,7 @@ export type AiCase = {
 };
 
 const blank = (domain: string, name: string, method: string): Indicator => ({
-  domain, name, value: 'Not in scenario', status: 'unavailable', method,
+  domain, name, value: 'Not available', status: 'unavailable', method,
 });
 
 const row = (domain: string, name: string, value: string, status: IndicatorStatus, method: string): Indicator => ({
@@ -124,7 +124,7 @@ export function bedsIndicatorsFor(input: BedsScopeInput): Indicator[] {
     row('Bed Movement & Utilization', 'Bed Admissions', num(input.admissions), 'scenario', 'Inpatient admissions that occupy a bed. Emergency visits are not counted here.'),
     row('Bed Movement & Utilization', 'Bed Releases', num(input.discharges), 'scenario', 'Discharges that free a bed in the period.'),
     row('Bed Movement & Utilization', 'Internal Bed Transfers', num(input.transfersIn + input.transfersOut), 'scenario', 'Transfers in plus transfers out. Each move changes bed occupancy without a new admission.'),
-    row('Bed Movement & Utilization', 'Bed Transfers by Ward', 'Charted', 'constructed', 'Ward-level transfer shares are a fixed split of internal transfers.'),
+    row('Bed Movement & Utilization', 'Bed Transfers by Ward', 'Ward mix · see transfer chart', 'constructed', 'Ward-level transfer shares are a fixed split of internal transfers.'),
     row('Bed Movement & Utilization', 'Average Bed Occupation Duration', `${num(input.occupationDurationDays, 1)} days`, 'scenario', 'Inpatient length of stay median. This is bed occupation duration, not emergency length of stay.'),
     input.reassignmentRate == null
       ? blank('Bed Movement & Utilization', 'Bed Reassignment Rate', 'Bed-to-bed reassignment events are not recorded separately from ward transfers.')

@@ -60,7 +60,7 @@ export type AiCase = {
 };
 
 const blank = (domain: string, name: string, method: string): Indicator => ({
-  domain, name, value: 'Not in scenario', status: 'unavailable', method,
+  domain, name, value: 'Not available', status: 'unavailable', method,
 });
 
 const row = (domain: string, name: string, value: string, status: IndicatorStatus, method: string): Indicator => ({
@@ -95,7 +95,7 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
     row('Admissions & Inpatient Activity', 'Admissions by Clinical Specialty', specialtyLine || 'No specialties', 'constructed', 'Specialty split of admissions. Fixed shares that still sum to admissions.'),
     row('Admissions & Inpatient Activity', 'Admissions by Source', sourceLine || 'No sources', 'constructed', 'ED, elective, transfer, and other sources that sum to admissions.'),
     row('Admissions & Inpatient Activity', 'Elective vs Emergency Admissions', `Elective ${num(elective)} · From ED ${num(emergency)}`, 'scenario', 'Direct/elective admissions versus admissions that began in emergency. Emergency wait times stay in Emergency.'),
-    row('Admissions & Inpatient Activity', 'Inpatient Admission Trend', 'Charted', 'scenario', 'Monthly admissions that sum to the period total.'),
+    row('Admissions & Inpatient Activity', 'Inpatient Admission Trend', `${num(input.admissions)} admissions · see trend chart`, 'scenario', 'Monthly admissions that sum to the period total.'),
     input.cancelRate == null
       ? blank('Admissions & Inpatient Activity', 'Admission Cancellation Rate', 'Cancelled planned admissions are not recorded. Elective volume is not used as a cancellation rate.')
       : row('Admissions & Inpatient Activity', 'Admission Cancellation Rate', pct(input.cancelRate), 'scenario', 'Cancelled planned admissions ÷ planned admissions.'),

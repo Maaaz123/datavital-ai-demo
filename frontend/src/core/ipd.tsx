@@ -291,18 +291,13 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
   const [showBlank, setShowBlank] = useState(false);
   const scoped = indicators.filter((item) => domains.includes(item.domain));
   const rows = scoped.filter((item) => item.domain === domain && (showBlank || item.status !== 'unavailable'));
-  const valued = scoped.filter((item) => item.status !== 'unavailable').length;
-  const blank = scoped.length - valued;
+  const blank = scoped.filter((item) => item.status === 'unavailable').length;
   return (
     <section className="gc-panel span-12 gc-scope">
       <div className="gc-scope-head">
         <div>
-          <h2>Indicator scope</h2>
-          <p>{valued} live · {blank} blank · bed occupancy and staffing stay outside IPD</p>
-        </div>
-        <div className="gc-scope-meter" aria-label={`${valued} of ${scoped.length} indicators`}>
-          <i style={{ width: `${scoped.length ? (valued / scoped.length) * 100 : 0}%` }} />
-          <span>{valued}/{scoped.length}</span>
+          <h2>Performance indicators</h2>
+          <p>Figures for this view. Bed occupancy and staffing stay in Beds & Capacity.</p>
         </div>
       </div>
       {domains.length > 1 ? (
@@ -315,7 +310,7 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
       <div className="gc-scope-grid">
         {rows.map((item, index) => (
           <article key={item.name} className={`gc-scope-card is-${item.status === 'unavailable' ? 'blank' : item.status}`} style={{ animationDelay: `${index * 35}ms` }} title={item.method}>
-            <span className="gc-scope-status">{item.status === 'unavailable' ? 'Blank' : item.status === 'constructed' ? 'Built' : 'Live'}</span>
+            <span className="gc-scope-status">{item.status === 'unavailable' ? 'Not available' : item.status === 'constructed' ? 'Estimated' : 'Available'}</span>
             <strong>{item.name}</strong>
             <em>{item.value}</em>
           </article>
@@ -323,7 +318,7 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
       </div>
       {blank > 0 ? (
         <button type="button" className="gc-text-btn" aria-pressed={showBlank} onClick={() => setShowBlank((value) => !value)}>
-          {showBlank ? 'Hide blank indicators' : `Show ${blank} blank indicators`}
+          {showBlank ? 'Hide indicators not available here' : 'Show indicators not available in this view'}
         </button>
       ) : null}
     </section>
@@ -335,20 +330,16 @@ function AiIndex() {
     <section className="gc-panel span-12 gc-scope gc-scope-tight">
       <div className="gc-scope-head">
         <div>
-          <h2>AI use cases</h2>
-          <p>12 inpatient cases · AI never decides discharge readiness alone</p>
-        </div>
-        <div className="gc-scope-meter" aria-label="12 of 12 AI cases in scope">
-          <i style={{ width: '100%' }} />
-          <span>12/12</span>
+          <h2>AI decision support</h2>
+          <p>Illustrative inpatient intelligence · AI never decides discharge readiness alone</p>
         </div>
       </div>
       <div className="gc-scope-grid gc-scope-grid-dense">
         {IPD_AI_CASES.map((item, index) => (
           <article key={item.id} className="gc-scope-card is-constructed gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }} title={item.limit}>
-            <span className="gc-scope-status">{item.id.replace('IPD-', '')}</span>
+            <span className="gc-scope-status">{item.level}</span>
             <strong>{item.name}</strong>
-            <em>{item.level}</em>
+            <em>{item.analysis}</em>
           </article>
         ))}
       </div>
@@ -453,7 +444,7 @@ export function IpdStayPage() {
           </div>
           <div className="gc-exception gc-tone-neutral">
             <strong>Summary / delay clocks</strong>
-            <span>Not in scenario</span>
+            <span>Not available</span>
           </div>
         </div>
         <p className="gc-next">Bed cleaning and assignment after discharge stay in Beds & Capacity.</p>
@@ -494,7 +485,7 @@ export function IpdOutcomesPage() {
           </div>
           <div className="gc-exception gc-tone-neutral">
             <strong>Care-plan & consult clocks</strong>
-            <span>Blank · not inferred from LOS</span>
+            <span>Not available · not inferred from length of stay</span>
           </div>
         </div>
         <p className="gc-next">AI may flag missing documentation later. It does not decide that a patient is ready to leave.</p>
@@ -553,16 +544,16 @@ function BlankDocStrip() {
     <section className="gc-panel span-12 gc-scope gc-scope-tight">
       <div className="gc-scope-head">
         <div>
-          <h2>Documentation gaps in this demo</h2>
-          <p>These clocks are blank on purpose. Length of stay is not used as a substitute.</p>
+          <h2>Documentation not available here</h2>
+          <p>These records are not stored in this demonstration. Length of stay is not used as a substitute.</p>
         </div>
       </div>
       <div className="gc-scope-grid gc-scope-grid-dense">
         {items.map((item, index) => (
           <article key={item} className="gc-scope-card is-blank gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }}>
-            <span className="gc-scope-status">Blank</span>
+            <span className="gc-scope-status">Not available</span>
             <strong>{item}</strong>
-            <em>Not in scenario</em>
+            <em>Not available</em>
           </article>
         ))}
       </div>
