@@ -4,8 +4,8 @@
 **Design status:** Frozen (content / BI / functional completion only)  
 **Deployment URL:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh (cache wipe):** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
-**BUILD_ID:** `v45-ipd-final`  
-**Commit:** 14a7448  
+**BUILD_ID:** `v46-ipd-consistency`  
+**Commit:** `1ec9b9d`
 
 ---
 
@@ -208,4 +208,4 @@ npx tsc -b
 
 Critical empty documentation strip: **resolved**.  
 Design freeze: **honored**.  
-Live verification: use refresh URL after publish so service-worker cache picks up `v45-ipd-final`.
+Live verification: use refresh URL after publish so service-worker cache picks up `v46-ipd-consistency`.
