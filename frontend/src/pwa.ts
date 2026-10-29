@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v38-rail-spacing';
+const BUILD_ID = 'v39-filters-type';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
