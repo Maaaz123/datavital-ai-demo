@@ -21,7 +21,7 @@ All nine CoreApp screens:
 | Beds & Capacity | Bed Capacity Outlook | `/beds/capacity` |
 | Inpatient Care | Inpatient Snapshot | `/inpatient` |
 | Inpatient Care | Stay & Discharge | `/inpatient/stay` |
-| Inpatient Care | Care Progress & Outcomes | `/inpatient/progress` |
+| Inpatient Care | Care Progress & Outcomes | `/inpatient/outcomes` |
 
 ## 2–3. Totals reviewed
 
