@@ -94,6 +94,16 @@ describe('Inpatient final acceptance', () => {
     expect(destSum).toBe(input.discharges);
   });
 
+  it('keeps specialty readmit catalog tilt aligned with the Outcomes chart formula', () => {
+    const input = baseInput();
+    const row = ipdIndicatorsFor(input).find((item) => item.name === 'Readmissions by Clinical Specialty');
+    expect(row?.method).toMatch(/Severity is not adjusted/i);
+    const medicine = input.specialties[0];
+    const share = input.readmit30 * (0.75 + (medicine.los / Math.max(input.losMedian, 1)) * 0.2);
+    expect(row?.value).toContain('Medicine');
+    expect(share).toBeGreaterThan(input.readmit30 * 0.7);
+  });
+
   it('varies documentation scenario by hospital while staying in band', () => {
     for (const hospital of HOSPITALS.map((item) => item.code)) {
       const docs = ipdDocScenario({ hospital, occupiedBeds: 300, staffedBeds: 400 });

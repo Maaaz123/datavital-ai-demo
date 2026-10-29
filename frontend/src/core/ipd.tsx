@@ -30,8 +30,10 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   // Admission sources must partition admissions (ED + elective/direct + transfer-in + other = admissions).
   const fromEmergency = Math.min(edAdmittedRaw, admissions);
   const transferSource = Math.min(transfersIn, Math.max(0, admissions - fromEmergency));
-  const directAdmissions = Math.max(0, admissions - fromEmergency - transferSource);
-  const otherSource = Math.max(0, admissions - fromEmergency - transferSource - directAdmissions);
+  const remainder = Math.max(0, admissions - fromEmergency - transferSource);
+  // Keep a small constructed "Other" slice so the source mix is not decorative at 0%.
+  const otherSource = Math.min(remainder, Math.round(admissions * 0.02));
+  const directAdmissions = Math.max(0, remainder - otherSource);
   const edAdmitted = fromEmergency;
   const census = period === 'year' ? fact.occupiedBeds : Math.round(rows.reduce((sum, row) => sum + row.month.occupiedBeds, 0) / Math.max(rows.length, 1));
   const losMedian = period === 'year' ? fact.ipLosDays : weighted(rows, 'ipLosDays', 'admissions');
@@ -501,7 +503,7 @@ export function IpdOutcomesPage() {
         </div>
         <p className="gc-next">Documentation rates below are illustrative scenario shares. AI does not decide that a patient is medically ready to leave.</p>
       </section>
-      <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * view.readmit30 * (0.75 + item.los / Math.max(view.losMedian, 1) * 0.2))) }], 'patients', 'Specialty shares around the hospital 30-day rate. Severity is not adjusted.')} />
+      <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * view.readmit30 * (0.75 + (item.los / Math.max(view.losMedian, 1)) * 0.2))) }], 'patients', 'Specialty shares around the hospital 30-day rate (same constructed tilt as the indicator catalog). Severity is not adjusted.')} />
       <Slot figure={fig('line', 'Census vs discharges over time', view.labels, [
         { name: 'Inpatient census', values: view.monthlyCensus },
         { name: 'Discharges', values: view.monthlyDischarges },

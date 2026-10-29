@@ -132,7 +132,11 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
   const sourceLine = input.sources.map((item) => `${item.id} ${num(item.count)}`).join(' · ');
   const destLine = input.destinations.map((item) => `${item.id} ${num(item.count)}`).join(' · ');
   const specialtyLos = input.specialties.map((item) => `${item.id} ${num(item.los, 1)}d`).join(' · ');
-  const specialtyReadmit = input.specialties.map((item) => `${item.id} ${pct(input.readmit30 * (0.7 + (item.admissions / admissions) * 0.6))}`).join(' · ');
+  // Same constructed specialty share used by the Outcomes readmission chart (LOS tilt around hospital 30-day rate).
+  const specialtyReadmit = input.specialties.map((item) => {
+    const share = input.readmit30 * (0.75 + (item.los / Math.max(input.losMedian, 1)) * 0.2);
+    return `${item.id} ${pct(share)}`;
+  }).join(' · ');
   const elective = Math.max(0, input.directAdmissions);
   const emergency = input.edAdmitted;
   const episodeComplete = discharges / Math.max(admissions + input.transfersIn, 1);

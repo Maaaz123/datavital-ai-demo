@@ -79,6 +79,8 @@
 | Stay pipeline showed “Summary / delay clocks Not available” | Medium | Shows discharge summary completion; delay duration clocks remain honestly unavailable |
 | Outcomes watch list said care-plan & consult clocks N/A | Medium | Shows median consult response + pending consults (illustrative) |
 | SPA deep-link `404.html` could serve stale hashed shell | High (ops) | Publish always copies `index.html` → `404.html` |
+| Specialty readmit catalog vs Outcomes chart used different constructed tilts | Medium | Both use LOS-tilt around hospital 30-day rate |
+| Admission source “Other” was always 0 | Medium | Constructed ~2% Other carved from elective/direct remainder |
 
 ---
 
