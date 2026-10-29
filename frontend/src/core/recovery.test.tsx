@@ -79,11 +79,11 @@ describe('four emergency pages', () => {
     fireEvent.click(screen.getByRole('tab', { name: /5\. Forecast/ }));
     expect(screen.getByText(/Not a validated model/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /7\. Approval/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Reject recommendation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
     fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
     expect(screen.getByText(/No illustrative outcome/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /7\. Approval/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Approve recommendation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     fireEvent.click(screen.getByRole('tab', { name: /8\. Outcome/ }));
     expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });

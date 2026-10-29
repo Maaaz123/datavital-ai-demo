@@ -113,6 +113,19 @@
 .gc-ed .gc-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .gc-ed .gc-tabs a { text-align: center; border-radius: 8px; }
 .gc-ed .gc-ribbon { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
+.gc-ed .gc-score { border-radius: 14px; padding: 12px 14px; box-shadow: none; }
+.gc-ed .gc-score span { color: #6d7584; font-size: 0.72rem; font-weight: 550; letter-spacing: 0; }
+.gc-ed .gc-score strong { margin: 4px 0 2px; color: #111; font-size: 1.28rem; font-weight: 680; letter-spacing: -0.04em; line-height: 1.15; white-space: nowrap; }
+.gc-ed .gc-score em { color: #6d7584; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ed .gc-chart figcaption span { display: block; margin: 0; color: #6d7584; font-size: 0.78rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-ed .gc-btn.primary { background: #111; color: #fff; border-color: #111; }
+.gc-progress-steps { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 2px 0 14px; }
+.gc-progress-steps button { appearance: none; background: transparent; border: 0; padding: 0; min-width: 0; text-align: start; font: inherit; cursor: pointer; color: inherit; }
+.gc-progress-steps i { display: block; height: 4px; border-radius: 999px; background: #e6e1d8; }
+.gc-progress-steps button[aria-selected="true"] i,
+.gc-progress-steps button[data-done="true"] i { background: #111; }
+.gc-progress-steps span { display: block; margin-top: 6px; font-size: 0.68rem; color: #8b93a1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-progress-steps button[aria-selected="true"] span { color: #111; font-weight: 680; }
 .gc-finder { display: grid; gap: 4px; color: #d7e2ea; font-size: 0.75rem; margin-bottom: 8px; }
 .gc-finder input { border: 0; border-radius: 8px; padding: 8px 10px; }
 .gc-chart { animation: gc-rise 420ms ease; }

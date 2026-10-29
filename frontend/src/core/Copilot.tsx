@@ -280,8 +280,8 @@ function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' |
       {mode === 'decide' ? (
         <>
           <div className="gc-inline">
-            <button type="button" className="gc-btn" onClick={() => store.decide(key, 'approved')}>Approve recommendation</button>
-            <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject recommendation</button>
+            <button type="button" className="gc-btn primary" onClick={() => store.decide(key, 'approved')}>Approve</button>
+            <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject</button>
           </div>
           {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. The approval is stored only for {store.hospital}, {store.year}, and {store.department}.</p> : null}
           {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
