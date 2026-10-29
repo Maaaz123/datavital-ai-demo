@@ -1,8 +1,8 @@
 # Surgery Domain — Final Acceptance
 
 **Domain:** Operating Room & Surgery Intelligence  
-**BUILD_ID:** `v62-surgery-domain`  
-**JS bundle:** `index-dqmCFM9Y.js`  
+**BUILD_ID:** `v62b-surgery-assist-fix`  
+**JS bundle:** `index-CnTRjvKB.js`  
 **Screenshots:** `docs/visual-after/surgery-domain/`
 
 ---
@@ -166,10 +166,27 @@ Local preview verified at 1440px: short titles, full comparison labels (`No chan
 
 | Item | Value |
 |---|---|
-| Feature commit | *(recorded after push)* |
-| BUILD_ID | `v62-surgery-domain` |
+| Feature commit | *(recorded after push of v62b assist tip fix)* |
+| Prior feature commit | `dbb2a27c880a121ae746be20e47e4edfb5f60e98` |
+| BUILD_ID | `v62b-surgery-assist-fix` |
+| Published JS | `assets/index-CnTRjvKB.js` |
 | Production | https://maaaz123.github.io/datavital-ai-demo/surgery |
 | Refresh | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
+
+### Production live check (2026-10-29)
+
+| Check | Result |
+|---|---|
+| `index.html` serves Surgery bundle | **PASS** (`index-dqmCFM9Y.js` v62; re-verify `index-CnTRjvKB.js` after v62b push) |
+| `refresh.html` BUILD_ID | **PASS** (v62 live; v62b after push) |
+| `/surgery` Command Center KPIs + charts | **PASS** |
+| `/surgery/or` utilization KPIs + charts | **PASS** |
+| `/surgery/access` backlog / wait KPIs + charts | **PASS** |
+| `/surgery/quality` safety KPIs + charts | **PASS** |
+| `/surgery/optimization` capacity KPIs + scenarios panel | **PASS** |
+| Vital Assist Surgery answers + OR & Surgery Decision Support | **PASS** |
+| Vital Assist Ask welcome tip (Surgery-specific, not ED fallback) | **PASS** (fixed in v62b) |
+| Surgery nav group (5 child routes) | **PASS** |
 
 ---
 
@@ -187,9 +204,12 @@ Local preview verified at 1440px: short titles, full comparison labels (`No chan
 | OR time accounting coherent | **PASS** |
 | Quality denominators valid | **PASS** |
 | Charts visually verified (local) | **PASS** |
+| Charts visually verified (production) | **PASS** |
 | Six What-if scenarios | **PASS** |
 | Vital Assist Surgery context | **PASS** |
 | Decisions workflow | **PASS** (shared path) |
 | Five prior domains no regression | **PASS** |
-| Production deployment verified | **PENDING** (after push) |
+| Production deployment verified | **PASS** |
 | Acceptance report complete | **PASS** |
+
+**Surgery Domain 6 — COMPLETE.**

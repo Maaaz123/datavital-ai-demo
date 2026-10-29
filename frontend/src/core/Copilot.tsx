@@ -638,15 +638,25 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                     : page === 'Slot Recovery & Optimization'
                       ? 'Ask about released and rebooked slots, waitlist outreach, or recovery opportunities on this screen.'
                       : 'Ask about scheduled demand, attendance outcomes, or specialty booking mix on this screen.'
-                : page === 'Waiting & Patient Flow'
-                  ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
-                  : page === 'Safety & Return Visits'
-                    ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
-                    : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
+                : surg
+                  ? page === 'OR Utilization & Scheduling'
+                    ? 'Ask about OR utilization, first-case on-time starts, turnover, unused hours, or delay reasons on this screen.'
+                    : page === 'Surgical Access & Backlog'
+                      ? 'Ask about surgical backlog, median or P90 wait, overdue cases, or specialty access pressure on this screen.'
+                      : page === 'Surgical Quality & Safety'
+                        ? 'Ask about unplanned OR returns, complications, checklist completion, or documentation gaps on this screen.'
+                        : page === 'Surgical Capacity Optimization'
+                          ? 'Ask about recoverable OR hours, additional cases, capacity gain, or constraint-aware what-if scenarios on this screen.'
+                          : 'Ask about completed and scheduled cases, same-day cancellations, emergency share, or surgical throughput on this screen.'
+                  : page === 'Waiting & Patient Flow'
+                    ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
+                    : page === 'Safety & Return Visits'
+                      ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
+                      : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
-  }, [askScope, appt, beds, ipd, opd, label, page, periodLabel]);
+  }, [askScope, appt, beds, ipd, opd, surg, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
