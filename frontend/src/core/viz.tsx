@@ -782,63 +782,37 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
 
 function JourneyChart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
   const values = figure.series[0]?.values ?? [];
-  const nodes = figure.categories.map((name, index) => ({ name, value: values[index] ?? 0 }));
-  const find = (match: RegExp) => nodes.find((node) => match.test(node.name));
-  const arrivals = find(/^arrivals$/i) ?? nodes[0];
-  const triaged = find(/triaged/i);
-  const admitted = find(/admitted/i);
-  const discharged = find(/discharged/i);
-  const leftBefore = find(/before/i);
-  const leftAfter = find(/after/i) ?? (!triaged ? find(/^left$/i) : undefined);
-  const outcomes = [admitted, discharged, leftAfter, leftBefore].filter(Boolean) as { name: string; value: number }[];
-  const mainPath = triaged ? [arrivals, triaged] : [arrivals];
-  const endNodes = triaged
-    ? [admitted, discharged, leftAfter].filter(Boolean) as { name: string; value: number }[]
-    : outcomes;
-  const sideNode = triaged ? leftBefore : undefined;
+  const peak = Math.max(...values, 1);
+  const nodes = figure.categories.map((name, index) => {
+    const value = values[index] ?? 0;
+    const tone = index === 0
+      ? 'source'
+      : /left|before|after/i.test(name)
+        ? 'alert'
+        : /admit/i.test(name)
+          ? 'watch'
+          : /triage|discharg/i.test(name)
+            ? 'good'
+            : 'mid';
+    return { name, value, tone: tone as 'source' | 'mid' | 'good' | 'watch' | 'alert', share: value / peak };
+  });
 
   return (
     <div className={`gc-journey ${compact ? 'is-compact' : ''}`} role="img" aria-label={`${figure.title}. ${figure.note}`}>
-      <div className="gc-journey-main">
-        {mainPath.map((node, index) => (
-          <div key={node.name} className="gc-journey-step" style={{ animationDelay: `${index * 90}ms` }}>
-            {index > 0 ? <span className="gc-journey-rail" aria-hidden="true" /> : null}
-            <JourneyNode node={node} unit={figure.unit} tone={index === 0 ? 'source' : 'mid'} />
+      {nodes.map((node, index) => (
+        <div key={node.name} className="gc-journey-step" style={{ animationDelay: `${index * 60}ms` }}>
+          {index > 0 ? <span className="gc-journey-rail" aria-hidden="true" /> : null}
+          <div
+            className={`gc-journey-node is-${node.tone}`}
+            data-tip-title={node.name}
+            data-tip-value={tipValue(node.value, 0, figure.unit)}
+          >
+            <strong>{node.name}</strong>
+            <span>{node.value.toLocaleString('en-US')}</span>
+            <i className="gc-journey-meter" style={{ width: `${Math.max(12, node.share * 100)}%` }} aria-hidden="true" />
           </div>
-        ))}
-      </div>
-      {sideNode ? (
-        <div className="gc-journey-side" style={{ animationDelay: '180ms' }}>
-          <span className="gc-journey-branch" aria-hidden="true" />
-          <JourneyNode node={sideNode} unit={figure.unit} tone="alert" />
         </div>
-      ) : null}
-      <div className="gc-journey-ends">
-        {endNodes.map((node, index) => (
-          <div key={node.name} className="gc-journey-end" style={{ animationDelay: `${220 + index * 80}ms` }}>
-            <span className="gc-journey-drop" aria-hidden="true" />
-            <JourneyNode
-              node={node}
-              unit={figure.unit}
-              tone={/left|after|before/i.test(node.name) ? 'alert' : /admit/i.test(node.name) ? 'watch' : 'good'}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function JourneyNode({ node, unit, tone }: { node: { name: string; value: number }; unit: string; tone: 'source' | 'mid' | 'good' | 'watch' | 'alert' }) {
-  return (
-    <div
-      className={`gc-journey-node is-${tone}`}
-      data-tip-title={node.name}
-      data-tip-value={tipValue(node.value, 0, unit)}
-    >
-      <strong>{node.name}</strong>
-      <span>{node.value.toLocaleString('en-US')}</span>
-      <em>{unit}</em>
+      ))}
     </div>
   );
 }

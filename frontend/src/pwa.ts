@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v22-journey-chat';
+const BUILD_ID = 'v23-dense-scope';
 const BUILD_KEY = 'datavital-build-id';
 
 /**

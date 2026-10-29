@@ -261,46 +261,48 @@ function scopeInput(view: View): ScopeInput {
 
 function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; domains: string[] }) {
   const [domain, setDomain] = useState(domains[0]);
-  const [open, setOpen] = useState(false);
-  const rows = indicators.filter((item) => item.domain === domain);
-  const valued = indicators.filter((item) => item.status !== 'unavailable').length;
+  const [showBlank, setShowBlank] = useState(false);
+  const scoped = indicators.filter((item) => domains.includes(item.domain));
+  const rows = scoped.filter((item) => item.domain === domain && (showBlank || item.status !== 'unavailable'));
+  const valued = scoped.filter((item) => item.status !== 'unavailable').length;
+  const blank = scoped.length - valued;
   return (
-    <section className="gc-panel gc-fit span-12">
-      <div className="gc-index-head">
+    <section className="gc-panel span-12 gc-scope">
+      <div className="gc-scope-head">
         <div>
-          <h2>{domains.length === 1 ? domain : 'Indicator scope'}</h2>
-          <p>{valued} of {indicators.length} emergency-visit indicators have a value. Blank rows stay blank.</p>
+          <h2>Indicator scope</h2>
+          <p>{valued} live · {blank} blank · values stay honest to the scenario</p>
         </div>
-        <button type="button" className="gc-btn quiet" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-          {open ? 'Hide list' : 'Show list'}
-        </button>
+        <div className="gc-scope-meter" aria-label={`${valued} of ${scoped.length} indicators`}>
+          <i style={{ width: `${scoped.length ? (valued / scoped.length) * 100 : 0}%` }} />
+          <span>{valued}/{scoped.length}</span>
+        </div>
       </div>
-      {open ? (
-        <>
-          {domains.length > 1 ? (
-            <div className="gc-chips">
-              {domains.map((item) => (
-                <button key={item} type="button" aria-pressed={domain === item} onClick={() => setDomain(item)}>{item}</button>
-              ))}
-            </div>
-          ) : null}
-          <div className="gc-index-wrap">
-            <table className="gc-index">
-              <thead>
-                <tr><th>Indicator</th><th>Value</th><th>Basis</th></tr>
-              </thead>
-              <tbody>
-                {rows.map((item) => (
-                  <tr key={item.name}>
-                    <td>{item.name}</td>
-                    <td>{item.value}</td>
-                    <td>{item.method}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+      {domains.length > 1 ? (
+        <div className="gc-chips">
+          {domains.map((item) => (
+            <button key={item} type="button" aria-pressed={domain === item} onClick={() => setDomain(item)}>{item}</button>
+          ))}
+        </div>
+      ) : null}
+      <div className="gc-scope-grid">
+        {rows.map((item, index) => (
+          <article
+            key={item.name}
+            className={`gc-scope-card is-${item.status === 'unavailable' ? 'blank' : item.status}`}
+            style={{ animationDelay: `${index * 35}ms` }}
+            title={item.method}
+          >
+            <span className="gc-scope-status">{item.status === 'unavailable' ? 'Blank' : item.status === 'constructed' ? 'Built' : 'Live'}</span>
+            <strong>{item.name}</strong>
+            <em>{item.value}</em>
+          </article>
+        ))}
+      </div>
+      {blank > 0 ? (
+        <button type="button" className="gc-text-btn" aria-pressed={showBlank} onClick={() => setShowBlank((value) => !value)}>
+          {showBlank ? 'Hide blank indicators' : `Show ${blank} blank indicators`}
+        </button>
       ) : null}
     </section>
   );
