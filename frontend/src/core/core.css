@@ -180,15 +180,6 @@
 .gc-frame[data-nav="rail"] .gc-nav-count,
 .gc-frame[data-nav="rail"] .gc-nav-domain-copy,
 .gc-frame[data-nav="rail"] .gc-nav-domain-caret { display: none; }
-.gc-frame[data-nav="rail"] .gc-nav-domain-btn {
-  grid-template-columns: 1fr;
-  justify-items: center;
-  padding: 6px;
-}
-.gc-frame[data-nav="rail"] .gc-nav-screens a {
-  justify-content: center;
-  padding: 8px;
-}
 .gc-side .gc-nav a {
   color: #cbd5e1;
   text-align: start;
@@ -217,15 +208,38 @@
 .gc-frame[data-nav="rail"] .gc-nav-label,
 .gc-frame[data-nav="closed"] .gc-nav-find,
 .gc-frame[data-nav="closed"] .gc-nav-count { display: none; }
-.gc-frame[data-nav="rail"] .gc-side-brand { grid-template-columns: 1fr; justify-items: center; gap: 8px; }
+.gc-frame[data-nav="rail"] .gc-side {
+  padding: 10px 6px;
+  gap: 8px;
+}
+.gc-frame[data-nav="rail"] .gc-side-brand { grid-template-columns: 1fr; justify-items: center; gap: 4px; }
 .gc-frame[data-nav="rail"] .gc-side-brand a { justify-content: center; }
-.gc-frame[data-nav="rail"] .gc-nav-toggle { width: 100%; }
-.gc-frame[data-nav="rail"] .gc-nav a {
-  width: 100%;
-  height: 44px;
+.gc-frame[data-nav="rail"] .gc-nav-toggle { width: 100%; height: 24px; }
+.gc-frame[data-nav="rail"] .gc-side .gc-nav { gap: 4px; padding-bottom: 4px; }
+.gc-frame[data-nav="rail"] .gc-nav-domain { gap: 2px; }
+.gc-frame[data-nav="rail"] .gc-nav-domain-btn {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 4px;
+}
+.gc-frame[data-nav="rail"] .gc-nav-domain-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+.gc-frame[data-nav="rail"] .gc-nav-screens { gap: 1px; padding-left: 0; }
+.gc-frame[data-nav="rail"] .gc-nav-screens a {
   justify-content: center;
   padding: 0;
 }
+.gc-frame[data-nav="rail"] .gc-nav a {
+  width: 100%;
+  height: 34px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 10px;
+}
+.gc-frame[data-nav="rail"] .gc-nav svg { width: 16px; height: 16px; }
 .gc-frame[data-nav="closed"] .gc-side-copy,
 .gc-frame[data-nav="closed"] .gc-nav-label { display: none; }
 
