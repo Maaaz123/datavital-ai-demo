@@ -325,18 +325,20 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
 
 function Prediction({ alert, department }: { alert: DemoAlert | null; department: DomainName }) {
   const store = useShowcase();
+  const { period } = usePeriod();
+  const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const options = WHAT_IF_PROMPTS[department];
   const [selected, setSelected] = useState(options[0]);
   useEffect(() => {
     setSelected(WHAT_IF_PROMPTS[department][0]);
   }, [department]);
   const fromPrompt = useMemo(
-    () => answerQuestion(selected, store.hospital, store.year, department, 'en'),
-    [department, selected, store.hospital, store.year],
+    () => answerQuestion(selected, store.hospital, store.year, department, 'en', period),
+    [department, period, selected, store.hospital, store.year],
   );
   const fallback = useMemo(
-    () => runWhatIf(department as WhatIfDomain, store.hospital, store.year, null),
-    [department, store.hospital, store.year],
+    () => runWhatIf(department as WhatIfDomain, store.hospital, store.year, null, period),
+    [department, period, store.hospital, store.year],
   );
   const lines = [fromPrompt.observation, fromPrompt.evidence, fromPrompt.explanation, fromPrompt.action, fromPrompt.outcome];
 
@@ -344,7 +346,7 @@ function Prediction({ alert, department }: { alert: DemoAlert | null; department
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
         <h3>What-if scenarios</h3>
-        <p>Illustrative only for {store.hospital} · {store.year} · {department}. Not a validated forecast.</p>
+        <p>Illustrative only for {store.hospital} · {periodLabel} · {department}. Not a validated forecast.</p>
         <div className="gc-inline" style={{ flexWrap: 'wrap', marginTop: 8 }}>
           {options.map((option) => (
             <button
@@ -383,11 +385,12 @@ function Prediction({ alert, department }: { alert: DemoAlert | null; department
 
 function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: 'recommend' | 'decide'; department: DomainName }) {
   const store = useShowcase();
+  const { period } = usePeriod();
   const copilot = useCopilot();
   if (!alert) return <section className="gc-assist-card"><p>No recommendation is selected.</p></section>;
   const key = decisionKey(alert.kpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
-  const sketch = runWhatIf(department as WhatIfDomain, store.hospital, store.year, null);
+  const sketch = runWhatIf(department as WhatIfDomain, store.hospital, store.year, null, period);
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
@@ -575,7 +578,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
     setDraft('');
     setTyping(true);
     window.setTimeout(() => {
-      const answer = answerQuestion(text, store.hospital, store.year, department, store.lang);
+      const answer = answerQuestion(text, store.hospital, store.year, department, store.lang, period);
       setMessages((prev) => [...prev, {
         id: `a-${Date.now()}`,
         role: 'assistant',

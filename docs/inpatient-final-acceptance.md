@@ -1,211 +1,223 @@
-# Inpatient Care — Final Acceptance
+# Inpatient Care — Final Acceptance (Audit Remediation Close)
 
 **Domain:** Inpatient Care (Snapshot · Stay & Discharge · Care Progress & Outcomes)  
-**Design status:** Frozen (content / BI / functional completion only)  
+**Design status:** Frozen — no layout, typography, color, chart-type, or navigation changes  
 **Deployment URL:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh (cache wipe):** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
-**BUILD_ID:** `v46-ipd-consistency`  
-**Commit:** `1ec9b9d`
+**BUILD_ID:** `v47-ipd-audit-close`  
+**Commit:** _(filled after final commit)_  
 
 ---
 
-## 1. KPI & chart inventory
+## Verdict
 
-### Inpatient Snapshot (`/inpatient`)
+**Inpatient Care domain: COMPLETE for executive synthetic demonstration.**
 
-| Type | Title |
-|------|--------|
-| KPI | Inpatient admissions |
-| KPI | Inpatient census |
-| KPI | Inpatient discharges |
-| KPI | Median length of stay |
-| KPI | Admissions from ED |
-| KPI | Elective / direct admissions |
-| Chart | Inpatient admissions over time |
-| Insight | Priority signals + Management action |
-| Chart | Inpatient volume context |
-| Chart | Admission source mix (donut) |
-| Chart | Admissions by specialty (stacked) |
-| Chart | Episode volume summary |
-| Catalog | Admissions & Inpatient Activity |
-
-### Stay & Discharge (`/inpatient/stay`)
-
-| Type | Title |
-|------|--------|
-| KPI | Average / Median / P90 length of stay |
-| KPI | Long-stay patient count |
-| KPI | Medically ready, not discharged |
-| KPI | Delayed discharge rate |
-| KPI | Expected discharges (next day) |
-| KPI | Inpatient discharges |
-| Chart | Median length of stay over time |
-| Insight | Stay watch list |
-| Chart | Long-stay contribution by specialty |
-| Chart | Length of stay vs review lines |
-| Chart | Length of stay by specialty |
-| Chart | Discharge destinations |
-| Chart | Expected discharge outlook |
-| Insight | Discharge pipeline |
-| Catalog | Inpatient Length of Stay · Discharge Management |
-
-### Care Progress & Outcomes (`/inpatient/outcomes`)
-
-| Type | Title |
-|------|--------|
-| KPI | Unplanned 7-day / 30-day readmission rate |
-| KPI | Inpatient mortality count / rate |
-| KPI | Discharge against medical advice |
-| KPI | Discharge-to-admission flow ratio |
-| Chart | Readmissions and mortality over time |
-| Insight | Outcome watch list |
-| Chart | 30-day readmissions by specialty |
-| Chart | Census vs discharges over time |
-| Journey | Inpatient journey strip |
-| Cards | Care documentation & continuity (6 estimated cards) |
-| Catalog | Care Coordination · Outcomes · Documentation & Continuity |
-| AI | AI decision support (12 cases) |
+All critical and high-severity audit findings are resolved and verified. Three indicators remain intentionally unavailable (no supporting synthetic events). Design freeze honored. Emergency and Beds dashboards untouched.
 
 ---
 
-## 2. Previously identified issues and resolutions
+## 1. Original audit findings → fixes
 
-| Issue | Severity | Resolution |
-|-------|----------|------------|
-| Six documentation cards showed permanent **Not available** | Critical | Replaced `BlankDocStrip` with `DocProgressStrip` using illustrative constructed rates from `ipdDocScenario()` |
-| Indicator catalog left care-plan / consult / discharge-doc rates blank | Critical | Wired rates through `buildView` → `scopeInput` → `ipdIndicatorsFor` as `constructed` |
-| Vital Assist said documentation clocks were unavailable | High | `answerInpatient` now returns the same illustrative rates with management framing |
-| AI decision-support copy claimed documentation was blank | Medium | Updated IPD-AI-07 / 08 / 10 / 12 analysis strings |
-| Stay pipeline showed “Summary / delay clocks Not available” | Medium | Shows discharge summary completion; delay duration clocks remain honestly unavailable |
-| Outcomes watch list said care-plan & consult clocks N/A | Medium | Shows median consult response + pending consults (illustrative) |
-| SPA deep-link `404.html` could serve stale hashed shell | High (ops) | Publish always copies `index.html` → `404.html` |
-| Specialty readmit catalog vs Outcomes chart used different constructed tilts | Medium | Both use LOS-tilt around hospital 30-day rate |
-| Admission source “Other” was always 0 | Medium | Constructed ~2% Other carved from elective/direct remainder |
-
----
-
-## 3. Screen results
-
-### Snapshot — **PASS**
-- Admission sources partition admissions (`From emergency` + `Elective/direct` + `Transfer in` + `Other`).
-- Specialty stacks sum to monthly admissions.
-- Census labelled as snapshot / period-average; charts warn not to add census to period flows.
-- Admission cancellation remains unavailable in catalog (hidden by default) — no empty executive strip.
-
-### Stay & Discharge — **PASS**
-- Average, median, and P90 stay use separate stored fields.
-- Long-stay count/rate use the 7-day review line; specialty Pareto sums to long-stay count.
-- Destinations partition discharges; deaths stay separate.
-- Expected discharges labelled illustrative.
-
-### Care Progress & Outcomes — **PASS**
-- Six documentation cards show **Estimated** values (not Not available).
-- Related coordination / continuity indicators populated in catalog.
-- Readmission and mortality series keep scenario disclosures (no patient-level linkage claim).
+| # | Finding | Severity | Fix implemented |
+|---|---------|----------|-----------------|
+| 1 | Admission source **Other** always zero | Critical | `buildIpdView` carves ~2% Other from elective/direct remainder; sources still sum to admissions |
+| 2 | Sources / specialty figures inconsistent across KPI, charts, catalog | Critical | Single shared `buildIpdView(hospital, year, period)` feeds screens, catalog (`scopeInput`), Assist, what-if |
+| 3 | Census wording mixed snapshot vs period totals | High | Census labelled with `censusBasis` (year-end focus vs quarter month-end average); charts warn not to add census to period flows |
+| 4 | Specialty readmit chart ≠ indicator catalog | High | Shared `specialtyReadmitShare(readmit30, los, losMedian)` |
+| 5 | Long-stay definition drifted (hardcoded 11% in catalog bind) | High | `longStayRateFromP90` used by screens, Assist, what-if, and `bind.ts` (`kpi_long_stay_gt_7d_rate`, high-LOS alert count) |
+| 6 | Readmission denominator / period labeling unclear | High | KPI copy and Assist cite `periodLabel` and period discharge totals; rate tilt uses period census ÷ staffed beds |
+| 7 | Discharge destinations not reconciled | High | Destinations partition discharges (home / transfer / rehab / AMA); deaths remain separate |
+| 8 | Six documentation cards empty / Not available | Critical | `DocProgressStrip` + `ipdDocScenario` constructed rates; exact six-card design preserved |
+| 9 | Documentation indicators blank in catalog | Critical | Wired through `scopeInput(view)` → `ipdIndicatorsFor` as `constructed` |
+| 10 | Vital Assist claimed docs unavailable after rates existed | Critical | `answerInpatient` returns same illustrative rates; no “unavailable” claim when constructed |
+| 11 | Vital Assist ignored hospital / year / Q1–Q4 | Critical | `answerQuestion(..., period)` + Copilot Ask/Prediction/Actions pass `usePeriod()`; Assist titles/evidence use `view.periodLabel`; quarterly answers note they are not full-year totals |
+| 12 | What-if used annual figures under quarterly filter | High | `runWhatIf(..., period)` → `inpatientWhatIf` via `buildIpdView` |
+| 13 | AI use cases 07/08/10/12 out of date on documentation | Medium | Analysis strings updated to illustrative scenario shares with limits |
+| 14 | Stay pipeline / Outcomes watch list showed blank docs | Medium | Summary completion + consult response / pending consults shown; delay **duration** clocks stay unavailable |
+| 15 | Duplicate / misleading business descriptions | Medium | Long-stay and readmit notes aligned to 7-day review line and period discharge wording |
+| 16 | SPA deep-link stale `404.html` | Ops | Publish always copies `index.html` → `404.html` |
 
 ---
 
-## 4. Documentation indicators
+## 2. Intentionally unavailable (honest gaps)
 
-| Indicator | Status | Basis |
-|-----------|--------|--------|
-| Care Plan Documentation Rate | Estimated / constructed | Illustrative share · hospital + occupancy sensitive |
-| Daily Clinical Review Completion Rate | Estimated / constructed | Same |
-| Median Consultation Response Time | Estimated / constructed | Hours · hospital sensitive |
-| Discharge Summary Completion Rate | Estimated / constructed | Same |
-| Discharge Medication Reconciliation Completion Rate | Estimated / constructed | Same |
-| Follow-up Plan Documentation Rate | Estimated / constructed | Same |
-| Care Plan Review Compliance | Estimated / constructed | Catalog |
-| Pending Clinical Consultations | Estimated / constructed | Catalog |
-| Care Plan Milestone Completion Rate | Estimated / constructed | Catalog |
-| Admission Assessment Completion Rate | Estimated / constructed | Catalog |
-| Diagnosis Documentation Completion Rate | Estimated / constructed | Catalog |
-| Discharge Instructions Completion Rate | Estimated / constructed | Catalog |
-| Discharge Readiness Documentation Rate | Estimated / constructed | Catalog |
-| Observed-to-Expected LOS Ratio | Not available | No expected-LOS model |
-| Discharge Delay Duration P50/P90 | Not available | No ready-to-actual clock |
-| Admission Cancellation Rate | Not available | Cancelled planned admissions not recorded |
+| Indicator | Why unavailable |
+|-----------|-----------------|
+| Observed-to-Expected LOS Ratio | No expected-LOS / case-mix model in the synthetic demo |
+| Discharge Delay Duration P50/P90 | No ready-to-actual discharge clock events |
+| Admission Cancellation Rate | Cancelled planned admissions are not recorded |
+
+These stay `Not available` in the catalog (hidden by default). They are **not** filled with fake values.
 
 ---
 
-## 5. Vital Assist & What-if
+## 3. All 40 indicator statuses
+
+| # | Domain | Indicator | Status |
+|---|--------|-----------|--------|
+| 1 | Admissions & Inpatient Activity | New Inpatient Admissions | scenario |
+| 2 | Admissions & Inpatient Activity | Current Inpatient Census (Patients) | scenario |
+| 3 | Admissions & Inpatient Activity | Admissions by Clinical Specialty | constructed |
+| 4 | Admissions & Inpatient Activity | Admissions by Source | constructed |
+| 5 | Admissions & Inpatient Activity | Elective vs Emergency Admissions | scenario |
+| 6 | Admissions & Inpatient Activity | Inpatient Admission Trend | scenario |
+| 7 | Admissions & Inpatient Activity | Admission Cancellation Rate | **unavailable** |
+| 8 | Inpatient Length of Stay | Average Inpatient Length of Stay | scenario |
+| 9 | Inpatient Length of Stay | Median Inpatient Length of Stay | scenario |
+| 10 | Inpatient Length of Stay | Inpatient LOS P90 | scenario |
+| 11 | Inpatient Length of Stay | Long-Stay Patient Count | constructed |
+| 12 | Inpatient Length of Stay | Long-Stay Patient Rate | constructed |
+| 13 | Inpatient Length of Stay | LOS by Clinical Specialty | constructed |
+| 14 | Inpatient Length of Stay | Observed-to-Expected LOS Ratio | **unavailable** |
+| 15 | Discharge Management | Total Inpatient Discharges | scenario |
+| 16 | Discharge Management | Discharges by Destination | constructed |
+| 17 | Discharge Management | Expected Discharges | constructed |
+| 18 | Discharge Management | Discharge Readiness Documentation Rate | constructed |
+| 19 | Discharge Management | Medically Ready, Not Discharged Count | constructed |
+| 20 | Discharge Management | Delayed Discharge Rate | constructed |
+| 21 | Discharge Management | Discharge Delay Duration P50/P90 | **unavailable** |
+| 22 | Discharge Management | Discharge Summary Completion Rate | constructed |
+| 23 | Inpatient Care Coordination | Care Plan Documentation Rate | constructed |
+| 24 | Inpatient Care Coordination | Care Plan Review Compliance | constructed |
+| 25 | Inpatient Care Coordination | Daily Clinical Review Completion Rate | constructed |
+| 26 | Inpatient Care Coordination | Median Consultation Response Time | constructed |
+| 27 | Inpatient Care Coordination | Pending Clinical Consultations | constructed |
+| 28 | Inpatient Care Coordination | Care Plan Milestone Completion Rate | constructed |
+| 29 | Inpatient Outcomes | Unplanned 7-Day Readmission Rate | constructed |
+| 30 | Inpatient Outcomes | Unplanned 30-Day Readmission Rate | constructed |
+| 31 | Inpatient Outcomes | Readmissions by Clinical Specialty | constructed |
+| 32 | Inpatient Outcomes | Inpatient Mortality Count | scenario |
+| 33 | Inpatient Outcomes | Inpatient Mortality Rate | scenario |
+| 34 | Inpatient Outcomes | Discharge Against Medical Advice Rate | constructed |
+| 35 | Inpatient Outcomes | Discharge-to-Admission Flow Ratio | constructed |
+| 36 | Inpatient Documentation & Continuity | Admission Assessment Completion Rate | constructed |
+| 37 | Inpatient Documentation & Continuity | Diagnosis Documentation Completion Rate | constructed |
+| 38 | Inpatient Documentation & Continuity | Discharge Instructions Completion Rate | constructed |
+| 39 | Inpatient Documentation & Continuity | Discharge Medication Reconciliation Completion Rate | constructed |
+| 40 | Inpatient Documentation & Continuity | Follow-up Plan Documentation Rate | constructed |
+
+**Counts:** 37 available (scenario + constructed) · 3 unavailable.
+
+---
+
+## 4. All 12 AI use-case statuses
+
+| ID | Name | Status | Notes |
+|----|------|--------|-------|
+| IPD-AI-01 | Length of Stay Prediction | Supported (illustrative) | Shows avg/median/P90; does **not** predict remaining stay for a live patient |
+| IPD-AI-02 | Prolonged Stay Risk Detection | Supported (rule alert) | 7-day review line on completed stays |
+| IPD-AI-03 | Discharge Readiness Forecasting | Supported (illustrative) | Ready-but-not-discharged census share; AI does not declare readiness |
+| IPD-AI-04 | Delayed Discharge Intelligence | Partial | Rate available; **duration clocks unavailable** |
+| IPD-AI-05 | Discharge Volume Forecasting | Supported (illustrative) | Next-day sketch from period rate — not a validated forecast |
+| IPD-AI-06 | Readmission Risk Prediction | Supported (cohort share) | 7/30-day shares; no patient-level linkage |
+| IPD-AI-07 | Care Plan Compliance Intelligence | Supported (illustrative) | Scenario documentation / review shares |
+| IPD-AI-08 | Clinical Consultation Delay Detection | Supported (illustrative) | Median response + pending consults |
+| IPD-AI-09 | Inpatient Outcome Variation Analysis | Supported (constructed) | Specialty gaps **not** severity-adjusted |
+| IPD-AI-10 | Discharge Documentation Intelligence | Supported (illustrative) | Summary / med-rec / instructions / follow-up shares |
+| IPD-AI-11 | Inpatient What-if Simulator | Supported (illustrative) | Period-aware; not a calibrated policy model |
+| IPD-AI-12 | Inpatient Decision Copilot | Supported (pattern review) | Screen KPIs + alerts; approval ≠ measured outcome |
+
+---
+
+## 5. KPI and chart reconciliation results
 
 | Check | Result |
 |-------|--------|
-| Documentation / care-plan / consult questions return scenario rates | PASS (`ipd-final` test) |
-| Delay answers cite readiness documentation rate; duration clocks still unavailable | PASS |
-| Readmission / LOS / management attention answers use dashboard-aligned formula | PASS (existing assistant paths) |
-| What-if long-stay / delayed discharge / LOS prompts | PASS (`whatIf.test.ts`) |
-| Answers claim measured post-approval outcomes | FAIL intentionally avoided — approval language remains illustrative |
+| Admission sources sum to admissions (incl. Other > 0) | **PASS** — all hospitals × year/Q1–Q4 |
+| Specialty admission stacks sum to monthly admissions | **PASS** (`splitExact`) |
+| Discharge destinations sum to discharges | **PASS** |
+| Long-stay count = round(discharges × longStayRateFromP90(P90)) | **PASS** |
+| Specialty readmit chart = catalog tilt formula | **PASS** |
+| Six doc cards = catalog = Assist rates (`ipdDocScenario` via view) | **PASS** |
+| Snapshot / Stay / Outcomes share `buildIpdView` | **PASS** |
+| Distinctions: LOS ≠ clinical readiness ≠ delayed discharge ≠ actual discharge ≠ outlook | **PASS** (copy retained) |
 
 ---
 
-## 6. Cross-screen reconciliation
+## 6. Vital Assist hospital / period tests
 
 | Check | Result |
 |-------|--------|
-| Sources sum to admissions | PASS |
-| Destinations sum to discharges | PASS |
-| Snapshot / Stay discharge totals share `buildView` | PASS |
-| 7-day / 30-day readmit rates shared across Outcomes KPI, catalog, Assist | PASS |
-| Docs rates shared across Outcomes strip, catalog, Assist via `ipdDocScenario` | PASS |
+| Ask / Prediction / Actions pass selected `period` | **PASS** |
+| Q1 answer title/evidence cite `Q1 {year}` and discharge total for Q1 | **PASS** (`ipd-final` test) |
+| Q1 answer evidence: “Figures use Q1 …, not the full-year total” | **PASS** |
+| Full-year answer cites full-year discharges | **PASS** |
+| Documentation questions return rates (not “unavailable”) | **PASS** |
+| What-if current/assumptions include selected period label | **PASS** |
+| Matrix: H1–H5 + ALL × year + Q1–Q4 source/dest/Other/long-stay | **PASS** |
 
 ---
 
-## 7. Hospital & period coverage
-
-| Matrix | Coverage |
-|--------|----------|
-| Hospitals H1–H5 (+ ALL identity salt) | `ipdDocScenario` band test across `HOSPITALS` |
-| Years 2024–2026 | Filter interaction test |
-| Period year / Q1 (proxy for quarter switching) | Filter interaction test on `/inpatient/outcomes` |
-| Annual alerts vs period scores | Snapshot already labels: alerts use full year when period ≠ year |
-
----
-
-## 8. Visual regression (design freeze)
+## 7. Design regression verification
 
 | Check | Result |
 |-------|--------|
-| No layout / color / typography / chart-type redesign | PASS — card classes and grid unchanged |
-| Documentation strip keeps existing `gc-scope-card` dense pattern | PASS |
-| Blank “Not available” executive strip removed | PASS |
+| No layout / component position / styling / typography / color / spacing changes | **PASS** — content and data wiring only |
+| Chart types and appearances unchanged | **PASS** |
+| Six-card documentation strip structure unchanged | **PASS** |
+| Emergency / Beds dashboards not modified | **PASS** |
+| Navigation unchanged | **PASS** |
 
 ---
 
-## 9. Remaining limitations (accepted)
+## 8. Phase validation checklist
 
-1. Documentation rates are **illustrative constructed shares**, not EMR extracts.  
+1. No unnecessarily empty executive-facing sections — **PASS**  
+2. No conflicting KPI values — **PASS**  
+3. No chart-to-indicator contradictions — **PASS**  
+4. No admission or discharge reconciliation errors — **PASS**  
+5. No annual/quarterly mismatches in Vital Assist — **PASS**  
+6. No inaccurate clinical claims — **PASS** (illustrative / not validated disclosed)  
+7. No unsupported predictive accuracy — **PASS**  
+8. No broken Inpatient page links — **PASS** (`/inpatient`, `/inpatient/stay`, `/inpatient/outcomes`)  
+9. No visual changes from approved design — **PASS**  
+10. No new console errors from Inpatient pages in tests — **PASS**  
+
+---
+
+## 9. Remaining disclosed limitations
+
+1. Documentation and coordination rates are **illustrative constructed shares**, not EMR extracts.  
 2. No observed-to-expected LOS model.  
-3. No ready-to-actual discharge duration clock.  
+3. No ready-to-actual discharge duration clocks.  
 4. No admission cancellation events.  
 5. Readmissions are scenario shares — visits are not linked patient-by-patient.  
 6. Specialty outcome gaps are not severity-adjusted.  
-7. AI does not decide medical readiness or auto-discharge.
+7. AI does not decide medical readiness or auto-discharge.  
+8. Open alerts remain full-year signals when a quarter is selected (period scores use the quarter).
 
 ---
 
-## 10. Test commands and results
+## 10. Automated test results (actual)
 
 ```bash
 cd frontend
-npx vitest run src/core/ipd-final.test.tsx src/core/recovery.test.tsx src/core/dashboard-audit.test.ts src/showcase/whatIf.test.ts
-npx tsc -b
+npx vitest run src/core/ipd-final.test.tsx src/core/recovery.test.tsx \
+  src/core/dashboard-audit.test.ts src/showcase/whatIf.test.ts
+npx tsc -b && npx vite build
 ```
 
-**Actual results (local):**
-- `ipd-final.test.tsx` — 7 passed  
-- `recovery.test.tsx` — 10 passed  
-- `dashboard-audit.test.ts` — 8 passed  
-- `whatIf.test.ts` — 4 passed  
-- `tsc -b` — clean  
+| Suite | Result |
+|-------|--------|
+| `ipd-final.test.tsx` | **11 passed** |
+| `recovery.test.tsx` | **10 passed** |
+| `dashboard-audit.test.ts` | **8 passed** |
+| `whatIf.test.ts` | **4 passed** |
+| `tsc -b` | **clean** |
+| `vite build` | **clean** (`v47-ipd-audit-close`) |
 
 ---
 
-## 11. Acceptance verdict
+## 11. Deployment
 
-**Inpatient Care domain: ACCEPTED for executive demonstration** with the limitations listed in §9 explicitly disclosed in UI copy and Vital Assist.
+| Item | Value |
+|------|--------|
+| Live URL | https://maaaz123.github.io/datavital-ai-demo/ |
+| Inpatient Snapshot | https://maaaz123.github.io/datavital-ai-demo/inpatient |
+| Stay & Discharge | https://maaaz123.github.io/datavital-ai-demo/inpatient/stay |
+| Care Progress & Outcomes | https://maaaz123.github.io/datavital-ai-demo/inpatient/outcomes |
+| Cache refresh | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
+| BUILD_ID | `v47-ipd-audit-close` |
 
-Critical empty documentation strip: **resolved**.  
-Design freeze: **honored**.  
-Live verification: use refresh URL after publish so service-worker cache picks up `v46-ipd-consistency`.
+After publish, open the refresh URL once so browsers drop the prior PWA cache.

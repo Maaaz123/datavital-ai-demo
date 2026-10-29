@@ -1,4 +1,5 @@
 import { leaveSplit } from '@/core/derived';
+import { longStayRateFromP90 } from '@/core/ipdScope';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
 
@@ -175,7 +176,10 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_vital_sign_volume') return count(admissions * 12, 'neutral', 'Twelve vital-sign sets per admission in this story. Individual vital values are not modeled.');
   if (key === 'kpi_allergy_volume') return count(Math.round(fact.activePatients * 0.22), 'neutral', 'Allergy records are 22% of distinct patients.');
   if (key === 'kpi_alert_event_volume') return count(Math.round(admissions * 0.08 + orders * 0.01), 'down', 'Operational alerts combine an admission share and a laboratory share.');
-  if (key === 'kpi_alerts_high_los_discharge_count') return count(Math.round(discharges * 0.11), 'down', 'High-LOS discharges are 11% of discharges, the long-stay cohort.');
+  if (key === 'kpi_alerts_high_los_discharge_count') {
+    const longStayRate = longStayRateFromP90(fact.ipLosP90Days);
+    return count(Math.round(discharges * longStayRate), 'down', `High-LOS discharges use the same 7-day review line as long-stay rate (${(longStayRate * 100).toFixed(1)}% of discharges).`);
+  }
   if (key === 'kpi_alerts_lab_abnormal_burst_count') return count(Math.round(fact.labResulted * 0.02), 'down', 'Abnormal bursts are 2% of resulted tests.');
   if (key === 'kpi_alerts_readmission_7d_event_count') return count(Math.round(discharges * 0.018), 'down', 'Seven-day readmissions are 1.8% of discharges.');
 
@@ -270,7 +274,10 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_readmission_30d_rate' || key === 'kpi_dx_30d_readmission_rate') return share(0.086 + occ * 0.02, discharges, 'down', 'Thirty-day readmissions ÷ discharges. The numerator is the rounded count.');
   if (key === 'kpi_surg_30d_readmission_rate') return share(0.041, fact.surgCompleted, 'down', 'Surgical readmissions ÷ completed cases, not all discharges.');
   if (key === 'kpi_discharge_before_noon_rate') return share(0.31, discharges, 'up', 'Discharges before noon ÷ discharges.');
-  if (key === 'kpi_long_stay_gt_7d_rate') return share(0.11, discharges, 'down', 'Stays longer than 7 days ÷ discharges.');
+  if (key === 'kpi_long_stay_gt_7d_rate') {
+    const longStayRate = longStayRateFromP90(fact.ipLosP90Days);
+    return share(longStayRate, discharges, 'down', 'Stays longer than 7 days ÷ discharges. Same P90-derived review-line rate as Inpatient screens and Vital Assist.');
+  }
   if (key === 'kpi_outpatient_seen_within_30_rate' || key === 'kpi_clinic_on_time_start_rate') return share(0.74 - occ * 0.05, fact.apptAttended, 'up', 'On-time visits ÷ attended appointments.');
   if (key === 'kpi_surg_first_case_ontime' || key === 'kpi_surg_ontime_start_rate') return share(key.includes('first') ? 0.71 : 0.64, fact.surgCompleted, 'up', 'On-time starts ÷ completed cases.');
   if (key === 'kpi_surg_checklist_compliance') return share(0.97, fact.surgCompleted, 'up', 'Checklist completion ÷ completed cases.');

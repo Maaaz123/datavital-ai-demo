@@ -3,7 +3,8 @@ import { HOSPITALS } from './engine';
 import { scenarioFor, wardRows } from './facts';
 import { alertsFor } from '@/core/alerts';
 import { peakHours } from '@/core/derived';
-import { ipdDocScenario } from '@/core/ipdScope';
+import { buildIpdView } from '@/core/ipdView';
+import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
 export type AssistantAnswer = {
@@ -42,7 +43,14 @@ export function promptForPath(path: string): string {
   return ASSISTANT_PROMPTS[0].en;
 }
 
-export function answerQuestion(question: string, hospital: string, year: number, department: string, lang: Lang = 'en'): AssistantAnswer {
+export function answerQuestion(
+  question: string,
+  hospital: string,
+  year: number,
+  department: string,
+  lang: Lang = 'en',
+  period: ReportPeriod = 'year',
+): AssistantAnswer {
   const q = question.toLowerCase();
   const current = scenarioFor(hospital, year).focus;
   const prior = scenarioFor(hospital, Math.max(2024, year - 1)).focus;
@@ -50,14 +58,15 @@ export function answerQuestion(question: string, hospital: string, year: number,
   const name = siteName(hospital, lang);
   const waitNow = current.edWaitMedianMin;
   const waitThen = prior.edWaitMedianMin;
+  const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
   if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
-      const result = runWhatIf(department as WhatIfDomain, hospital, year, intent);
+      const result = runWhatIf(department as WhatIfDomain, hospital, year, intent, period);
       const body = formatWhatIfAnswer(result);
       return pack(lang, {
-        title: tx(lang, `${result.title} · ${name} ${year}`, `${result.title} · ${name} ${year}`),
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
         observation: body.observation,
         evidence: body.evidence,
         explanation: body.explanation,
@@ -71,7 +80,7 @@ export function answerQuestion(question: string, hospital: string, year: number,
 
   if (department === 'Emergency') return answerEmergency(q, hospital, year, name, lang, current, prior, waitNow, waitThen);
   if (department === 'Beds') return answerBeds(q, hospital, year, name, lang, current, prior);
-  if (department === 'Inpatient') return answerInpatient(q, hospital, year, name, lang, current, prior);
+  if (department === 'Inpatient') return answerInpatient(q, hospital, year, name, lang, period);
 
   // Outside the three public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -361,8 +370,7 @@ function answerInpatient(
   year: number,
   name: string,
   lang: Lang,
-  current: ReturnType<typeof scenarioFor>['focus'],
-  prior: ReturnType<typeof scenarioFor>['focus'],
+  period: ReportPeriod,
 ): AssistantAnswer {
   const outside = /\b(occupancy|vacant bed|blocked bed|door-to-provider|triage|satisfaction|workforce|claim|laboratory)\b/.test(q);
   if (outside) {
@@ -371,42 +379,25 @@ function answerInpatient(
       observation: tx(lang, 'This domain owns admissions, length of stay, care progress, discharge readiness delays, readmissions, and inpatient outcomes.', 'هذا الدومين يملك القبول ومدة الإقامة وتقدم الرعاية وتأخر الجاهزية وإعادة التنويم والنتائج.'),
       evidence: tx(lang, 'Bed occupancy stays in Beds. ED wait stays in Emergency.', 'إشغال الأسرة في الأسرة. انتظار الطوارئ في الطوارئ.'),
       explanation: tx(lang, 'Cross-domain evidence may explain an inpatient delay only when labeled. Ownership does not move.', 'دليل من دومين آخر قد يفسر تأخيراً إذا وُسم بوضوح.'),
-      action: tx(lang, 'Ask about length of stay, long stays, discharge delays, or readmissions.', 'اسأل عن مدة الإقامة أو الإقامة الطويلة أو تأخر الخروج أو إعادة التنويم.'),
+      action: tx(lang, 'Ask about length of stay, long stays, discharge delays, documentation, or readmissions.', 'اسأل عن مدة الإقامة أو الإقامة الطويلة أو تأخر الخروج أو التوثيق أو إعادة التنويم.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
       benefit: tx(lang, 'Clear ownership keeps inpatient decisions on episode measures.', 'وضوح الملكية يبقي قرارات التنويم على مقاييس الحالة.'),
     });
   }
 
-  const losNow = current.ipLosDays;
-  const losThen = prior.ipLosDays;
-  const losDelta = losNow - losThen;
-  const bedOcc = current.staffedBeds ? current.occupiedBeds / current.staffedBeds : 0;
-  const readmit = 0.086 + bedOcc * 0.02;
-  const readmit7 = 0.018;
-  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (current.ipLosP90Days - 7) * 0.025));
-  const specialties = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
-  const specialtyLos = specialties.map((id, index) => ({ id, los: Math.round((losNow * (0.85 + index * 0.06)) * 10) / 10 }));
-  const longest = [...specialtyLos].sort((a, b) => b.los - a.los)[0];
-  const readyNotDischarged = Math.max(1, Math.round(current.occupiedBeds * 0.08));
+  const view = buildIpdView(hospital, year, period);
+  const prior = buildIpdView(hospital, Math.max(2024, year - 1), period);
+  const losDelta = view.losMedian - prior.losMedian;
+  const longest = [...view.specialties].sort((a, b) => b.los - a.los)[0];
+  const periodNote = period === 'year'
+    ? ''
+    : ` Figures use ${view.periodLabel}, not the full-year total.`;
 
-  if (/prolong|long.?stay|clinical group|specialty/.test(q)) {
+  if (/discharge delay|ready.?but|medically ready|delayed discharge|\bdelay(ed|s)?\b/.test(q) && !/readmit|return|30.?day|7.?day/.test(q)) {
     return pack(lang, {
-      title: tx(lang, `Prolonged stays at ${name} in ${year}`, `الإقامات الطويلة في ${name} عام ${year}`),
-      observation: tx(lang, `Longest specialty median in this story: ${longest.id} at ${longest.los.toFixed(1)} days. Hospital median ${losNow.toFixed(1)} days · P90 ${current.ipLosP90Days.toFixed(1)}.`, `أطول تخصص ${longest.id} عند ${longest.los.toFixed(1)} يوماً.`),
-      evidence: tx(lang, `Long-stay rate about ${(longStayRate * 100).toFixed(1)}% of discharges (7-day review line). Severity is not adjusted.`, `معدل الإقامة الطويلة حوالي ${(longStayRate * 100).toFixed(1)}٪.`),
-      explanation: tx(lang, 'Hypothesis: specialties with higher medians contribute more long stays. Raw specialty gaps are not proof of better or worse care.', 'فرضية: التخصصات ذات الوسيط الأعلى تساهم أكثر في الإقامات الطويلة.'),
-      action: tx(lang, 'Review specialty long-stay lists and pending discharge barriers with the care team.', 'راجع قوائم الإقامة الطويلة حسب التخصص مع الفريق السريري.'),
-      role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
-      benefit: tx(lang, 'Targeting long-stay groups can free capacity without moving bed ownership.', 'استهداف مجموعات الإقامة الطويلة يحرر طاقة دون نقل ملكية الأسرة.'),
-    });
-  }
-
-  if (/discharge delay|ready|delay/.test(q)) {
-    const docs = ipdDocScenario({ hospital, occupiedBeds: current.occupiedBeds, staffedBeds: current.staffedBeds });
-    return pack(lang, {
-      title: tx(lang, `Discharge delays at ${name} in ${year}`, `تأخر الخروج في ${name} عام ${year}`),
-      observation: tx(lang, `About ${readyNotDischarged} patients marked ready but still here (illustrative share of census ${current.occupiedBeds}).`, `حوالي ${readyNotDischarged} مريضاً جاهزين وما زالوا هنا.`),
-      evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Illustrative readiness documentation ~${(docs.readinessDocRate * 100).toFixed(1)}%. Ready-to-actual delay duration clocks are not available. AI does not decide medical readiness.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
+      title: tx(lang, `Discharge delays at ${name} · ${view.periodLabel}`, `تأخر الخروج في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `About ${view.readyNotDischarged} patients marked ready but still here (illustrative share of census ${view.census}; ${view.censusBasis}).`, `حوالي ${view.readyNotDischarged} مريضاً جاهزين وما زالوا هنا.`),
+      evidence: tx(lang, `Discharges ${view.discharges.toLocaleString('en-US')} in ${view.periodLabel}. Illustrative readiness documentation ~${(view.readinessDocRate * 100).toFixed(1)}% · discharge summary ~${(view.dischargeSummaryRate * 100).toFixed(1)}%. Ready-to-actual delay duration clocks are not available. AI does not decide medical readiness.${periodNote}`, `حالات الخروج ${view.discharges.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Hypothesis: ready-but-not-discharged rises when consults or discharge logistics lag. These drivers are not proven here.', 'فرضية: الجاهز غير الخارج يرتفع عند تأخر الاستشارات أو لوجستيات الخروج.'),
       action: tx(lang, 'Review ready-but-not-discharged cases with the responsible clinical team. Do not auto-discharge.', 'راجع حالات الجاهز غير الخارج مع الفريق السريري المسؤول.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -414,11 +405,23 @@ function answerInpatient(
     });
   }
 
-  if (/length of stay|los|how has.*stay|changed/.test(q)) {
+  if (/prolong|long.?stay|clinical group|longest stay|specialt(y|ies).*(long|stay|los)/.test(q)) {
     return pack(lang, {
-      title: tx(lang, `Length of stay at ${name} in ${year}`, `مدة الإقامة في ${name} عام ${year}`),
-      observation: tx(lang, `Median ${losNow.toFixed(1)} days (was ${losThen.toFixed(1)}). Average ${current.ipLosAvgDays.toFixed(1)}. P90 ${current.ipLosP90Days.toFixed(1)}. Change ${losDelta >= 0 ? '+' : ''}${losDelta.toFixed(1)} days.`, `الوسيط ${losNow.toFixed(1)} يوماً.`),
-      evidence: tx(lang, `Admissions ${current.admissions.toLocaleString('en-US')}, discharges ${current.discharges.toLocaleString('en-US')}. Not emergency length of stay.`, `القبول ${current.admissions.toLocaleString('en-US')}.`),
+      title: tx(lang, `Prolonged stays at ${name} · ${view.periodLabel}`, `الإقامات الطويلة في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Longest specialty median: ${longest.id} at ${longest.los.toFixed(1)} days. Hospital median ${view.losMedian.toFixed(1)} days · P90 ${view.losP90.toFixed(1)}.`, `أطول تخصص ${longest.id} عند ${longest.los.toFixed(1)} يوماً.`),
+      evidence: tx(lang, `Long-stay rate ${(view.longStayRate * 100).toFixed(1)}% · ${view.longStayCount.toLocaleString('en-US')} of ${view.discharges.toLocaleString('en-US')} discharges (${view.periodLabel}, 7-day review line). Severity is not adjusted.${periodNote}`, `معدل الإقامة الطويلة ${(view.longStayRate * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Hypothesis: specialties with higher medians contribute more long stays. Raw specialty gaps are not proof of better or worse care.', 'فرضية: التخصصات ذات الوسيط الأعلى تساهم أكثر في الإقامات الطويلة.'),
+      action: tx(lang, 'Review specialty long-stay lists and pending discharge barriers with the care team.', 'راجع قوائم الإقامة الطويلة حسب التخصص مع الفريق السريري.'),
+      role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
+      benefit: tx(lang, 'Targeting long-stay groups can free capacity without moving bed ownership.', 'استهداف مجموعات الإقامة الطويلة يحرر طاقة دون نقل ملكية الأسرة.'),
+    });
+  }
+
+  if (/length of stay|los|how has.*stay|median.*stay|changed/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Length of stay at ${name} · ${view.periodLabel}`, `مدة الإقامة في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median ${view.losMedian.toFixed(1)} days (was ${prior.losMedian.toFixed(1)} in prior-year ${period === 'year' ? 'full year' : period}). Average ${view.losAvg.toFixed(1)}. P90 ${view.losP90.toFixed(1)}. Change ${losDelta >= 0 ? '+' : ''}${losDelta.toFixed(1)} days.`, `الوسيط ${view.losMedian.toFixed(1)} يوماً.`),
+      evidence: tx(lang, `Admissions ${view.admissions.toLocaleString('en-US')}, discharges ${view.discharges.toLocaleString('en-US')} in ${view.periodLabel}. Not emergency length of stay.${periodNote}`, `القبول ${view.admissions.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Hypothesis: median and P90 moved with case mix and discharge timing. Observed-to-expected LOS is not available.', 'فرضية: الوسيط والمئين 90 تحركا مع مزيج الحالات وتوقيت الخروج.'),
       action: tx(lang, 'Compare median, average, and P90 on Stay & Discharge, then review long-stay lists.', 'قارن الوسيط والمتوسط والمئين 90 ثم راجع قوائم الإقامة الطويلة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -427,11 +430,10 @@ function answerInpatient(
   }
 
   if (/care.?plan|milestone|consult|document|summar(y|ies)|med.?rec|follow.?up|assessment|diagnosis/.test(q)) {
-    const docs = ipdDocScenario({ hospital, occupiedBeds: current.occupiedBeds, staffedBeds: current.staffedBeds });
     return pack(lang, {
-      title: tx(lang, `Care documentation at ${name} in ${year}`, `توثيق الرعاية في ${name} عام ${year}`),
-      observation: tx(lang, `Care-plan documentation ~${(docs.carePlanDocRate * 100).toFixed(1)}% · daily clinical review ~${(docs.dailyReviewRate * 100).toFixed(1)}% · median consult response ~${docs.consultResponseHours.toFixed(1)}h · ${docs.pendingConsults} pending consults.`, `توثيق خطة الرعاية حوالي ${(docs.carePlanDocRate * 100).toFixed(1)}٪.`),
-      evidence: tx(lang, `Discharge summary ~${(docs.dischargeSummaryRate * 100).toFixed(1)}% · med-rec ~${(docs.medRecRate * 100).toFixed(1)}% · follow-up plan ~${(docs.followUpPlanRate * 100).toFixed(1)}% · milestone completion ~${(docs.milestoneRate * 100).toFixed(1)}%. Admissions ${current.admissions.toLocaleString('en-US')}. These are illustrative scenario shares, not extracted charts.`, `ملخص الخروج حوالي ${(docs.dischargeSummaryRate * 100).toFixed(1)}٪.`),
+      title: tx(lang, `Care documentation at ${name} · ${view.periodLabel}`, `توثيق الرعاية في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Care-plan documentation ~${(view.carePlanDocRate * 100).toFixed(1)}% · daily clinical review ~${(view.dailyReviewRate * 100).toFixed(1)}% · median consult response ~${view.consultResponseHours.toFixed(1)}h · ${view.pendingConsults} pending consults.`, `توثيق خطة الرعاية حوالي ${(view.carePlanDocRate * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Discharge summary ~${(view.dischargeSummaryRate * 100).toFixed(1)}% · med-rec ~${(view.medRecRate * 100).toFixed(1)}% · follow-up plan ~${(view.followUpPlanRate * 100).toFixed(1)}% · milestone completion ~${(view.milestoneRate * 100).toFixed(1)}%. Same illustrative shares as Care Progress & Outcomes for ${view.periodLabel}. Not extracted charts.${periodNote}`, `ملخص الخروج حوالي ${(view.dischargeSummaryRate * 100).toFixed(1)}٪.`),
       explanation: tx(lang, 'Potential reasons (not proven): documentation gaps can trail busy wards and delayed consults. Figures are not inferred from length of stay and are not a validated EMR extract.', 'أسباب محتملة وليست مثبتة: فجوات التوثيق قد تتأخر مع ازدحام الأجنحة.'),
       action: tx(lang, 'On Care Progress & Outcomes, review care documentation cards and pending consults with the clinical operations lead. AI does not decide medical readiness.', 'في تقدم الرعاية والنتائج راجع بطاقات التوثيق والاستشارات المعلقة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -441,9 +443,9 @@ function answerInpatient(
 
   if (/readmit|return|30.?day|7.?day/.test(q)) {
     return pack(lang, {
-      title: tx(lang, `Readmissions at ${name} in ${year}`, `إعادة التنويم في ${name} عام ${year}`),
-      observation: tx(lang, `Unplanned 30-day return share about ${(readmit * 100).toFixed(1)}% of discharges. 7-day share about ${(readmit7 * 100).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً حوالي ${(readmit * 100).toFixed(1)}٪.`),
-      evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Visits are not linked patient-by-patient in this demo.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
+      title: tx(lang, `Readmissions at ${name} · ${view.periodLabel}`, `إعادة التنويم في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Unplanned 30-day return share ${(view.readmit30 * 100).toFixed(1)}% of discharges. 7-day share ${(view.readmit7 * 100).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً ${(view.readmit30 * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Discharges ${view.discharges.toLocaleString('en-US')} in ${view.periodLabel}. Rate tilt uses period census ÷ staffed beds. Visits are not linked patient-by-patient.${periodNote}`, `حالات الخروج ${view.discharges.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Potential reasons (not proven): specialties with longer stays show higher return shares in this story. Severity is not adjusted.', 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, `Review discharge instructions and follow-up plans for ${longest.id} and other high-return specialties.`, 'راجع تعليمات الخروج وخطط المتابعة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -451,30 +453,44 @@ function answerInpatient(
     });
   }
 
+  if (/admission|source|census|volume/.test(q)) {
+    const sourceLine = view.sources.map((item) => `${item.id} ${item.count.toLocaleString('en-US')}`).join(' · ');
+    return pack(lang, {
+      title: tx(lang, `Inpatient volume at ${name} · ${view.periodLabel}`, `حجم التنويم في ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Admissions ${view.admissions.toLocaleString('en-US')} · census ${view.census} (${view.censusBasis}) · discharges ${view.discharges.toLocaleString('en-US')}.`, `القبول ${view.admissions.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Sources: ${sourceLine}. Sources sum to admissions. Census is not a period total.${periodNote}`, `المصادر: ${sourceLine}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): ED inflow, elective schedule, and transfers shape the mix. Bed occupancy remains a Beds measure.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Review admission source mix and specialty volume on Inpatient Snapshot.', 'راجع مزيج مصادر القبول وحجم التخصصات في لقطة التنويم.'),
+      role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
+      benefit: tx(lang, 'Clear volume and source identity keeps executive discussion on episode measures.', 'وضوح الحجم والمصدر يبقي النقاش التنفيذي على مقاييس الحالة.'),
+    });
+  }
+
   if (/priorit|attention|manager|what should|improve discharge|coordination/.test(q)) {
     const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Inpatient' && alert.severity !== 'info');
     const topAlert = hot[0];
+    const alertNote = period === 'year' ? '' : ' Open alerts remain full-year signals; scores above use the selected period.';
     return pack(lang, {
-      title: tx(lang, `Inpatient management attention · ${name} ${year}`, `اهتمام إدارة التنويم · ${name} ${year}`),
+      title: tx(lang, `Inpatient management attention · ${name} · ${view.periodLabel}`, `اهتمام إدارة التنويم · ${name} · ${view.periodLabel}`),
       observation: tx(lang, topAlert
-        ? `${topAlert.severity}: ${topAlert.title} ${topAlert.observed}`
-        : `Median stay ${losNow.toFixed(1)} days · ready-but-not-discharged ~${readyNotDischarged} · 30-day returns ${(readmit * 100).toFixed(1)}%`, topAlert ? topAlert.title : `وسيط الإقامة ${losNow.toFixed(1)}`),
-      evidence: tx(lang, `Longest specialty ${longest.id} at ${longest.los.toFixed(1)} days. Admissions ${current.admissions.toLocaleString('en-US')}, discharges ${current.discharges.toLocaleString('en-US')}.`, `أطول تخصص ${longest.id}.`),
+        ? `${topAlert.severity}: ${topAlert.title} ${topAlert.observed}${alertNote}`
+        : `Median stay ${view.losMedian.toFixed(1)} days · ready-but-not-discharged ~${view.readyNotDischarged} · 30-day returns ${(view.readmit30 * 100).toFixed(1)}%`, topAlert ? topAlert.title : `وسيط الإقامة ${view.losMedian.toFixed(1)}`),
+      evidence: tx(lang, `Longest specialty ${longest.id} at ${longest.los.toFixed(1)} days. Admissions ${view.admissions.toLocaleString('en-US')}, discharges ${view.discharges.toLocaleString('en-US')} in ${view.periodLabel}.${periodNote}`, `أطول تخصص ${longest.id}.`),
       explanation: tx(lang, 'Potential reasons (not proven): prolonged specialty stays, ready patients not yet discharged, and unplanned returns after discharge.', 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, topAlert
         ? `${topAlert.action} Monitor ${topAlert.followUp}. AI does not decide medical readiness.`
-        : `Review ${longest.id} long-stay lists and the ~${readyNotDischarged} ready-but-not-discharged patients with the care team. AI does not decide medical readiness.`, topAlert?.action ?? 'راجع قوائم الإقامة الطويلة.'),
+        : `Review ${longest.id} long-stay lists and the ~${view.readyNotDischarged} ready-but-not-discharged patients with the care team. AI does not decide medical readiness.`, topAlert?.action ?? 'راجع قوائم الإقامة الطويلة.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
       benefit: tx(lang, topAlert?.consequence ?? 'Clearing confirmed discharge barriers and long stays frees census without claiming bed-occupancy ownership.', 'إزالة عوائق الخروج تحرر التعداد.'),
     });
   }
 
   return pack(lang, {
-    title: tx(lang, `Inpatient care at ${name} in ${year}`, `رعاية التنويم في ${name} عام ${year}`),
-    observation: tx(lang, `Admissions ${current.admissions.toLocaleString('en-US')} · median stay ${losNow.toFixed(1)} days · ready-but-not-discharged ~${readyNotDischarged} · 30-day returns ~${(readmit * 100).toFixed(1)}%.`, `القبول ${current.admissions.toLocaleString('en-US')}.`),
-    evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}, deaths ${current.deaths.toLocaleString('en-US')}. Census is a patient count, not a bed occupancy rate.`, `الخروج ${current.discharges.toLocaleString('en-US')}.`),
+    title: tx(lang, `Inpatient care at ${name} · ${view.periodLabel}`, `رعاية التنويم في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, `Admissions ${view.admissions.toLocaleString('en-US')} · median stay ${view.losMedian.toFixed(1)} days · ready-but-not-discharged ~${view.readyNotDischarged} · 30-day returns ~${(view.readmit30 * 100).toFixed(1)}%.`, `القبول ${view.admissions.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `Discharges ${view.discharges.toLocaleString('en-US')}, deaths ${view.deaths.toLocaleString('en-US')} in ${view.periodLabel}. Census ${view.census} is a patient count (${view.censusBasis}), not a bed occupancy rate.${periodNote}`, `الخروج ${view.discharges.toLocaleString('en-US')}.`),
     explanation: tx(lang, 'Potential reasons (not proven): LOS, discharge delays, and returns describe inpatient flow together. Bed occupancy remains a Beds measure.', 'أسباب محتملة وليست مثبتة.'),
-    action: tx(lang, `Review ${longest.id} long stays on Stay & Discharge, then returns on Care Progress & Outcomes.`, 'راجع الإقامات الطويلة ثم العودة.'),
+    action: tx(lang, `Review ${longest.id} long stays on Stay & Discharge, then returns and documentation on Care Progress & Outcomes.`, 'راجع الإقامات الطويلة ثم العودة والتوثيق.'),
     role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
     benefit: tx(lang, 'Coordinated inpatient review improves discharge readiness without AI deciding readiness alone.', 'مراجعة تنويم منسقة تحسّن جاهزية الخروج دون أن يقرر الذكاء الاصطناعي وحده.'),
   });

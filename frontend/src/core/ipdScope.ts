@@ -81,6 +81,16 @@ function clamp(value: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, value));
 }
 
+/** 7-day long-stay review line rate from LOS P90 — shared by screens, Assist, what-if, and catalog bind. */
+export function longStayRateFromP90(losP90: number): number {
+  return Math.min(0.22, Math.max(0.05, 0.10 + (losP90 - 7) * 0.025));
+}
+
+/** Specialty 30-day readmit tilt around hospital rate — shared by Outcomes chart and indicator catalog. */
+export function specialtyReadmitShare(readmit30: number, los: number, losMedian: number): number {
+  return readmit30 * (0.75 + (los / Math.max(losMedian, 1)) * 0.2);
+}
+
 /**
  * Illustrative documentation / care-progress shares for the executive demo.
  * Values move slightly with occupancy and hospital identity so filters stay coherent.
@@ -132,11 +142,7 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
   const sourceLine = input.sources.map((item) => `${item.id} ${num(item.count)}`).join(' · ');
   const destLine = input.destinations.map((item) => `${item.id} ${num(item.count)}`).join(' · ');
   const specialtyLos = input.specialties.map((item) => `${item.id} ${num(item.los, 1)}d`).join(' · ');
-  // Same constructed specialty share used by the Outcomes readmission chart (LOS tilt around hospital 30-day rate).
-  const specialtyReadmit = input.specialties.map((item) => {
-    const share = input.readmit30 * (0.75 + (item.los / Math.max(input.losMedian, 1)) * 0.2);
-    return `${item.id} ${pct(share)}`;
-  }).join(' · ');
+  const specialtyReadmit = input.specialties.map((item) => `${item.id} ${pct(specialtyReadmitShare(input.readmit30, item.los, input.losMedian))}`).join(' · ');
   const elective = Math.max(0, input.directAdmissions);
   const emergency = input.edAdmitted;
   const episodeComplete = discharges / Math.max(admissions + input.transfersIn, 1);

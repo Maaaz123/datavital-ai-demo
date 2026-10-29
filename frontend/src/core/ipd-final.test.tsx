@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { HOSPITALS } from '@/showcase/engine';
 import { answerQuestion } from '@/showcase/assistant';
 import { clearDemoStorage } from '@/showcase/state';
+import { runWhatIf } from '@/showcase/whatIf';
 import { routes } from '@/routes';
-import { IPD_AI_CASES, ipdDocScenario, ipdIndicatorsFor, type IpdScopeInput } from './ipdScope';
+import { buildIpdView } from './ipdView';
+import { IPD_AI_CASES, ipdDocScenario, ipdIndicatorsFor, longStayRateFromP90, specialtyReadmitShare, type IpdScopeInput } from './ipdScope';
 
 function Harness() {
   return useRoutes(routes);
@@ -27,7 +29,7 @@ function baseInput(overrides: Partial<IpdScopeInput> = {}): IpdScopeInput {
     discharges: 31400,
     deaths: 210,
     edAdmitted: 11855,
-    directAdmissions: 18203,
+    directAdmissions: 17573,
     transfersIn: 1416,
     transfersOut: 1200,
     losAvg: 4.4,
@@ -47,9 +49,9 @@ function baseInput(overrides: Partial<IpdScopeInput> = {}): IpdScopeInput {
     ],
     sources: [
       { id: 'From emergency', count: 11855 },
-      { id: 'Elective / direct', count: 18203 },
+      { id: 'Elective / direct', count: 17573 },
       { id: 'Transfer in', count: 1416 },
-      { id: 'Other', count: 0 },
+      { id: 'Other', count: 630 },
     ],
     destinations: [
       { id: 'Home', count: 27000 },
@@ -147,8 +149,80 @@ describe('Inpatient final acceptance', () => {
   it('answers Vital Assist documentation questions with scenario rates', () => {
     const answer = answerQuestion('How is care plan documentation performing?', 'H1', 2025, 'Inpatient', 'en');
     expect(answer.observation).toMatch(/Care-plan documentation ~/i);
-    expect(answer.evidence).toMatch(/illustrative scenario shares/i);
+    expect(answer.evidence).toMatch(/illustrative/i);
     expect(answer.observation).not.toMatch(/not available in this demonstration/i);
+  });
+
+  it('keeps buildIpdView sources, destinations, and Other non-zero across hospitals and periods', () => {
+    for (const hospital of ['H1', 'H2', 'H3', 'H4', 'H5', 'ALL']) {
+      for (const period of ['year', 'Q1', 'Q2', 'Q3', 'Q4'] as const) {
+        const view = buildIpdView(hospital, 2025, period);
+        const sourceSum = view.sources.reduce((sum, item) => sum + item.count, 0);
+        const destSum = view.destinations.reduce((sum, item) => sum + item.count, 0);
+        expect(sourceSum).toBe(view.admissions);
+        expect(destSum).toBe(view.discharges);
+        expect(view.sources.find((item) => item.id === 'Other')?.count ?? 0).toBeGreaterThan(0);
+        expect(view.longStayRate).toBe(longStayRateFromP90(view.losP90));
+        expect(view.longStayCount).toBe(Math.round(view.discharges * view.longStayRate));
+        if (period !== 'year') {
+          expect(view.periodLabel).toBe(`${period} 2025`);
+          expect(view.admissions).toBeLessThan(buildIpdView(hospital, 2025, 'year').admissions);
+        }
+      }
+    }
+  });
+
+  it('aligns specialty readmit chart formula with catalog and Assist period labels', () => {
+    const yearView = buildIpdView('H1', 2025, 'year');
+    const q1View = buildIpdView('H1', 2025, 'Q1');
+    expect(q1View.discharges).not.toBe(yearView.discharges);
+    const medicine = yearView.specialties[0];
+    const share = specialtyReadmitShare(yearView.readmit30, medicine.los, yearView.losMedian);
+    const catalog = ipdIndicatorsFor(baseInput({
+      admissions: yearView.admissions,
+      discharges: yearView.discharges,
+      census: yearView.census,
+      losMedian: yearView.losMedian,
+      losP90: yearView.losP90,
+      losAvg: yearView.losAvg,
+      longStayRate: yearView.longStayRate,
+      longStayCount: yearView.longStayCount,
+      readmit30: yearView.readmit30,
+      specialties: yearView.specialties,
+      sources: yearView.sources,
+      destinations: yearView.destinations,
+      carePlanDocRate: yearView.carePlanDocRate,
+      dailyReviewRate: yearView.dailyReviewRate,
+      consultResponseHours: yearView.consultResponseHours,
+      dischargeSummaryRate: yearView.dischargeSummaryRate,
+      medRecRate: yearView.medRecRate,
+      followUpPlanRate: yearView.followUpPlanRate,
+    })).find((item) => item.name === 'Readmissions by Clinical Specialty');
+    expect(catalog?.value).toMatch(new RegExp(`Medicine ${(share * 100).toFixed(1)}%`));
+
+    const yearAnswer = answerQuestion('What is the unplanned 30-day readmission rate?', 'H1', 2025, 'Inpatient', 'en', 'year');
+    const q1Answer = answerQuestion('What is the unplanned 30-day readmission rate?', 'H1', 2025, 'Inpatient', 'en', 'Q1');
+    expect(yearAnswer.title).toMatch(/Full year 2025/);
+    expect(q1Answer.title).toMatch(/Q1 2025/);
+    expect(q1Answer.evidence).toMatch(/Figures use Q1 2025, not the full-year total/);
+    expect(q1Answer.evidence).toContain(q1View.discharges.toLocaleString('en-US'));
+    expect(yearAnswer.evidence).toContain(yearView.discharges.toLocaleString('en-US'));
+
+    const q1WhatIf = runWhatIf('Inpatient', 'H1', 2025, null, 'Q1');
+    expect(q1WhatIf.current).toMatch(/Q1 2025/);
+    expect(q1WhatIf.assumptions).toMatch(/Q1 2025/);
+  });
+
+  it('exposes exactly 40 indicators and 12 AI cases with three intentional unavailable rows', () => {
+    const rows = ipdIndicatorsFor(baseInput());
+    expect(rows).toHaveLength(40);
+    expect(IPD_AI_CASES).toHaveLength(12);
+    expect(rows.filter((row) => row.status === 'unavailable')).toHaveLength(3);
+    expect(rows.filter((row) => row.value === 'Not available').map((row) => row.name).sort()).toEqual([
+      'Admission Cancellation Rate',
+      'Discharge Delay Duration P50/P90',
+      'Observed-to-Expected LOS Ratio',
+    ]);
   });
 
   it('updates inpatient KPIs and documentation when hospital or period changes', () => {

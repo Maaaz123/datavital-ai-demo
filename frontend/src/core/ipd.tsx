@@ -1,128 +1,30 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { scenarioFor } from '@/showcase/facts';
 import { useShowcase } from '@/showcase/state';
 import { alertsFor } from './alerts';
 import { useCopilot } from './Copilot';
-import { IPD_AI_CASES, ipdDocScenario, ipdIndicatorsFor, type Indicator, type IpdScopeInput } from './ipdScope';
-import { sumKey, usePeriod, weighted } from './period';
+import { IPD_AI_CASES, ipdIndicatorsFor, type Indicator, type IpdScopeInput } from './ipdScope';
+import { specialtyReadmitShare } from './ipdScope';
+import { buildIpdView, splitExact, type IpdView } from './ipdView';
+import { usePeriod } from './period';
 import { Chart, ChartStage, type Figure } from './viz';
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#7c5c7a'];
-const SPECIALTIES = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
-const SOURCES = ['From emergency', 'Elective / direct', 'Transfer in', 'Other'];
-const DESTINATIONS = ['Home', 'Transfer out', 'Rehab / step-down', 'Left against medical advice'];
 
 type Detail = { name: string; value: string; definition: string; scope: string };
 type Tone = 'good' | 'watch' | 'alert' | 'neutral';
-type View = ReturnType<typeof buildView>;
-
-function buildView(hospital: string, year: number, period: ReturnType<typeof usePeriod>['period']) {
-  const rows = period === 'year'
-    ? scenarioFor(hospital, year).months.map((month, index) => ({ label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][index], month }))
-    : periodRows(hospital, year, period);
-  const fact = scenarioFor(hospital, year).focus;
-  const admissions = sumKey(rows, 'admissions');
-  const discharges = sumKey(rows, 'discharges');
-  const deaths = sumKey(rows, 'deaths');
-  const transfersIn = sumKey(rows, 'transfersIn');
-  const transfersOut = sumKey(rows, 'transfersOut');
-  const edAdmittedRaw = sumKey(rows, 'edAdmitted');
-  // Admission sources must partition admissions (ED + elective/direct + transfer-in + other = admissions).
-  const fromEmergency = Math.min(edAdmittedRaw, admissions);
-  const transferSource = Math.min(transfersIn, Math.max(0, admissions - fromEmergency));
-  const remainder = Math.max(0, admissions - fromEmergency - transferSource);
-  // Keep a small constructed "Other" slice so the source mix is not decorative at 0%.
-  const otherSource = Math.min(remainder, Math.round(admissions * 0.02));
-  const directAdmissions = Math.max(0, remainder - otherSource);
-  const edAdmitted = fromEmergency;
-  const census = period === 'year' ? fact.occupiedBeds : Math.round(rows.reduce((sum, row) => sum + row.month.occupiedBeds, 0) / Math.max(rows.length, 1));
-  const losMedian = period === 'year' ? fact.ipLosDays : weighted(rows, 'ipLosDays', 'admissions');
-  const losP90 = period === 'year' ? fact.ipLosP90Days : weighted(rows, 'ipLosP90Days', 'admissions');
-  const losAvg = period === 'year' ? fact.ipLosAvgDays : weighted(rows, 'ipLosAvgDays', 'admissions');
-  // 7-day review line (aligned with catalog kpi_long_stay_gt_7d_rate). Rate rises with P90 above 7 days.
-  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (losP90 - 7) * 0.025));
-  const longStayCount = Math.round(discharges * longStayRate);
-  const readyNotDischarged = Math.max(1, Math.round(census * 0.08));
-  const delayedDischargeRate = census ? readyNotDischarged / census : 0;
-  const expectedDischarges = Math.max(1, Math.round(discharges / (period === 'year' ? 365 : 91)));
-  // Match catalog/alert bind: 30-day = 0.086 + occupancy×0.02; 7-day = 1.8% of discharges.
-  const bedOcc = fact.staffedBeds ? fact.occupiedBeds / fact.staffedBeds : 0;
-  const readmit30 = 0.086 + bedOcc * 0.02;
-  const readmit7 = 0.018;
-  const amaRate = 0.018;
-  const specialtyWeights = [0.28, 0.22, 0.14, 0.12, 0.14, 0.1];
-  const specialtyAdmissions = splitExact(admissions, specialtyWeights);
-  const specialtyDischarges = splitExact(discharges, specialtyWeights);
-  const specialties = SPECIALTIES.map((id, index) => ({
-    id,
-    admissions: specialtyAdmissions[index],
-    discharges: specialtyDischarges[index],
-    los: Math.round((losMedian * (0.85 + index * 0.06)) * 10) / 10,
-  }));
-  const sources = [
-    { id: SOURCES[0], count: fromEmergency },
-    { id: SOURCES[1], count: directAdmissions },
-    { id: SOURCES[2], count: transferSource },
-    { id: SOURCES[3], count: otherSource },
-  ];
-  const amaCount = Math.round(discharges * amaRate);
-  const rehab = Math.round(discharges * 0.07);
-  // Discharges exclude deaths in the census identity — destinations partition discharges only.
-  const destTransfer = Math.min(transfersOut, Math.max(0, discharges - amaCount - rehab));
-  const home = Math.max(0, discharges - amaCount - rehab - destTransfer);
-  const destinations = [
-    { id: DESTINATIONS[0], count: home },
-    { id: DESTINATIONS[1], count: destTransfer },
-    { id: DESTINATIONS[2], count: rehab },
-    { id: DESTINATIONS[3], count: amaCount },
-  ];
-  const longStayWeights = specialties.map((item) => Math.max(0.01, item.discharges * (0.8 + item.los / Math.max(losMedian, 1))));
-  const longStayBySpecialty = splitExact(longStayCount, longStayWeights);
-  const docs = ipdDocScenario({ hospital, occupiedBeds: census, staffedBeds: fact.staffedBeds });
-  return {
-    admissions, discharges, deaths, transfersIn, transfersOut, edAdmitted, directAdmissions, census,
-    losMedian, losP90, losAvg, longStayRate, longStayCount, longStayBySpecialty, readyNotDischarged, delayedDischargeRate,
-    expectedDischarges, readmit7, readmit30, amaRate, specialties, sources, destinations,
-    ...docs,
-    labels: rows.map((row) => row.label),
-    monthlyAdmissions: rows.map((row) => row.month.admissions),
-    monthlyDischarges: rows.map((row) => row.month.discharges),
-    monthlyDeaths: rows.map((row) => row.month.deaths),
-    monthlyLos: rows.map((row) => row.month.ipLosDays),
-    monthlyCensus: rows.map((row) => row.month.occupiedBeds),
-  };
-}
-
-function periodRows(hospital: string, year: number, period: 'Q1' | 'Q2' | 'Q3' | 'Q4') {
-  const start = { Q1: 0, Q2: 3, Q3: 6, Q4: 9 }[period];
-  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return scenarioFor(hospital, year).months.slice(start, start + 3).map((month, index) => ({ label: names[start + index], month }));
-}
-
-function splitExact(total: number, weights: number[]): number[] {
-  const sum = weights.reduce((item, value) => item + value, 0) || 1;
-  const raw = weights.map((weight) => (weight / sum) * total);
-  const base = raw.map((value) => Math.floor(value));
-  let left = Math.round(total) - base.reduce((item, value) => item + value, 0);
-  const order = raw.map((value, index) => ({ index, frac: value - Math.floor(value) })).sort((a, b) => b.frac - a.frac);
-  for (let step = 0; left > 0 && step < order.length; step += 1) {
-    base[order[step].index] += 1;
-    left -= 1;
-  }
-  return base;
-}
+type View = IpdView;
 
 function useView(): View {
   const store = useShowcase();
   const { period } = usePeriod();
-  return useMemo(() => buildView(store.hospital, store.year, period), [store.hospital, store.year, period]);
+  return useMemo(() => buildIpdView(store.hospital, store.year, period), [store.hospital, store.year, period]);
 }
 
 function usePrior(): View {
   const store = useShowcase();
   const { period } = usePeriod();
   const year = store.year <= 2024 ? 2024 : store.year - 1;
-  return useMemo(() => buildView(store.hospital, year, period), [store.hospital, year, period]);
+  return useMemo(() => buildIpdView(store.hospital, year, period), [store.hospital, year, period]);
 }
 
 function num(value: number, digits = 0): string {
@@ -387,7 +289,7 @@ export function IpdSnapshotPage() {
   return (
     <Page title="Inpatient Snapshot" kpis={[
       score('Inpatient admissions', num(view.admissions), compare(view, prior, (item) => item.admissions), 'Inpatient admissions in the selected hospital and reporting period. Not ED visits and not bed occupancy.', `${num(view.admissions)} admissions.`, 'value-kpi_ipd_admissions', 'neutral'),
-      score('Inpatient census', num(view.census), compare(view, prior, (item) => item.census), 'Point-in-time inpatient census as a patient count (year focus snapshot, or period-average month-end occupied beds for a quarter). Bed occupancy rate stays in Beds & Capacity.', `${num(view.census)} patients.`, undefined, 'watch'),
+      score('Inpatient census', num(view.census), compare(view, prior, (item) => item.census), `Inpatient census as a patient count (${view.censusBasis}). Not a period total and not a bed occupancy rate — occupancy stays in Beds & Capacity.`, `${num(view.census)} patients · ${view.censusBasis}.`, undefined, 'watch'),
       score('Inpatient discharges', num(view.discharges), compare(view, prior, (item) => item.discharges), 'Completed inpatient discharges in the selected period. Bed turnaround stays in Beds & Capacity.', `${num(view.discharges)} discharges.`, undefined, 'good'),
       score('Median length of stay', `${num(view.losMedian, 1)} days`, compare(view, prior, (item) => item.losMedian), 'Median inpatient length of stay for completed stays. Not ED length of stay.', `Median ${num(view.losMedian, 1)} days.`, undefined, losTone(view.losMedian)),
       score('Admissions from ED', num(view.edAdmitted), compare(view, prior, (item) => item.edAdmitted), 'Admissions that began in the emergency department. ED waiting time stays in Emergency.', `${num(view.edAdmitted)} of ${num(view.admissions)} admissions.`, undefined, 'watch'),
@@ -474,8 +376,8 @@ export function IpdOutcomesPage() {
   const completion = view.discharges / Math.max(view.admissions + view.transfersIn, 1);
   return (
     <Page title="Care Progress & Outcomes" kpis={[
-      score('Unplanned 7-day readmission rate', pct(view.readmit7), compare(view, prior, (item) => item.readmit7, true), 'Unplanned 7-day readmission share of discharges. Visits are not linked patient-by-patient.', `${pct(view.readmit7)} of discharges.`, undefined, rateTone(view.readmit7, 0.03, 0.05)),
-      score('Unplanned 30-day readmission rate', pct(view.readmit30), compare(view, prior, (item) => item.readmit30, true), 'Unplanned 30-day readmission share of discharges. Planned returns are not separated.', `${pct(view.readmit30)} of discharges.`, 'value-kpi_ipd_readmit_30', rateTone(view.readmit30, 0.08, 0.11)),
+      score('Unplanned 7-day readmission rate', pct(view.readmit7), compare(view, prior, (item) => item.readmit7, true), `Unplanned 7-day readmission share of discharges in ${view.periodLabel}. Visits are not linked patient-by-patient.`, `${pct(view.readmit7)} of ${num(view.discharges)} discharges (${view.periodLabel}).`, undefined, rateTone(view.readmit7, 0.03, 0.05)),
+      score('Unplanned 30-day readmission rate', pct(view.readmit30), compare(view, prior, (item) => item.readmit30, true), `Unplanned 30-day readmission share of discharges in ${view.periodLabel}. Rate tilt uses the period census ÷ staffed beds. Planned returns are not separated.`, `${pct(view.readmit30)} of ${num(view.discharges)} discharges (${view.periodLabel}).`, 'value-kpi_ipd_readmit_30', rateTone(view.readmit30, 0.08, 0.11)),
       score('Inpatient mortality count', num(view.deaths), compare(view, prior, (item) => item.deaths), 'Deaths during the inpatient episode. Emergency deaths stay in Emergency.', `${num(view.deaths)} deaths.`, undefined, view.deaths > 0 ? 'alert' : 'good'),
       score('Inpatient mortality rate', pct(mortality), compare(view, prior, (item) => item.admissions ? item.deaths / item.admissions : 0, true), 'Inpatient deaths ÷ inpatient admissions.', `${num(view.deaths)} / ${num(view.admissions)}.`, undefined, mortality > 0.01 ? 'alert' : mortality > 0.005 ? 'watch' : 'good'),
       score('Discharge against medical advice', pct(view.amaRate), 'Scenario share', 'Fixed scenario share of discharges labelled left against medical advice. Not a linked chart-review cohort.', `${pct(view.amaRate)} of discharges.`, undefined, rateTone(view.amaRate, 0.02, 0.03)),
@@ -503,7 +405,7 @@ export function IpdOutcomesPage() {
         </div>
         <p className="gc-next">Documentation rates below are illustrative scenario shares. AI does not decide that a patient is medically ready to leave.</p>
       </section>
-      <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * view.readmit30 * (0.75 + (item.los / Math.max(view.losMedian, 1)) * 0.2))) }], 'patients', 'Specialty shares around the hospital 30-day rate (same constructed tilt as the indicator catalog). Severity is not adjusted.')} />
+      <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * specialtyReadmitShare(view.readmit30, item.los, view.losMedian))) }], 'patients', `Specialty shares around the ${view.periodLabel} hospital 30-day rate (same constructed tilt as the indicator catalog). Severity is not adjusted.`)} />
       <Slot figure={fig('line', 'Census vs discharges over time', view.labels, [
         { name: 'Inpatient census', values: view.monthlyCensus },
         { name: 'Discharges', values: view.monthlyDischarges },

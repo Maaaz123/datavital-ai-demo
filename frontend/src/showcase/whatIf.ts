@@ -1,5 +1,7 @@
 import { scenarioFor, wardRows } from './facts';
 import { peakHours } from '@/core/derived';
+import { buildIpdView } from '@/core/ipdView';
+import { type ReportPeriod } from '@/core/period';
 
 export type DomainName = 'Emergency' | 'Beds' | 'Inpatient';
 
@@ -67,12 +69,18 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   return null;
 }
 
-export function runWhatIf(domain: DomainName, hospital: string, year: number, intent?: { kind: string; amount: number } | null): WhatIfResult {
+export function runWhatIf(
+  domain: DomainName,
+  hospital: string,
+  year: number,
+  intent?: { kind: string; amount: number } | null,
+  period: ReportPeriod = 'year',
+): WhatIfResult {
   const fact = scenarioFor(hospital, year).focus;
   const resolved = intent ?? defaultIntent(domain);
   if (domain === 'Emergency') return emergencyWhatIf(hospital, year, fact, resolved);
   if (domain === 'Beds') return bedsWhatIf(fact, resolved);
-  return inpatientWhatIf(fact, resolved);
+  return inpatientWhatIf(hospital, year, period, resolved);
 }
 
 function defaultIntent(domain: DomainName): { kind: string; amount: number } {
@@ -198,26 +206,23 @@ function bedsWhatIf(fact: ReturnType<typeof scenarioFor>['focus'], intent: { kin
 }
 
 function inpatientWhatIf(
-  fact: ReturnType<typeof scenarioFor>['focus'],
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
   intent: { kind: string; amount: number },
 ): WhatIfResult {
-  const los = fact.ipLosDays;
-  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (fact.ipLosP90Days - 7) * 0.025));
-  const longStayCount = Math.round(fact.discharges * longStayRate);
-  const ready = Math.max(1, Math.round(fact.occupiedBeds * 0.08));
-  const specialties = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
-  const longest = specialties.map((id, index) => ({ id, los: Math.round((los * (0.85 + index * 0.06)) * 10) / 10 }))
-    .sort((a, b) => b.los - a.los)[0];
+  const view = buildIpdView(hospital, year, period);
+  const longest = [...view.specialties].sort((a, b) => b.los - a.los)[0];
 
   if (intent.kind === 'ipd-delay-down') {
-    const nextReady = Math.max(0, Math.round(ready * (1 - intent.amount)));
+    const nextReady = Math.max(0, Math.round(view.readyNotDischarged * (1 - intent.amount)));
     return {
       id: intent.kind,
       title: 'Delayed discharge reduction scenario',
-      current: `Medically ready, not discharged ~${num(ready)} · median stay ${num(los, 1)} days · discharges ${num(fact.discharges)}`,
+      current: `Medically ready, not discharged ~${num(view.readyNotDischarged)} · median stay ${num(view.losMedian, 1)} days · discharges ${num(view.discharges)} (${view.periodLabel})`,
       change: `Illustrative ${pct(intent.amount, 0)} reduction in ready-but-not-discharged count`,
       estimated: `Ready-but-not-discharged near ${num(nextReady)} patients · earlier bed release for planned admissions`,
-      assumptions: 'Medical readiness remains a clinician decision. AI does not discharge a patient. Delay clocks are not fully stored in this demo.',
+      assumptions: `Uses ${view.periodLabel} census and discharge totals. Medical readiness remains a clinician decision. AI does not discharge a patient. Delay duration clocks are not available.`,
       implications: 'Clearing confirmed discharge barriers frees census without changing bed ownership metrics.',
       followUp: 'Ready-but-not-discharged count and median length of stay',
       owner: 'Inpatient operations lead',
@@ -225,31 +230,31 @@ function inpatientWhatIf(
   }
 
   if (intent.kind === 'ipd-los-down') {
-    const nextLos = Math.max(1, los - intent.amount);
-    const extraDischarges = Math.round(fact.occupiedBeds * (intent.amount / Math.max(los, 1)));
+    const nextLos = Math.max(1, view.losMedian - intent.amount);
+    const extraDischarges = Math.round(view.census * (intent.amount / Math.max(view.losMedian, 1)));
     return {
       id: intent.kind,
       title: 'Length of stay reduction scenario',
-      current: `Median stay ${num(los, 1)} days · average ${num(fact.ipLosAvgDays, 1)} · P90 ${num(fact.ipLosP90Days, 1)} · longest specialty ${longest.id} ${num(longest.los, 1)} days`,
+      current: `Median stay ${num(view.losMedian, 1)} days · average ${num(view.losAvg, 1)} · P90 ${num(view.losP90, 1)} · longest specialty ${longest.id} ${num(longest.los, 1)} days (${view.periodLabel})`,
       change: `Illustrative ${num(intent.amount, 1)}-day reduction in median stay`,
       estimated: `Median near ${num(nextLos, 1)} days · roughly ${num(extraDischarges)} additional discharge capacity in the census story`,
-      assumptions: 'Case-mix severity is held constant. Observed-to-expected LOS is not available. Illustrative only.',
+      assumptions: `Uses ${view.periodLabel} LOS measures. Case-mix severity is held constant. Observed-to-expected LOS is not available. Illustrative only.`,
       implications: 'Shorter stays reduce prolonged-stay pressure and support planned elective admissions.',
       followUp: 'Median, average, and P90 length of stay by specialty',
       owner: 'Inpatient operations lead',
     };
   }
 
-  const nextRate = longStayRate * (1 - intent.amount);
-  const nextCount = Math.round(fact.discharges * nextRate);
-  const freed = longStayCount - nextCount;
+  const nextRate = view.longStayRate * (1 - intent.amount);
+  const nextCount = Math.round(view.discharges * nextRate);
+  const freed = view.longStayCount - nextCount;
   return {
     id: 'ipd-longstay-down',
     title: 'Prolonged stay reduction scenario',
-    current: `Long-stay share ~${pct(longStayRate)} (${num(longStayCount)} discharges) · median ${num(los, 1)} days · focus specialty ${longest.id}`,
+    current: `Long-stay share ~${pct(view.longStayRate)} (${num(view.longStayCount)} discharges) · median ${num(view.losMedian, 1)} days · focus specialty ${longest.id} (${view.periodLabel})`,
     change: `Illustrative ${pct(intent.amount, 0)} reduction in prolonged-stay share`,
-    estimated: `Long-stay share near ${pct(nextRate)} · about ${num(freed)} fewer long-stay discharges in the year story`,
-    assumptions: 'Uses the 7-day review line in this demonstration. Specialty severity is not adjusted.',
+    estimated: `Long-stay share near ${pct(nextRate)} · about ${num(freed)} fewer long-stay discharges in the ${view.periodLabel} story`,
+    assumptions: `Uses the 7-day review line and ${view.periodLabel} discharge total. Specialty severity is not adjusted.`,
     implications: `Targeting ${longest.id} long-stay lists first concentrates management attention where stay days accumulate.`,
     followUp: 'Long-stay rate, specialty median stay, and ready-but-not-discharged count',
     owner: 'Inpatient operations lead',
