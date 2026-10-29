@@ -154,10 +154,11 @@ Public GitHub Pages verification follows push of this build (see Published commi
 7. Decision actions — **PASS** (shared Decide workflow)
 8. No critical/high defects remaining in domain — **PASS**
 9. Existing four domains unchanged in design — **PASS** (nav entry only)
-10. Live public website serves verified build — **verify after push** (`BUILD_ID=v59-appointments`, bundle `index-DJayUJ9u.js`)
+10. Live public website serves verified build — **PASS** (`BUILD_ID=v59-appointments`, bundle `index-DJayUJ9u.js` on https://maaaz123.github.io/datavital-ai-demo/appointments)
 
 ## Published commit and build identifier
 
-- **Commit:** `47f5ad0f3efa65bb880252eae9bb6d055c7a3fda`
+- **Feature commit:** `47f5ad0f3efa65bb880252eae9bb6d055c7a3fda`
+- **Docs commit:** `333918e` (acceptance hash note)
 - **BUILD_ID:** `v59-appointments`
 - **JS bundle:** `index-DJayUJ9u.js`
