@@ -60,7 +60,7 @@ describe('dashboard business identity audit', () => {
       modes: [{ name: 'Ambulance', count: 18 }],
       acuity: [8, 22, 40, 22, 8],
     };
-    const boarding = indicatorsFor(input).find((row) => row.name === 'Boarding Beyond 4 Hours Rate');
+    const boarding = indicatorsFor(input).find((row) => row.name === 'ED Boarding Beyond 4 Hours Rate');
     expect(boarding?.value).toBe('10.0%');
     expect(boarding?.method).toMatch(/emergency admissions/i);
   });

@@ -116,7 +116,7 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
     input.readinessDocRate == null
       ? blank('Discharge Management', 'Discharge Readiness Documentation Rate', 'Clinically-ready documentation events are not stored. Ready-but-not-discharged is not used as a documentation rate.')
       : row('Discharge Management', 'Discharge Readiness Documentation Rate', pct(input.readinessDocRate), 'scenario', 'Episodes with a documented ready date ÷ eligible episodes.'),
-    row('Discharge Management', 'Medically Ready but Not Discharged Count', num(input.readyNotDischarged), 'constructed', 'Share of the census marked ready but still admitted. Medical readiness stays a human decision.'),
+    row('Discharge Management', 'Medically Ready, Not Discharged Count', num(input.readyNotDischarged), 'constructed', 'Census share marked clinically ready for discharge but still admitted. Medical readiness stays a human decision.'),
     row('Discharge Management', 'Delayed Discharge Rate', pct(input.delayedDischargeRate), 'constructed', 'Ready-but-not-discharged ÷ census. The ready definition is a scenario review line.'),
     input.delayP50 == null
       ? blank('Discharge Management', 'Discharge Delay Duration P50/P90', 'No ready-to-actual discharge clock exists. Ready count is not a delay duration.')
@@ -150,7 +150,7 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
     row('Inpatient Outcomes', 'Inpatient Mortality Count', num(input.deaths), 'scenario', 'Deaths during the inpatient episode. Emergency deaths stay in Emergency.'),
     row('Inpatient Outcomes', 'Inpatient Mortality Rate', pct(input.deaths / Math.max(admissions, 1)), 'scenario', 'Inpatient deaths ÷ inpatient admissions.'),
     row('Inpatient Outcomes', 'Discharge Against Medical Advice Rate', pct(input.amaRate), 'constructed', 'Fixed share of discharges labelled left against medical advice.'),
-    row('Inpatient Outcomes', 'Inpatient Episode Completion Rate', pct(episodeComplete), 'constructed', 'Discharges ÷ admissions plus transfers in. A flow identity check, not a quality score.'),
+    row('Inpatient Outcomes', 'Discharge-to-Admission Flow Ratio', pct(episodeComplete), 'constructed', 'Discharges ÷ admissions plus transfers in. A flow identity check only — not completed clinical episodes or a quality score.'),
 
     input.admissionAssessmentRate == null
       ? blank('Inpatient Documentation & Continuity', 'Admission Assessment Completion Rate', 'Admission assessment documents are not stored.')

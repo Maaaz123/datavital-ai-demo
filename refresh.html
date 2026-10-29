@@ -4,14 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Cache-Control" content="no-store" />
-    <title>Refresh DataVital cache</title>
+    <title>Refresh DataVital AI cache</title>
   </head>
   <body>
     <p>Clearing cached files…</p>
     <script>
       (async function () {
+        const BUILD_ID = 'v36-final-content';
         try {
-          localStorage.setItem('datavital-build-id', 'v33-scope-chips-fix');
+          localStorage.setItem('datavital-build-id', BUILD_ID);
           if (window.caches) {
             const keys = await caches.keys();
             await Promise.all(keys.map((key) => caches.delete(key)));
@@ -23,7 +24,7 @@
         } catch (error) {
           console.warn(error);
         }
-        location.replace('/datavital-ai-demo/?fresh=v33-scope-chips-fix');
+        location.replace('/datavital-ai-demo/?fresh=' + encodeURIComponent(BUILD_ID));
       })();
     </script>
   </body>

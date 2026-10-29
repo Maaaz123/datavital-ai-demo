@@ -86,7 +86,7 @@ export function bedsIndicatorsFor(input: BedsScopeInput): Indicator[] {
     input.physical == null
       ? blank('Bed Inventory & Availability', 'Physical Beds', 'Physical beds on the floor are not stored separately. A physical bed is not assumed to be operational.')
       : row('Bed Inventory & Availability', 'Physical Beds', num(input.physical), 'scenario', 'Physical beds present on the ward floor.'),
-    row('Bed Inventory & Availability', 'Operational Beds', num(input.operational), 'scenario', 'Staffed beds available for allocation in the month-end snapshot. Physical presence alone does not make a bed operational.'),
+    row('Bed Inventory & Availability', 'Operational Bed Capacity', num(input.operational), 'scenario', 'Staffed beds available for allocation in the month-end snapshot. Physical presence alone does not make a bed operational.'),
     row('Bed Inventory & Availability', 'Occupied Beds', num(input.occupied), 'scenario', 'Occupied staffed beds in the same snapshot. Occupied + vacant + blocked = operational.'),
     row('Bed Inventory & Availability', 'Vacant Beds', num(input.vacant), 'scenario', 'Vacant staffed beds ready for allocation in the snapshot.'),
     row('Bed Inventory & Availability', 'Blocked / Closed Beds', num(input.blocked), 'scenario', 'Blocked or closed staffed beds in the same snapshot. They are not vacant and not occupied.'),
@@ -99,13 +99,13 @@ export function bedsIndicatorsFor(input: BedsScopeInput): Indicator[] {
     row('Bed Occupancy', 'Occupancy by Bed Type', typeLine || 'No bed types', 'constructed', 'General and ICU occupancy from the same snapshot. Emergency bays are not inpatient beds.'),
 
     row('Bed Allocation & Placement', 'Pending Bed Requests', num(input.pendingRequests), 'constructed', 'Open bed requests waiting for assignment. Built as a share of admissions, not an ED waitlist.'),
-    row('Bed Allocation & Placement', 'Bed Assignment Time — Median', `${num(input.assignmentMedianMin, 0)} minutes`, 'constructed', 'Median request-to-assignment minutes. The figure rises with occupancy. It is not door-to-provider wait.'),
+    row('Bed Allocation & Placement', 'Bed Allocation Time — Median', `${num(input.assignmentMedianMin, 0)} minutes`, 'constructed', 'Median request-to-assignment minutes. The figure rises with occupancy. It is not door-to-provider wait.'),
     input.assignmentP90Min == null
-      ? blank('Bed Allocation & Placement', 'Bed Assignment Time — P90', 'No assignment-time distribution exists. The median is not used as a P90.')
-      : row('Bed Allocation & Placement', 'Bed Assignment Time — P90', `${num(input.assignmentP90Min, 0)} minutes`, 'scenario', '90th-percentile request-to-assignment time.'),
+      ? blank('Bed Allocation & Placement', 'Bed Allocation Time — P90', 'No assignment-time distribution exists. The median is not used as a P90.')
+      : row('Bed Allocation & Placement', 'Bed Allocation Time — P90', `${num(input.assignmentP90Min, 0)} minutes`, 'scenario', '90th-percentile request-to-assignment time.'),
     row('Bed Allocation & Placement', 'Unallocated Bed Requests', num(input.unallocated), 'constructed', 'Pending requests still without a bed after the review window.'),
-    row('Bed Allocation & Placement', 'Bed Assignment Completion Rate', pct(input.assignmentCompleted / completionDen), 'constructed', 'Completed assignments ÷ completed plus cancelled assignments in the period.'),
-    row('Bed Allocation & Placement', 'Bed Assignment Cancellation Rate', pct(input.assignmentCancelled / completionDen), 'constructed', 'Cancelled assignments ÷ completed plus cancelled assignments.'),
+    row('Bed Allocation & Placement', 'Assignment Completion Rate', pct(input.assignmentCompleted / completionDen), 'constructed', 'Completed assignments ÷ completed plus cancelled assignments in the period.'),
+    row('Bed Allocation & Placement', 'Assignment Cancellation Rate', pct(input.assignmentCancelled / completionDen), 'constructed', 'Cancelled assignments ÷ completed plus cancelled assignments.'),
 
     row('Bed Turnover & Readiness', 'Bed Turnover Rate', num(turnover, 2), 'constructed', 'Discharges ÷ operational beds in the period. This is bed turnover, not staff turnover.'),
     input.vacancyDurationHours == null

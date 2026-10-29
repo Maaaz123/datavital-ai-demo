@@ -431,7 +431,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
-      : 'Door-to-provider wait · selected hospital and year';
+      : 'Door-to-provider time · selected hospital and year';
   const boxTone = decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch';
   return (
     <article className="gc-decision gc-assist-stack">
@@ -544,7 +544,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         `${askScope} · ${label} · ${periodLabel} · ${page}.`,
         beds
           ? page === 'Bed Assignment'
-            ? 'Ask about pending requests, assignment time, beds awaiting cleaning, or turnover on this screen.'
+            ? 'Ask about pending bed requests, bed allocation time, beds awaiting cleaning, or bed turnover on this screen.'
             : page === 'Bed Capacity Outlook'
               ? 'Ask about projected available beds, shortfall, ward occupancy, or capacity what-if scenarios on this screen.'
               : 'Ask about operational, occupied, vacant, and blocked beds, or occupancy on this screen.'
@@ -558,7 +558,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
               ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
               : page === 'Safety & Return Visits'
                 ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
-                : 'Ask about ED visits, acuity mix, boarding beyond 4 hours, or disposition outcomes on this screen.',
+                : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
@@ -581,14 +581,14 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         role: 'assistant',
         title: answer.title,
         body: [
-          `What happened: ${answer.observation}`,
+          `What happened (${periodLabel}): ${answer.observation}`,
           `Why it matters: ${answer.benefit}`,
-          `Potential reasons: ${answer.explanation}`,
+          `Potential reasons (hypotheses, not proven causes): ${answer.explanation}`,
           `Supporting evidence: ${answer.evidence}`,
           `Recommended actions: ${answer.action}`,
-          `Expected impact: ${answer.outcome}`,
+          `Expected impact (illustrative): ${answer.outcome}`,
           `Management decision: ${answer.approval}`,
-          `Follow-up: Monitor the indicators named above after the next peak or reporting checkpoint (${periodLabel}).`,
+          `Follow-up: Re-measure the named KPIs on this screen after the next peak or reporting checkpoint (${periodLabel}).`,
         ].filter(Boolean),
       }]);
       setTyping(false);

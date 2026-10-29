@@ -82,9 +82,9 @@ describe('emergency and beds domains', () => {
     renderAt('/');
     fireEvent.click(screen.getByTestId('ed-ribbon').querySelector('button') as HTMLButtonElement);
     expect(screen.getByTestId('kpi-detail').textContent).toMatch(/Emergency arrivals|visits/i);
-    fireEvent.click(screen.getByRole('button', { name: 'Investigate ED visits over time' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate ED visit volume over time' }));
     expect(screen.getByRole('heading', { name: 'Vital Assist' })).toBeInTheDocument();
-    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/ED visits over time/);
+    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/ED visit volume over time/);
     expect(screen.getByText(/open alert/i)).toBeInTheDocument();
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });

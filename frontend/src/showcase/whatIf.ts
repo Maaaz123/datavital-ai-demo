@@ -99,12 +99,12 @@ function emergencyWhatIf(
     return {
       id: intent.kind,
       title: 'Boarding reduction scenario',
-      current: `Boarding beyond 4 hours ${pct(boardingShare)} of ${num(fact.edAdmitted)} emergency admissions · door-to-provider ${num(wait, 1)} minutes`,
+      current: `ED boarding beyond 4 hours ${pct(boardingShare)} of ${num(fact.edAdmitted)} emergency admissions · door-to-provider time ${num(wait, 1)} minutes`,
       change: `Illustrative ${pct(intent.amount, 0)} reduction in boarding share`,
       estimated: `Boarding share near ${pct(nextShare)} · about ${num(freed)} fewer long-boarding admissions in the year story`,
       assumptions: 'Assumes the same admission volume and that freed ED capacity is usable for new arrivals. Not a validated forecast.',
-      implications: 'Lower boarding can free emergency bays during peak hours and ease door-to-provider pressure indirectly.',
-      followUp: 'Boarding beyond 4 hours rate and door-to-provider median after the next peak week',
+      implications: 'Lower boarding can free emergency bays during peak hours and ease door-to-provider time pressure indirectly.',
+      followUp: 'ED boarding beyond 4 hours rate and door-to-provider time (median) after the next peak week',
       owner: 'Emergency operations lead',
     };
   }
@@ -115,12 +115,12 @@ function emergencyWhatIf(
     return {
       id: 'ed-priority-impact',
       title: 'Highest-impact ED action (illustrative)',
-      current: `Door-to-provider ${num(wait, 1)} minutes · boarding ${pct(boardingShare)} · left without care ${pct(leftRate)} · peaks ${peaks}`,
+      current: `Door-to-provider time ${num(wait, 1)} minutes · ED boarding beyond 4 hours ${pct(boardingShare)} · LWBS ${pct(leftRate)} · peaks ${peaks}`,
       change: 'Compare covering peak arrival hours versus clearing long-boarding cases',
       estimated: `Peak-hour coverage scenario: about ${num(peakLift, 1)} minutes off the median wait story. Boarding clearance scenario: about ${num(boardLift)} fewer long-boarding admissions.`,
       assumptions: 'Both paths use the same hospital figures. Relative ranking is a demonstration heuristic, not a measured A/B result.',
-      implications: 'If wait is above the 60-minute review line, peak-hour coverage is the first management lever; if boarding is high, clear admitted patients still in ED first.',
-      followUp: 'Door-to-provider median, boarding beyond 4 hours, and left-without-care rate',
+      implications: 'If door-to-provider time is above the 60-minute review line, peak-hour coverage is the first management lever; if boarding is high, clear admitted patients still in ED first.',
+      followUp: 'Door-to-provider time (median), ED boarding beyond 4 hours, and left without being seen (LWBS)',
       owner: 'Emergency operations lead',
     };
   }
@@ -132,12 +132,12 @@ function emergencyWhatIf(
   return {
     id: 'ed-arrivals-up',
     title: 'Arrival demand increase scenario',
-    current: `${num(arrivals)} visits · door-to-provider ${num(wait, 1)} minutes · left without care ${pct(leftRate)} · peak hours ${peaks}`,
+    current: `ED visit volume ${num(arrivals)} · door-to-provider time ${num(wait, 1)} minutes · LWBS ${pct(leftRate)} · peak hours ${peaks}`,
     change: `Illustrative ${pct(lift, 0)} rise in emergency arrivals`,
-    estimated: `About ${num(nextArrivals)} visits · wait near ${num(nextWait, 1)} minutes · left-without-care near ${pct(nextLeft)}`,
-    assumptions: 'Wait scales at 45% of the arrival increase and walkaways at 35% — demonstration elasticities only. Not a validated forecast.',
-    implications: 'Peak hours absorb most pressure. Without coverage or flow action, boarding and left-without-care risk both rise.',
-    followUp: 'Hourly arrivals, door-to-provider median, and left-without-care rate',
+    estimated: `About ${num(nextArrivals)} visits · door-to-provider time near ${num(nextWait, 1)} minutes · LWBS near ${pct(nextLeft)}`,
+    assumptions: 'Wait scales at 45% of the arrival increase and LWBS at 35% — demonstration elasticities only. Not a validated forecast.',
+    implications: 'Peak hours absorb most pressure. Without coverage or flow action, ED boarding and LWBS risk both rise.',
+    followUp: 'Hourly arrivals, door-to-provider time (median), and left without being seen (LWBS)',
     owner: 'Emergency operations lead',
   };
 }
@@ -160,8 +160,8 @@ function bedsWhatIf(fact: ReturnType<typeof scenarioFor>['focus'], intent: { kin
       change: `Illustrative return of ${num(freed)} blocked beds to the vacant ready pool`,
       estimated: `Vacant ${num(nextVacant)} · blocked ${num(nextBlocked)} · occupancy still ${pct(nextOcc)} of staffed beds (occupied unchanged)`,
       assumptions: 'Beds move from blocked to vacant only. No change in admissions or discharges. Cleaning capacity is assumed available.',
-      implications: `More ready beds can shorten assignment waits on pressure wards such as ${top?.id ?? 'the fullest ward'}.`,
-      followUp: 'Blocked bed share, vacant ready beds, and assignment median',
+      implications: `More ready beds can shorten bed allocation time on pressure wards such as ${top?.id ?? 'the fullest ward'}.`,
+      followUp: 'Blocked bed share, vacant ready beds, and bed allocation time (median)',
       owner: 'Bed management lead',
     };
   }
@@ -170,13 +170,13 @@ function bedsWhatIf(fact: ReturnType<typeof scenarioFor>['focus'], intent: { kin
     const nextAssign = Math.max(20, assign - intent.amount);
     return {
       id: intent.kind,
-      title: 'Faster bed assignment scenario',
-      current: `Assignment median ${num(assign)} minutes · vacant ${num(fact.availableBeds)} · blocked ${num(fact.blockedBeds)}`,
-      change: `Illustrative ${num(intent.amount)}-minute improvement in assignment median`,
-      estimated: `Assignment median near ${num(nextAssign)} minutes if the ready pool stays at least ${num(fact.availableBeds)} vacant beds`,
-      assumptions: 'Improvement requires vacant ready beds and prioritized pending requests. AI does not assign a bed alone.',
-      implications: 'Faster assignment reduces placement backlog and can ease emergency boarding pressure labeled as a Beds outcome only when bed clocks improve.',
-      followUp: 'Assignment median and pending request count',
+      title: 'Faster bed allocation scenario',
+      current: `Bed allocation time (median) ${num(assign)} minutes · vacant ${num(fact.availableBeds)} · blocked ${num(fact.blockedBeds)}`,
+      change: `Illustrative ${num(intent.amount)}-minute improvement in bed allocation time (median)`,
+      estimated: `Bed allocation time near ${num(nextAssign)} minutes if the ready pool stays at least ${num(fact.availableBeds)} vacant beds`,
+      assumptions: 'Improvement requires vacant ready beds and prioritized pending requests. AI does not allocate a bed alone.',
+      implications: 'Faster allocation reduces placement backlog and can ease emergency boarding pressure labeled as a Beds outcome only when bed clocks improve.',
+      followUp: 'Bed allocation time (median) and pending bed requests',
       owner: 'Bed management lead',
     };
   }

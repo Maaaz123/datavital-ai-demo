@@ -57,7 +57,7 @@ export function indicatorsFor(input: ScopeInput): Indicator[] {
   const high = (input.acuity[0] ?? 0) + (input.acuity[1] ?? 0);
   const esi = [0, 1, 2, 3, 4].map((level) => `ESI-${level + 1} ${num(input.acuity[level] ?? 0)}`).join(' · ');
   return [
-    row('ED Demand & Arrivals', 'Total ED Visits', num(input.arrivals), 'scenario', 'Emergency visits in the selected hospital and period.'),
+    row('ED Demand & Arrivals', 'ED Visit Volume', num(input.arrivals), 'scenario', 'Emergency visits in the selected hospital and period.'),
     blank('ED Demand & Arrivals', 'Unique ED Patients', 'Visits are not linked to a patient identifier, so unique patients are not counted.'),
     row('ED Demand & Arrivals', 'Arrivals by Hour', 'Peak afternoon hours · see demand chart', 'constructed', 'Hourly counts are a fixed split of the period total. They are not a visit clock.'),
     row('ED Demand & Arrivals', 'Arrivals by Day', 'Weekday mix · see demand chart', 'constructed', 'Weekday counts are a fixed split of the period total.'),
@@ -82,9 +82,9 @@ export function indicatorsFor(input: ScopeInput): Indicator[] {
     blank('ED Flow & Disposition', 'Arrival-to-Disposition Decision Time', 'No disposition-decision timestamp exists. It is not derived from length of stay or door-to-provider.'),
     row('ED Flow & Disposition', 'ED Admission Rate', pct(input.admitted / arrivals), 'scenario', 'Emergency visits with an admit decision divided by emergency visits. This is not inpatient bed occupancy.'),
     row('ED Flow & Disposition', 'ED Discharge Rate', pct(input.discharged / arrivals), 'scenario', 'Emergency visits discharged from the department divided by emergency visits.'),
-    row('ED Flow & Disposition', 'Left Without Being Seen Rate', pct(input.left / arrivals), 'scenario', 'Left before triage plus left after triage, divided by arrivals.'),
+    row('ED Flow & Disposition', 'Left Without Being Seen (LWBS) Rate', pct(input.left / arrivals), 'scenario', 'Left before triage plus left after triage, divided by arrivals.'),
     blank('ED Flow & Disposition', 'ED Boarding Duration — Median', 'Time still in the department after the admit decision is not a distribution. The share beyond 4 hours is not a median.'),
-    row('ED Flow & Disposition', 'Boarding Beyond 4 Hours Rate', pct(input.admitted ? input.boarding / input.admitted : 0), 'constructed', 'Admitted visits still in the department more than 4 hours after the admit decision, divided by emergency admissions. The scenario rate moves with hospital occupancy, and occupancy itself is not shown.'),
+    row('ED Flow & Disposition', 'ED Boarding Beyond 4 Hours Rate', pct(input.admitted ? input.boarding / input.admitted : 0), 'constructed', 'Admitted visits still in the department more than 4 hours after the admit decision, divided by emergency admissions. The scenario rate moves with hospital occupancy, and occupancy itself is not shown.'),
 
     row('ED Quality & Outcomes', 'Unplanned 72-Hour ED Return Rate', pct(input.revisit / arrivals), 'constructed', 'A fixed 3.4% share of arrivals. The denominator is arrivals, not eligible discharges, and visits are not linked.'),
     blank('ED Quality & Outcomes', 'Return Visits Resulting in Admission', 'Return visits are not linked to a later admission.'),
