@@ -487,8 +487,8 @@ export function BedsCapacityPage() {
         <p className="gc-next">What-if opening or closing beds is illustrative only. AI does not move a patient.</p>
       </section>
       <Slot figure={fig('bars', 'Beds by type (snapshot)', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the current snapshot.')} />
-      <Slot figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy = occupied ÷ staffed at the snapshot. Monthly averages are not summed.')} />
       <Donut title="Operational beds by type" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
+      <Slot span="span-12" figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy = occupied ÷ staffed at the snapshot. Monthly averages are not summed.')} />
       <AiIndex />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Capacity Planning']} />
     </Page>
@@ -502,8 +502,8 @@ function Donut({ title, note, parts }: { title: string; note: string; parts: { n
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <section className="gc-panel gc-slot span-12">
-      <figure className="gc-chart gc-donut-wide" data-chart-state="ok">
+    <section className="gc-panel gc-slot span-6">
+      <figure className="gc-chart" data-chart-state="ok">
         <figcaption className="gc-chart-head">
           <div className="gc-chart-copy">
             <strong>{title}</strong>

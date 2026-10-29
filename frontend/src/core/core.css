@@ -511,15 +511,6 @@
 }
 .gc-ed .gc-slot .gc-chart-stage { min-height: 0; }
 .gc-ed .gc-slot .gc-chart-stage > svg { max-height: 168px; }
-.gc-ed .gc-slot .gc-donut-wide .gc-donut-body {
-  grid-template-columns: 132px minmax(0, 1fr);
-  gap: 14px;
-  max-width: 520px;
-}
-.gc-ed .gc-slot .gc-donut-wide .gc-donut-legend {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: center;
-}
 .gc-ipd-journey { display: grid; gap: 10px; }
 .gc-ipd-steps {
   list-style: none;
