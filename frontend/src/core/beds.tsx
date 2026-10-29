@@ -328,16 +328,16 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
   );
 }
 
-function AiIndex({ compact = false }: { compact?: boolean }) {
+function AiIndex() {
   return (
-    <section className={`gc-panel ${compact ? 'span-6' : 'span-12'} gc-scope gc-scope-tight`}>
+    <section className="gc-panel span-12 gc-scope gc-scope-tight">
       <div className="gc-scope-head">
         <div>
           <h2>AI decision support</h2>
           <p>Illustrative bed-capacity intelligence · not a validated predictive model</p>
         </div>
       </div>
-      <div className={`gc-scope-grid ${compact ? 'gc-scope-grid-dense' : ''}`}>
+      <div className="gc-scope-grid gc-scope-grid-dense">
         {BEDS_AI_CASES.map((item, index) => (
           <article key={item.id} className="gc-scope-card is-constructed gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }} title={item.limit}>
             <span className="gc-scope-status">{item.level}</span>
@@ -489,7 +489,7 @@ export function BedsCapacityPage() {
       <Slot figure={fig('bars', 'Beds by type (snapshot)', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the current snapshot.')} />
       <Slot figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy = occupied ÷ staffed at the snapshot. Monthly averages are not summed.')} />
       <Donut title="Operational beds by type" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
-      <AiIndex compact />
+      <AiIndex />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Capacity Planning']} />
     </Page>
   );
