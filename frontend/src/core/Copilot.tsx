@@ -256,9 +256,9 @@ function AlertFeed({ alerts, statusOf }: { alerts: DemoAlert[]; statusOf: (alert
           </button>
           <p className="gc-assist-note">{statusLabel(statusOf(alert))} · {alert.period} · {alert.department}</p>
           <div className="gc-inline">
-            <button type="button" className="gc-btn quiet" onClick={() => store.setAlertStatus(alert.id, 'acknowledged')}>Acknowledge</button>
-            <button type="button" className="gc-btn quiet" onClick={() => copilot.openAlert(alert)}>Investigate</button>
-            <button type="button" className="gc-btn quiet" onClick={() => store.setAlertStatus(alert.id, 'dismissed')}>Dismiss</button>
+            <button type="button" className="gc-chip-btn is-watch" onClick={() => store.setAlertStatus(alert.id, 'acknowledged')}>Acknowledge</button>
+            <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.openAlert(alert)}>Investigate</button>
+            <button type="button" className="gc-chip-btn is-mute" onClick={() => store.setAlertStatus(alert.id, 'dismissed')}>Dismiss</button>
           </div>
         </li>
       ))}
@@ -283,11 +283,8 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
         <li><strong>Evidence</strong><span>{alert.evidence}</span></li>
       </ol>
       <div className="gc-inline">
-        <button type="button" className="gc-ai-cta" onClick={() => copilot.setTab('approvals')}>
-          <span className="gc-ai-orb" aria-hidden="true">✓</span>
-          Open decision review
-        </button>
-        <button type="button" className="gc-btn quiet" onClick={() => copilot.setTab('actions')}>Review recommendation</button>
+        <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
+        <button type="button" className="gc-chip-btn is-watch" onClick={() => copilot.setTab('actions')}>Review recommendation</button>
       </div>
     </article>
   );
@@ -328,10 +325,7 @@ function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' |
         <p>Decision: {decision ?? 'waiting for a person'}</p>
       </section>
       {mode === 'decide' ? null : (
-        <button type="button" className="gc-ai-cta" onClick={() => copilot.setTab('approvals')}>
-          <span className="gc-ai-orb" aria-hidden="true">✓</span>
-          Open decision review
-        </button>
+        <button type="button" className="gc-chip-btn is-good" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
       )}
     </article>
   );
@@ -368,16 +362,16 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
         {step === 2 ? <p>Prediction: Not a validated model. Continued demand is not converted into a predicted wait.</p> : null}
         {step === 3 ? <p>Recommendation: {lead?.action ?? 'Review the peak arrival hours against the door-to-provider median.'} Expected impact is not calculated.</p> : null}
         {step === 4 ? (
-          <div>
+          <div className={`gc-decide-box ${decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch'}`}>
             <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
             <div className="gc-inline">
-              <button type="button" className="gc-btn primary" onClick={() => store.decide(key, 'approved')}>Approve</button>
-              <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject</button>
+              <button type="button" className="gc-chip-btn is-good" onClick={() => store.decide(key, 'approved')}>Approve</button>
+              <button type="button" className="gc-chip-btn is-alert" onClick={() => store.decide(key, 'rejected')}>Reject</button>
             </div>
           </div>
         ) : null}
         {step === 5 ? (
-          <div>
+          <div className={`gc-decide-box ${decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch'}`}>
             {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
             {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
             {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
