@@ -166,7 +166,7 @@ Local preview verified at 1440px: short titles, full comparison labels (`No chan
 
 | Item | Value |
 |---|---|
-| Feature commit | *(recorded after push of v62b assist tip fix)* |
+| Feature commit | `d3e5c589a58ac64555fa1ff661eff302b87412cf` |
 | Prior feature commit | `dbb2a27c880a121ae746be20e47e4edfb5f60e98` |
 | BUILD_ID | `v62b-surgery-assist-fix` |
 | Published JS | `assets/index-CnTRjvKB.js` |
@@ -177,8 +177,8 @@ Local preview verified at 1440px: short titles, full comparison labels (`No chan
 
 | Check | Result |
 |---|---|
-| `index.html` serves Surgery bundle | **PASS** (`index-dqmCFM9Y.js` v62; re-verify `index-CnTRjvKB.js` after v62b push) |
-| `refresh.html` BUILD_ID | **PASS** (v62 live; v62b after push) |
+| `index.html` serves Surgery bundle | **PASS** (`index-CnTRjvKB.js` / BUILD_ID `v62b-surgery-assist-fix`) |
+| `refresh.html` BUILD_ID | **PASS** (`v62b-surgery-assist-fix`) |
 | `/surgery` Command Center KPIs + charts | **PASS** |
 | `/surgery/or` utilization KPIs + charts | **PASS** |
 | `/surgery/access` backlog / wait KPIs + charts | **PASS** |
