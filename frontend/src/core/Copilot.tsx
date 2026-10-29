@@ -110,8 +110,8 @@ export function CopilotPanel() {
   const lang = store.lang;
   const screenId = 'emergency';
   const page = location.pathname.startsWith('/emergency/flow') ? 'Patient Flow & Waiting'
-    : location.pathname.startsWith('/emergency/capacity-quality') ? 'Capacity & Quality'
-    : location.pathname.startsWith('/emergency/ai-decisions') ? 'AI Decisions'
+    : location.pathname.startsWith('/emergency/quality') ? 'ED Quality & Outcomes'
+    : location.pathname.startsWith('/emergency/ai') ? 'ED AI Intelligence'
     : 'Emergency Overview';
   const { alerts, note } = visibleAlerts(store.hospital, store.year, 'All', screenId);
   const selected = alerts.find((alert) => alert.id === copilot.selectedId) ?? alerts[0] ?? null;

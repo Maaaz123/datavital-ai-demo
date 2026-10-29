@@ -30,7 +30,7 @@ describe('four emergency pages', () => {
     expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data/i);
     expect(screen.getAllByText('68,372').length).toBeGreaterThan(0);
     const labels = [...document.querySelectorAll('.gc-nav a')].map((item) => item.textContent);
-    expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'Capacity & Quality', 'AI Decisions']);
+    expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes', 'ED AI Intelligence']);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
@@ -63,7 +63,7 @@ describe('four emergency pages', () => {
   });
 
   it('renders the other three pages with charts', () => {
-    for (const path of ['/emergency/flow', '/emergency/capacity-quality', '/emergency/ai-decisions']) {
+    for (const path of ['/emergency/flow', '/emergency/quality', '/emergency/ai']) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
       expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(2);
@@ -74,7 +74,7 @@ describe('four emergency pages', () => {
   });
 
   it('approves an estimate, isolates it by hospital, and restores it', () => {
-    renderAt('/emergency/ai-decisions');
+    renderAt('/emergency/ai');
     fireEvent.click(screen.getByRole('tab', { name: /2\. Investigation/ }));
     expect(screen.getByText(/Compare the median with the P90/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /3\. Prediction/ }));
@@ -121,27 +121,34 @@ describe('four emergency pages', () => {
     expect(quarter).toBeGreaterThan(0);
   });
 
-  it('keeps the 78 indicators separate and leaves unsupported clocks blank', () => {
+  it('keeps the 30 emergency-visit indicators and leaves unsupported clocks blank', () => {
     const input: ScopeInput = {
-      arrivals: 100, admitted: 20, discharged: 78, left: 2, before: 1, deaths: 1,
+      arrivals: 100, admitted: 20, discharged: 78, left: 2, deaths: 1,
       triageCompleted: 99, median: 63.3, p90: 109.4, losMedian: 141, losP90: 233,
-      boarding: 2, revisit: 3, required: 10, filled: 8,
-      shifts: [{ name: 'Night', required: 2, filled: 2 }, { name: 'Day', required: 5, filled: 4 }, { name: 'Evening', required: 3, filled: 2 }],
-      bedsAvailable: 71, bays: 28,
+      boarding: 2, revisit: 3,
       modes: [{ name: 'Ambulance', count: 18 }],
-      peaks: [{ name: '11:00', count: 9 }],
-      priorArrivals: 90,
       acuity: [8, 22, 40, 22, 8],
     };
     const rows = indicatorsFor(input);
-    expect(rows).toHaveLength(78);
-    expect(new Set(rows.map((row) => `${row.domain}:${row.name}`)).size).toBe(78);
-    expect(AI_CASES).toHaveLength(18);
-    const disposition = rows.find((row) => row.name === 'Time to Disposition Decision');
+    expect(rows).toHaveLength(30);
+    expect(new Set(rows.map((row) => `${row.domain}:${row.name}`)).size).toBe(30);
+    expect(AI_CASES).toHaveLength(10);
+    const disposition = rows.find((row) => row.name === 'Arrival-to-Disposition Decision Time');
     expect(disposition?.value).toBe('Not in scenario');
     expect(disposition?.method).toMatch(/not derived from length of stay/i);
-    expect(rows.find((row) => row.name === 'Door-to-Provider Median')?.method).toMatch(/not length of stay/i);
-    expect(rows.find((row) => row.name === 'ED Length of Stay P50')?.method).toMatch(/not separated/i);
-    expect(rows.filter((row) => row.domain === 'Patient Experience').every((row) => row.value === 'Not in scenario')).toBe(true);
+    expect(rows.find((row) => row.name === 'Door-to-Provider Time — Median')?.method).toMatch(/not length of stay/i);
+    expect(rows.find((row) => row.name === 'ED Length of Stay — Median')?.method).toMatch(/not separated/i);
+    expect(rows.some((row) => /workforce|experience|staffed beds|revenue/i.test(row.domain))).toBe(false);
+  });
+
+  it('keeps hospital beds and staffing off the emergency pages', () => {
+    const quality = renderAt('/emergency/quality');
+    expect(screen.getByRole('heading', { level: 1, name: 'ED Quality & Outcomes' })).toBeInTheDocument();
+    expect(screen.getAllByText('0.035%').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Staffed Hospital Beds|staffing gap|Patient Experience/i)).not.toBeInTheDocument();
+    quality.unmount();
+    const redirected = renderAt('/emergency/capacity-quality');
+    expect(screen.getByRole('heading', { level: 1, name: 'ED Quality & Outcomes' })).toBeInTheDocument();
+    redirected.unmount();
   });
 });

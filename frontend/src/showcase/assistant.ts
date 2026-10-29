@@ -50,6 +50,35 @@ export function answerQuestion(question: string, hospital: string, year: number,
   const denialSites = [...sites].sort((a, b) => b.annual.claimsDenied / b.annual.claimsSubmitted - a.annual.claimsDenied / a.annual.claimsSubmitted)[0];
   const lowSat = [...sites].sort((a, b) => a.annual.satisfaction - b.annual.satisfaction)[0];
 
+  if (department === 'Emergency') {
+    const outside = /\b(workforce|staffing|satisfaction|complaint|survey|claim|revenue|cost|laboratory|imaging|pharmacy|radiology)\b/.test(q)
+      || (/\bbeds?\b/.test(q) && !/\bboarding\b/.test(q));
+    if (outside) {
+      return pack(lang, {
+        title: tx(lang, 'Outside Emergency Department Intelligence', 'خارج ذكاء قسم الطوارئ'),
+        observation: tx(lang, 'This view covers the emergency visit only.', 'هذه الواجهة تغطي زيارة الطوارئ فقط.'),
+        evidence: tx(lang, 'Hospital beds, workforce, experience, revenue, laboratory, imaging, and pharmacy are not emergency indicators.', 'أسرة المستشفى والقوى العاملة والتجربة والإيراد والمختبر والأشعة والصيدلية ليست مؤشرات طوارئ.'),
+        explanation: tx(lang, 'A figure from another system may later help explain an emergency delay. It is not an emergency dashboard.', 'رقم من نظام آخر قد يساعد لاحقاً في تفسير تأخر طوارئ. هو ليس لوحة طوارئ.'),
+        action: tx(lang, 'Stay with arrival, triage, waiting, flow, boarding, left without being seen, return, and mortality.', 'ابقَ عند الوصول والفرز والانتظار والتدفق والـboarding والمغادرة قبل الكشف والعودة والوفيات.'),
+        role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
+        benefit: tx(lang, 'No hospital-wide result is shown.', 'لا تُعرض نتيجة على مستوى المستشفى.'),
+      });
+    }
+    const delta = waitNow - waitThen;
+    const countLine = `${current.edArrivals.toLocaleString('en-US')} emergency visits. Admitted from the department ${current.edAdmitted.toLocaleString('en-US')}, discharged ${current.edDischarged.toLocaleString('en-US')}, left ${current.edLeft.toLocaleString('en-US')}.`;
+    return pack(lang, {
+      title: tx(lang, `Emergency visit at ${name} in ${year}`, `زيارة الطوارئ في ${name} عام ${year}`),
+      observation: tx(lang, /how many/.test(q)
+        ? `${current.edArrivals.toLocaleString('en-US')} emergency visits in ${year}.`
+        : `Door-to-provider median is ${waitNow.toFixed(0)} minutes. P90 is ${current.edWaitP90Min.toFixed(0)} minutes. Length of stay is a separate clock.`, `وسيط الوصول للطبيب ${waitNow.toFixed(0)} دقيقة. المئين 90 هو ${current.edWaitP90Min.toFixed(0)} دقيقة. مدة البقاء ساعة مختلفة.`),
+      evidence: tx(lang, countLine, `${current.edArrivals.toLocaleString('en-US')} زيارة طوارئ. التنويم من القسم ${current.edAdmitted.toLocaleString('en-US')}، والخروج ${current.edDischarged.toLocaleString('en-US')}، والمغادرة قبل الكشف ${current.edLeft.toLocaleString('en-US')}.`),
+      explanation: tx(lang, `Hypothesis, not a proven cause: the median changed by ${delta.toFixed(0)} minutes versus ${year === 2024 ? 'the 2024 baseline' : year - 1}. Inpatient occupancy is not used as an emergency indicator.`, `فرضية وليست سبباً مثبتاً: تغيّر الوسيط بمقدار ${delta.toFixed(0)} دقيقة مقابل ${year === 2024 ? 'خط أساس 2024' : year - 1}. إشغال التنويم ليس مؤشر طوارئ.`),
+      action: tx(lang, 'Review the peak arrival hours against the door-to-provider median. Expected impact is not calculated.', 'راجع ساعات ذروة الوصول مقابل وسيط الوصول للطبيب. الأثر المتوقع غير محسوب.'),
+      role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
+      benefit: tx(lang, 'Not a validated model. This is not a forecast.', 'ليس نموذجاً متحققاً. هذا ليس توقعاً.'),
+    });
+  }
+
   if (q.includes('wait') || q.includes('emergency') || q.includes('طوار') || q.includes('انتظار')) {
     const delta = waitNow - waitThen;
     return pack(lang, {

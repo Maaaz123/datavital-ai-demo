@@ -9,8 +9,8 @@ import './core.css';
 const NAV = [
   { to: '/', label: 'Overview', end: true },
   { to: '/emergency/flow', label: 'Patient Flow & Waiting', end: false },
-  { to: '/emergency/capacity-quality', label: 'Capacity & Quality', end: false },
-  { to: '/emergency/ai-decisions', label: 'AI Decisions', end: false },
+  { to: '/emergency/quality', label: 'ED Quality & Outcomes', end: false },
+  { to: '/emergency/ai', label: 'ED AI Intelligence', end: false },
 ];
 
 function Shell() {
@@ -99,7 +99,7 @@ function Shell() {
 function NavGlyph({ label }: { label: string }) {
   const path = label.startsWith('Overview') ? 'M4 10.5 12 4l8 6.5V20H4z'
     : label.startsWith('Patient') ? 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0'
-    : label.startsWith('Capacity') ? 'M4 16h4V8H4zm6 0h4V4h-4zm6 0h4v-6h-4z'
+    : label.startsWith('ED Quality') ? 'M5 19V5h10l4 4v10H5zm8-14v4h4'
     : 'M12 3l1.8 4.7L18 9.5l-4.2 1.8L12 16l-1.8-4.7L6 9.5l4.2-1.8z';
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
