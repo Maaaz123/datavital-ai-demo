@@ -34,12 +34,12 @@ type Persisted = {
 };
 
 const INITIAL_CASES: ExperienceCase[] = [
-  { id: 'PX-2401', kind: 'satisfaction', title: 'Ward B quiet-hours score', detail: 'Synthetic score dipped after a staffing gap on two evenings.', status: 'open' },
-  { id: 'PX-2402', kind: 'complaint', title: 'Discharge instructions unclear', detail: 'Fictional family asked for a clearer medication list.', status: 'open' },
-  { id: 'PX-2403', kind: 'survey', title: 'Post-visit survey, clinic 3', detail: 'Synthetic response rate is below the scenario target.', status: 'reviewing' },
-  { id: 'PX-2404', kind: 'discharge', title: 'Weekend discharge experience', detail: 'Scenario shows longer pharmacy waits before leaving.', status: 'open' },
-  { id: 'PX-2405', kind: 'followup', title: 'Seven-day follow-up calls', detail: 'A fictional cohort missed the day-7 call window.', status: 'reviewing' },
-  { id: 'PX-2406', kind: 'recovery', title: 'Service recovery offer', detail: 'Scenario proposes a callback and a revised instruction sheet.', status: 'open' },
+  { id: 'PX-2401', kind: 'satisfaction', title: 'Ward B quiet-hours score', detail: 'Quiet-hours score dipped after a staffing gap on two evenings.', status: 'open' },
+  { id: 'PX-2402', kind: 'complaint', title: 'Discharge instructions unclear', detail: 'A family asked for a clearer medication list.', status: 'open' },
+  { id: 'PX-2403', kind: 'survey', title: 'Post-visit survey, clinic 3', detail: 'Survey response is below the review line for this clinic.', status: 'reviewing' },
+  { id: 'PX-2404', kind: 'discharge', title: 'Weekend discharge experience', detail: 'Weekend discharges show longer pharmacy waits before leaving.', status: 'open' },
+  { id: 'PX-2405', kind: 'followup', title: 'Seven-day follow-up calls', detail: 'A group of discharges missed the day-7 call window.', status: 'reviewing' },
+  { id: 'PX-2406', kind: 'recovery', title: 'Service recovery offer', detail: 'The next step is a callback and a revised instruction sheet.', status: 'open' },
 ];
 
 function fresh(): Persisted {
@@ -83,7 +83,11 @@ function load(): Persisted {
     const raw = storage().getItem(STORAGE_KEY);
     if (!raw) return fresh();
     const parsed = JSON.parse(raw) as Persisted;
-    return { ...fresh(), ...parsed, cases: parsed.cases?.length ? parsed.cases : INITIAL_CASES, alertStatus: parsed.alertStatus ?? {} };
+    const cases = INITIAL_CASES.map((item) => {
+      const saved = parsed.cases?.find((entry) => entry.id === item.id);
+      return saved ? { ...item, status: saved.status } : item;
+    });
+    return { ...fresh(), ...parsed, lang: 'en', cases, alertStatus: parsed.alertStatus ?? {} };
   } catch {
     return fresh();
   }

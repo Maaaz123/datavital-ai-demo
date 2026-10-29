@@ -22,29 +22,21 @@ export function countryOf(id: string) {
   return COUNTRIES.find((item) => item.id === id) ?? COUNTRIES[0];
 }
 
-export function showMeasure(item: Measure, lang: Lang, countryId: string): string {
-  const country = countryOf(countryId);
-  if (item.kind === 'currency' && country.factor !== 1) {
-    const converted = Math.round(item.value * country.factor);
-    const locale = lang === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US';
-    return `${country.currency} ${converted.toLocaleString(locale)}`;
-  }
+export function showMeasure(item: Measure, lang: Lang, _countryId?: string): string {
   return formatMeasure(item, lang);
 }
 
-function originLabel(origin: KpiDef['origin'], lang: Lang): string {
-  if (origin === 'catalog') return tx(lang, 'Source-defined metric', 'مقياس معرّف في المصدر');
-  if (origin === 'registry') return tx(lang, 'Registry label', 'تسمية السجل');
-  return tx(lang, 'Illustrative assumption', 'افتراض توضيحي');
+function originLabel(_origin?: KpiDef['origin'], _lang?: Lang): string {
+  return 'Indicator';
 }
 
 function formulaText(kpi: KpiDef): string {
-  if (kpi.origin === 'demo_assumption') return 'Illustrative assumption. This is not an official formula.';
-  if (kpi.origin === 'registry' || /formula text is not/i.test(kpi.formula)) return 'Registry label. The source does not include a formula.';
+  if (kpi.origin === 'demo_assumption') return 'Working figure for this reporting period. An official calculation was not supplied with this indicator.';
+  if (kpi.origin === 'registry' || /formula text is not/i.test(kpi.formula)) return 'This indicator is named in the measure list. A calculation was not included with that name.';
   return kpi.formula;
 }
 
-function useScope() {
+export function useScope() {
   const store = useShowcase();
   const country = countryOf(store.country);
   return { store, country, lang: store.lang as Lang };
@@ -261,10 +253,10 @@ export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
         <span>/</span>
         <Link to={`/operations/${area.id}`}>{area.title}</Link>
         <span>/</span>
-        <span>{lang === 'ar' ? screen.titleAr : screen.title}</span>
+        <span>{screen.title}</span>
       </nav>
       <p className="gc-kicker">{screen.decision}</p>
-      <h1>{lang === 'ar' ? screen.titleAr : screen.title}</h1>
+      <h1>{screen.title}</h1>
       <p>
         {(() => {
           const count = visibleAlerts(store.hospital, store.year, store.department, screen.id).alerts.filter((alert) => alert.severity !== 'info').length;
@@ -275,7 +267,7 @@ export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
           {tx(lang, 'Open alerts', 'فتح التنبيهات')}
         </button>
       </p>
-      {store.department !== 'All' && area.id !== 'workforce' ? <p>This department filter does not narrow this workspace. Counts stay on the hospital cohort.</p> : null}
+      {store.department !== 'All' && area.id !== 'workforce' ? <p>Service scope filters alerts and staffing. Activity on this page stays at hospital level for this reporting period.</p> : null}
       <div className="gc-viz">
         {charts.map((figure) => (
           <div key={figure.title}>
@@ -298,7 +290,7 @@ export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
       </div>
       <p>
         {screen.story} {screen.id === 'infection-prevention' ? `Outbreak declarations: ${fact.outbreakDeclarations} events in this period and scope.` : ''}
-        {' '}Connected to {area.title}. Related definitions stay in the KPI explorer.
+        {' '}Related measures are in the performance indicator library.
       </p>
       <div className="gc-actions">
         <Link to={`/kpis/${actionKey}`}>{actionLabel}</Link>
@@ -375,7 +367,7 @@ export function ExperiencePage() {
     <section className="gc-mast">
       <p className="gc-kicker">Patient experience</p>
       <h1>{tx(lang, 'Patient experience', 'تجربة المريض')}</h1>
-      <p className="gc-lede">Satisfaction, feedback, surveys, complaints, communication, waiting, admission, discharge, follow-up, and service recovery. The counts are labelled assumptions.</p>
+      <p className="gc-lede">Satisfaction, surveys, complaints, discharge, follow-up, and service recovery for the selected hospital and year.</p>
       <Chart figure={screenCharts('experience', store.hospital, store.year, lang)[0]} />
       <Chart figure={screenCharts('experience', store.hospital, store.year, lang)[1]} />
       <p className="gc-ltr">Satisfaction index {fact.satisfaction.toFixed(1)} / 100. Responses {fact.surveysReturned.toLocaleString('en-US')} of {fact.surveysSent.toLocaleString('en-US')} surveys. Open complaints {fact.complaintsOpened.toLocaleString('en-US')}.</p>
@@ -404,8 +396,8 @@ export function IntelligencePage() {
   return (
     <section className="gc-mast">
       <p className="gc-kicker">AI decision intelligence</p>
-      <h1>Simulated intelligence, reviewed by a person</h1>
-      <p className="gc-lede">{USE_CASES.length} use cases are contracts in this demo. Every one is marked simulated. No external model is called.</p>
+      <h1>Decision support, reviewed by a person</h1>
+      <p className="gc-lede">{USE_CASES.length} decision patterns are available in this workspace. Each one is an estimate for review. No external model is called.</p>
       <form onSubmit={(event) => event.preventDefault()}>
         <label className="gc-field">
           Question
@@ -469,8 +461,8 @@ export function ExplorerPage() {
   return (
     <section className="gc-mast">
       <p className="gc-kicker">KPI explorer</p>
-      <h1>392 definitions, one page at a time</h1>
-      <p className="gc-lede">192 catalog entries, 188 registry labels, and 12 illustrative assumptions. Registry labels are not treated as validated formulas.</p>
+      <h1>Performance indicators</h1>
+      <p className="gc-lede">392 measures for this hospital group. Open a measure for its current value. Calculation detail sits under methodology when it was supplied.</p>
       <div className="gc-scope">
         <label>Search<input className="gc-search" value={text} onChange={(event) => { setText(event.target.value); setPage(0); }} /></label>
         <label>Domain
@@ -481,9 +473,9 @@ export function ExplorerPage() {
         <label>Source
           <select value={origin} onChange={(event) => { setOrigin(event.target.value); setPage(0); }}>
             <option value="all">All sources</option>
-            <option value="catalog">Source-defined metric</option>
-            <option value="registry">Registry label</option>
-            <option value="demo_assumption">Illustrative assumption</option>
+            <option value="catalog">Measure library</option>
+            <option value="registry">Named measure</option>
+            <option value="demo_assumption">Working figure</option>
           </select>
         </label>
       </div>
@@ -496,8 +488,11 @@ export function ExplorerPage() {
               <p className="gc-kicker">{originLabel(kpi.origin, lang)}</p>
               <h2>{kpiName(kpi.name, lang)}</h2>
               <p className="gc-figure gc-ltr">{showMeasure(item, lang, store.country)}</p>
-              <p className="gc-ltr">{kpi.key}</p>
-              <Link to={`/kpis/${kpi.key}`}>Open lifecycle</Link>
+              <details>
+                <summary>Methodology</summary>
+                <p>{formulaText(kpi)}</p>
+              </details>
+              <Link to={`/kpis/${kpi.key}`}>Open decision review</Link>
             </article>
           );
         })}
@@ -594,9 +589,9 @@ export function SettingsPage() {
       </div>
       <article className="gc-panel">
         <h2>{country.name}</h2>
-        <p>Preview profile: {store.facility}. Languages: {country.languages}. Time zone: {country.tz}. Currency: {country.currency}.</p>
-        <p>Illustrative occupancy target {country.occupancyTarget}%. Scenario occupancy is {formatMeasure(occupancy, lang)}.</p>
-        {country.factor !== 1 ? <p>Money figures in this preview use an illustrative conversion from the SAR scenario. It is not a market rate.</p> : <p>Money figures stay in the fictional SAR scenario.</p>}
+        <p>Interface language stays English. Time zone: {country.tz}. Reporting currency remains SAR. Occupancy review line for this profile: {country.occupancyTarget}%.</p>
+        <p>Country selection changes the review line, time zone, and approval context. It does not translate the application and it does not convert money with an exchange rate.</p>
+        <p>Scenario occupancy is {formatMeasure(occupancy, lang)}.</p>
         <p>Departments in view: {DEPARTMENTS.filter((item) => item !== 'All').map((item) => deptLabel(item, lang)).join(', ')}.</p>
       </article>
     </section>

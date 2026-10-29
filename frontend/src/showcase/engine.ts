@@ -28,7 +28,7 @@ export type UseCaseDef = {
   status: 'SIMULATED';
 };
 
-export const DISCLAIMER = 'Interactive demo — synthetic data and simulated AI.';
+export const DISCLAIMER = 'Illustrative hospital data and simulated AI insights — not live clinical or financial records.';
 
 export const HOSPITALS = [
   { code: 'ALL', name: 'All five hospitals', nameAr: 'المستشفيات الخمسة' },

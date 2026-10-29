@@ -50,7 +50,7 @@ describe('marketing demo coverage', () => {
 
   it('renders the public home and the disclosure', () => {
     renderAt('/');
-    expect(screen.getByRole('status').textContent).toMatch(/synthetic data and simulated AI/i);
+    expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data and simulated AI insights/i);
     expect(screen.getByRole('heading', { level: 1, name: /Executive Command Center/ })).toBeInTheDocument();
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe('marketing demo coverage', () => {
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
     expect(value.textContent).not.toBe(before);
     fireEvent.change(screen.getByLabelText('Department'), { target: { value: 'Pharmacy' } });
-    expect(screen.getByText(/does not narrow this workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/hospital level for this reporting period/i)).toBeInTheDocument();
     expect(document.querySelector('[data-chart-state="ok"]')).toBeTruthy();
   });
 
@@ -100,13 +100,13 @@ describe('marketing demo coverage', () => {
     expect(screen.getByText(/No illustrative outcome/i)).toBeInTheDocument();
   });
 
-  it('advances a patient-experience case and switches to Arabic RTL', () => {
+  it('keeps the experience workspace in English', () => {
     renderAt('/showcase/experience');
     fireEvent.click(screen.getAllByRole('button', { name: 'Advance' })[0]);
     expect(screen.getByRole('heading', { level: 2, name: /PX-2401/ }).textContent).toMatch(/reviewing/);
-    fireEvent.click(screen.getByRole('button', { name: 'العربية' }));
-    expect(document.querySelector('.gc-shell')).toHaveAttribute('dir', 'rtl');
-    expect(screen.getByRole('heading', { level: 1, name: 'تجربة المريض' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'العربية' })).not.toBeInTheDocument();
+    expect(document.querySelector('.gc-shell')).toHaveAttribute('dir', 'ltr');
+    expect(screen.getByRole('heading', { level: 1, name: 'Patient experience' })).toBeInTheDocument();
   });
 
   it('answers from the selected hospital without a live model', () => {

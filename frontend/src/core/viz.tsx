@@ -171,7 +171,7 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     fig(c.domain, ['length-of-stay'], 'line', 'Inpatient median stay', c.months, [{ name: 'Days', values: monthSeries(c.scenario, 'ipLosDays') }], 'days', 1, 'Kept on its own scale so days are not drawn against minutes.'),
   ],
   dialysis: (c) => [
-    fig(c.domain, ['dialysis-sessions'], 'line', 'Dialysis sessions', c.months, [{ name: 'Sessions', values: monthSeries(c.scenario, 'dialysisSessions') }], 'sessions', 0, 'Labelled demo assumption. NMR names dialysis and does not list these columns.'),
+    fig(c.domain, ['dialysis-sessions'], 'line', 'Dialysis sessions', c.months, [{ name: 'Sessions', values: monthSeries(c.scenario, 'dialysisSessions') }], 'sessions', 0, 'Working figure for this reporting period. NMR names dialysis and does not list these columns.'),
     pair(c, 'Sessions versus the prior year', String(c.scenario.year), String(c.prior.year), c.scenario.focus.dialysisSessions, c.prior.focus.dialysisSessions, 'sessions', 0, 'Same hospital, prior year in the scenario.', ['dialysis-sessions']),
   ],
   mortality: (c) => [
@@ -229,7 +229,7 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     fig(c.domain, ['complaints'], 'funnel', 'Open work a person can review', ['Complaints opened', 'Complaints closed'], [{
       name: 'Complaints',
       values: [c.scenario.focus.complaintsOpened, c.scenario.focus.complaintsClosed],
-    }], 'complaints', 0, 'Labelled demo assumption. Closing a case here is not a measured hospital result.'),
+    }], 'complaints', 0, 'Working figure for this reporting period. Closing a case here is not a measured hospital result.'),
     fig(c.domain, ['staffing'], 'bars', 'Staffing room to act', ['Vacancy', 'Coverage'], [{
       name: 'Percent',
       values: [
@@ -253,7 +253,7 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     }], 'events', 0, '0.4% of administrations. A count, not a patient-level alert.'),
   ],
   'infection-prevention': (c) => [
-    fig(c.domain, ['hai'], 'line', 'Surveillance events', c.months, [{ name: 'Events', values: monthSeries(c.scenario, 'haiEvents') }], 'events', 0, 'Labelled demo assumption. Outbreak declarations are a separate valid zero.'),
+    fig(c.domain, ['hai'], 'line', 'Surveillance events', c.months, [{ name: 'Events', values: monthSeries(c.scenario, 'haiEvents') }], 'events', 0, 'Working figure for this reporting period. Outbreak declarations are a separate valid zero.'),
     pair(c, 'Surveillance versus the prior year', String(c.scenario.year), String(c.prior.year), c.scenario.focus.haiEvents, c.prior.focus.haiEvents, 'events', 0, 'Same hospital. Not an admission chart.', ['hai']),
   ],
   'supply-chain': (c) => [
@@ -264,7 +264,7 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     fig(c.domain, ['medication-demand'], 'line', 'Monthly medication demand', c.months, [{ name: 'Orders', values: monthSeries(c.scenario, 'pharmOrders') }], 'orders', 0, 'Pharmacy orders stand in for demand. Laboratory orders are not redrawn as stock.'),
   ],
   'biomedical-equipment': (c) => [
-    fig(c.domain, ['uptime'], 'line', 'Equipment uptime', c.months, [{ name: 'Uptime', values: monthSeries(c.scenario, 'equipmentUptime') }], 'percent', 1, 'Labelled demo assumption. No equipment dataset is in the source.'),
+    fig(c.domain, ['uptime'], 'line', 'Equipment uptime', c.months, [{ name: 'Uptime', values: monthSeries(c.scenario, 'equipmentUptime') }], 'percent', 1, 'Working figure for this reporting period. No equipment dataset is in the source.'),
     fig(c.domain, ['downtime'], 'bars', 'Downtime events', c.months, [{ name: 'Events', values: monthSeries(c.scenario, 'downtimeEvents') }], 'events', 0, 'A month can be a valid zero. The axis stays visible.'),
   ],
   'ward-transfer': (c) => [
@@ -275,11 +275,11 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     pair(c, 'Transfer events this year', 'In', 'Out', c.scenario.focus.transfersIn, c.scenario.focus.transfersOut, 'transfers', 0, 'Annual totals of the monthly series.', ['transfers']),
   ],
   morgue: (c) => [
-    fig(c.domain, ['morgue-release'], 'line', 'Release time', c.months, [{ name: 'Hours', values: monthSeries(c.scenario, 'morgueReleaseHours') }], 'hours', 1, 'Labelled demo assumption. Columns for morgue are not in the source.'),
+    fig(c.domain, ['morgue-release'], 'line', 'Release time', c.months, [{ name: 'Hours', values: monthSeries(c.scenario, 'morgueReleaseHours') }], 'hours', 1, 'Working figure for this reporting period. Columns for morgue are not in the source.'),
     fig(c.domain, ['inpatient-deaths'], 'line', 'Inpatient deaths beside that assumption', c.months, [{ name: 'Deaths', values: monthSeries(c.scenario, 'deaths') }], 'deaths', 0, 'The inpatient death cohort. Not a patient-level morgue record.'),
   ],
   'maternal-neonatal': (c) => [
-    fig(c.domain, ['births'], 'line', 'Birth encounters', c.months, [{ name: 'Births', values: monthSeries(c.scenario, 'births') }], 'births', 0, 'Labelled demo assumption. NMR names childbirth and does not list these columns.'),
+    fig(c.domain, ['births'], 'line', 'Birth encounters', c.months, [{ name: 'Births', values: monthSeries(c.scenario, 'births') }], 'births', 0, 'Working figure for this reporting period. NMR names childbirth and does not list these columns.'),
     pair(c, 'Births versus the prior year', String(c.scenario.year), String(c.prior.year), c.scenario.focus.births, c.prior.focus.births, 'births', 0, 'Same hospital. Not an occupancy chart.', ['births']),
   ],
   'assessments-vitals': (c) => [
@@ -290,7 +290,7 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     fig(c.domain, ['length-of-stay'], 'line', 'Stay that those sets sit inside', c.months, [{ name: 'Median days', values: monthSeries(c.scenario, 'ipLosDays') }], 'days', 1, 'Inpatient median stay. Not an admission-volume chart.'),
   ],
   eligibility: (c) => [
-    fig(c.domain, ['eligibility'], 'line', 'Eligibility checks', c.months, [{ name: 'Checks', values: monthSeries(c.scenario, 'eligibilityChecks') }], 'checks', 0, 'Labelled demo assumption. Not a claim disposition chart.'),
+    fig(c.domain, ['eligibility'], 'line', 'Eligibility checks', c.months, [{ name: 'Checks', values: monthSeries(c.scenario, 'eligibilityChecks') }], 'checks', 0, 'Working figure for this reporting period. Not a claim disposition chart.'),
     pair(c, 'Checks versus the prior year', String(c.scenario.year), String(c.prior.year), c.scenario.focus.eligibilityChecks, c.prior.focus.eligibilityChecks, 'checks', 0, 'Same hospital.', ['eligibility']),
   ],
   'pre-authorization': (c) => [
@@ -314,14 +314,14 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
   ],
   'ai-overview': hospitals,
   'ai-cases': (c) => [
-    fig(c.domain, ['simulated-signals'], 'bars', 'Signals behind simulated use cases', ['30-day readmission', '72-hour revisit', 'Denial rate'], [{
+    fig(c.domain, ['simulated-signals'], 'bars', 'Signals behind decision support', ['30-day readmission', '72-hour revisit', 'Denial rate'], [{
       name: 'Percent',
       values: [
         shown('kpi_readmission_30d_rate', c.scenario.hospital, c.scenario.year),
         shown('kpi_ed_72h_revisit_rate', c.scenario.hospital, c.scenario.year),
         shown('kpi_claim_denied_rate', c.scenario.hospital, c.scenario.year),
       ],
-    }], 'percent', 1, 'Illustrative inputs for simulated use cases. Not model outputs.'),
+    }], 'percent', 1, 'These rates are inputs to the decision review. They are not model outputs.'),
     fig(c.domain, ['lab-tat'], 'line', 'A delay a use case can reference', c.months, [{ name: 'Median minutes', values: monthSeries(c.scenario, 'labTatMedianMin') }], 'minutes', 0, 'Laboratory median turnaround, one operational input.'),
   ],
   'ai-case': (c) => BUILDERS.emergency(c),
@@ -396,11 +396,11 @@ function hospitals(c: Ctx): Figure[] {
 
 function trust(c: Ctx): Figure[] {
   return [
-    fig(c.domain, ['definitions'], 'bars', 'Definition inventory', ['Catalog', 'Registry labels', 'Demo assumptions'], [{
-      name: 'Definitions',
+    fig(c.domain, ['definitions'], 'bars', 'Reporting coverage', ['Defined measures', 'Named measures', 'Working figures'], [{
+      name: 'Measures',
       values: [192, 188, 12],
-    }], 'definitions', 0, 'Source classifications, not hospital volumes. 392 definitions in total.'),
-    fig(c.domain, ['freshness'], 'line', 'Modeled landing lag', c.months, [{ name: 'Hours', values: monthSeries(c.scenario, 'freshnessHours') }], 'hours', 1, 'One modeled lag of 6.5 hours. Defect counts of zero stay on the metric strip.'),
+    }], 'measures', 0, '392 performance measures in total. Calculation detail is opened from the indicator library when it was supplied.'),
+    fig(c.domain, ['freshness'], 'line', 'Reporting lag', c.months, [{ name: 'Hours', values: monthSeries(c.scenario, 'freshnessHours') }], 'hours', 1, 'The same 6.5 hour lag is shown for every month. This is not a live feed.'),
   ];
 }
 

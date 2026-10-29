@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { answerQuestion, ASSISTANT_PROMPTS } from '@/showcase/assistant';
 import { tx } from '@/showcase/copy';
@@ -7,7 +7,7 @@ import { decisionKey, useShowcase } from '@/showcase/state';
 import { badgeCount, screenFromPath, visibleAlerts, type AlertStatus, type DemoAlert, type Severity } from './alerts';
 import { findScreen } from './stories';
 
-type Tab = 'overview' | 'alerts' | 'investigate' | 'predictions' | 'actions' | 'ask';
+type Tab = 'overview' | 'alerts' | 'investigate' | 'predictions' | 'actions' | 'approvals' | 'ask';
 
 type CopilotApi = {
   open: boolean;
@@ -16,6 +16,7 @@ type CopilotApi = {
   setTab: (tab: Tab) => void;
   chart: string | null;
   focusChart: (title: string) => void;
+  clearChart: () => void;
   selectedId: string | null;
   openAlert: (alert: DemoAlert) => void;
 };
@@ -29,6 +30,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
   const [tab, setTab] = useState<Tab>('overview');
   const [chart, setChart] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const clearChart = useCallback(() => setChart(null), []);
 
   const api: CopilotApi = {
     open,
@@ -41,6 +43,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
       setTab('overview');
       setOpen(true);
     },
+    clearChart,
     selectedId,
     openAlert: (alert) => {
       setSelectedId(alert.id);
@@ -60,13 +63,14 @@ export function useCopilot(): CopilotApi {
   return value;
 }
 
-const TABS: { id: Tab; en: string; ar: string }[] = [
-  { id: 'overview', en: 'Overview', ar: 'نظرة' },
-  { id: 'alerts', en: 'Alerts', ar: 'التنبيهات' },
-  { id: 'investigate', en: 'Investigate', ar: 'التحقيق' },
-  { id: 'predictions', en: 'Predictions', ar: 'التنبؤ' },
-  { id: 'actions', en: 'Actions', ar: 'الإجراءات' },
-  { id: 'ask', en: 'Ask AI', ar: 'اسأل' },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'alerts', label: 'Alerts' },
+  { id: 'investigate', label: 'Investigate' },
+  { id: 'predictions', label: 'Forecasts' },
+  { id: 'actions', label: 'Recommendations' },
+  { id: 'approvals', label: 'Approvals' },
+  { id: 'ask', label: 'Ask' },
 ];
 
 export function CopilotButton() {
@@ -99,7 +103,7 @@ export function CopilotPanel() {
   const { alerts, note } = visibleAlerts(store.hospital, store.year, store.department, screenId);
   const selected = alerts.find((alert) => alert.id === copilot.selectedId) ?? alerts[0] ?? null;
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital);
-  const name = lang === 'ar' ? hospitalName?.nameAr : hospitalName?.name;
+  const name = hospitalName?.name;
   const count = badgeCount(store.hospital, store.year, store.department, store.alertStatus);
   const [question, setQuestion] = useState('');
   const asked = question || (screenId ? `Explain ${screen?.title ?? screenId} for this hospital and year` : ASSISTANT_PROMPTS[0].en);
@@ -130,14 +134,14 @@ export function CopilotPanel() {
     >
       <header className="gc-copilot-head">
         <div>
-          <p className="gc-kicker">Simulated Demo</p>
-          <h2 id={titleId}>{tx(lang, 'AI Copilot', 'مساعد الذكاء')}</h2>
+          <p className="gc-kicker">Decision support</p>
+          <h2 id={titleId}>AI Copilot</h2>
         </div>
         <button type="button" className="gc-btn quiet" onClick={() => copilot.setOpen(false)}>{tx(lang, 'Close', 'إغلاق')}</button>
       </header>
       <p className="gc-copilot-scope">
         {name} · {store.year} · {store.department === 'All' ? tx(lang, 'All departments', 'كل الأقسام') : store.department}
-        {screen ? ` · ${lang === 'ar' ? screen.titleAr : screen.title}` : ''}
+        {screen ? ` · ${screen.title}` : ''}
         {copilot.chart ? ` · ${copilot.chart}` : ''}
       </p>
       <p>{tx(lang, `${count} open critical, high, or medium alerts in the badge scope.`, `${count} تنبيهات مفتوحة في نطاق الشارة.`)}</p>
@@ -145,7 +149,7 @@ export function CopilotPanel() {
       <div className="gc-copilot-tabs" role="tablist" aria-label={tx(lang, 'Copilot sections', 'أقسام المساعد')}>
         {TABS.map((tab) => (
           <button key={tab.id} type="button" role="tab" aria-selected={copilot.tab === tab.id} onClick={() => copilot.setTab(tab.id)}>
-            {lang === 'ar' ? tab.ar : tab.en}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -154,7 +158,8 @@ export function CopilotPanel() {
         {copilot.tab === 'alerts' ? <AlertFeed alerts={alerts} statusOf={statusOf} /> : null}
         {copilot.tab === 'investigate' ? <Investigate alert={selected} status={selected ? statusOf(selected) : 'new'} /> : null}
         {copilot.tab === 'predictions' ? <Prediction alert={selected} /> : null}
-        {copilot.tab === 'actions' ? <Actions alert={selected} /> : null}
+        {copilot.tab === 'actions' ? <Actions alert={selected} mode="recommend" /> : null}
+        {copilot.tab === 'approvals' ? <Actions alert={selected} mode="decide" /> : null}
         {copilot.tab === 'ask' ? (
           <Ask
             question={question}
@@ -176,7 +181,7 @@ function Overview({ alerts, selected }: { alerts: DemoAlert[]; selected: DemoAle
   const ranked = [...alerts].sort((a, b) => rank(a.severity) - rank(b.severity));
   return (
     <div>
-      <p>The copilot is reading this dashboard. Root causes are hypotheses. Predictions are simulated.</p>
+      <p>This dashboard is the current scope. Drivers are hypotheses. Forecasts are estimates, not validated predictions.</p>
       {selected ? <p>Primary signal: {selected.title}, observed {selected.observed}.</p> : <p>No alert is defined for this screen.</p>}
       <ul className="gc-alert-list">
         {ranked.slice(0, 4).map((alert) => (
@@ -247,7 +252,7 @@ function Prediction({ alert }: { alert: DemoAlert | null }) {
   );
 }
 
-function Actions({ alert }: { alert: DemoAlert | null }) {
+function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' | 'decide' }) {
   const store = useShowcase();
   if (!alert) return <p>No recommendation is selected.</p>;
   const key = decisionKey(alert.kpi, store.hospital, store.year, store.department);
@@ -256,19 +261,28 @@ function Actions({ alert }: { alert: DemoAlert | null }) {
     <article>
       <h3>{alert.action}</h3>
       <p>Rationale: {alert.investigation}</p>
-      <p>Supporting KPI: {alert.kpi}. Observed {alert.observed}.</p>
-      <p>Expected impact is illustrative only. Risk: acting on a hypothesis can move attention away from the measured queue.</p>
+      <p>Indicator: {alert.title}. Observed {alert.observed}.</p>
+      <p>Expected impact is an estimate. It is not a result that has already occurred. Acting on a hypothesis can move attention away from the measured queue.</p>
       <p>Owner: {alert.owner}. Approval policy: {store.approvalPolicy}.</p>
-      <p>Status: {decision ?? 'waiting for a person'}.</p>
-      <div className="gc-inline">
-        <button type="button" className="gc-btn" onClick={() => store.decide(key, 'approved')}>Approve recommendation</button>
-        <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject recommendation</button>
-      </div>
-      {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. The approval is stored only for {store.hospital}, {store.year}, and {store.department}.</p> : null}
-      {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
-      {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
+      <p>Decision: {decision ?? 'waiting for a person'}.</p>
+      {mode === 'decide' ? (
+        <>
+          <div className="gc-inline">
+            <button type="button" className="gc-btn" onClick={() => store.decide(key, 'approved')}>Approve recommendation</button>
+            <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject recommendation</button>
+          </div>
+          {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. The approval is stored only for {store.hospital}, {store.year}, and {store.department}.</p> : null}
+          {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
+          {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
+        </>
+      ) : <DecisionLink />}
     </article>
   );
+}
+
+function DecisionLink() {
+  const copilot = useCopilot();
+  return <button type="button" className="gc-btn" onClick={() => copilot.setTab('approvals')}>Record a decision</button>;
 }
 
 function Ask({
@@ -324,7 +338,7 @@ function rank(severity: Severity): number {
 function statusLabel(status: AlertStatus): string {
   if (status === 'new') return 'New';
   if (status === 'acknowledged') return 'Acknowledged';
-  if (status === 'investigating') return 'Investigating';
+  if (status === 'investigating') return 'Under review';
   if (status === 'resolved') return 'Resolved';
   return 'Dismissed';
 }

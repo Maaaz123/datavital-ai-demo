@@ -16,6 +16,7 @@ import {
   Solution,
   StoryPage,
 } from '@/core/pages';
+import { CommandCenter } from '@/core/command';
 
 function ToStory() {
   const { screenId = 'command' } = useParams();
@@ -85,7 +86,7 @@ export const routes = [
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <StoryPage forcedId="command" /> },
+      { index: true, element: <CommandCenter /> },
       { path: 'platform', element: <PlatformPage /> },
       { path: 'challenge', element: <Challenge /> },
       { path: 'solution', element: <Solution /> },

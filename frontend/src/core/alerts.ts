@@ -45,7 +45,7 @@ const RULES: Rule[] = [
     title: 'Door-to-provider wait',
     owner: 'Emergency operations lead',
     investigation: 'Compare the median with the P90 and the arrival mix before treating the wait as a staffing gap.',
-    action: 'Review a simulated midday physician and bed-desk overlap for the emergency queue.',
+    action: 'Review a midday physician and bed-desk overlap for the emergency queue.',
     rule: 'Critical at 90 minutes or more, high at 60, medium at 45. The line is a scenario review line, not a clinical standard.',
     worse: true,
     critical: 90,
@@ -129,7 +129,7 @@ const RULES: Rule[] = [
     title: 'Claim denial rate',
     owner: 'Revenue cycle lead',
     investigation: 'Paid, denied, and pending must sum to submitted before the rate is discussed.',
-    action: 'Review a simulated pre-submission check on the denial share.',
+    action: 'Review a pre-submission check on the denial share.',
     rule: 'Critical at 8% or more, high at 5%, medium at 4% of submitted claims.',
     worse: true,
     critical: 0.08,
@@ -142,7 +142,7 @@ const RULES: Rule[] = [
     screen: 'experience',
     title: 'Satisfaction index',
     owner: 'Patient experience lead',
-    investigation: 'The index is a labelled demo assumption. Pair it with survey response and open complaints.',
+    investigation: 'The index is a working experience figure. Pair it with survey response and open complaints.',
     action: 'Start with discharge instructions and the day-7 call.',
     rule: 'Critical at 70 or below, high at 75 or below, medium at 80 or below, on a 0–100 index.',
     worse: false,
@@ -256,12 +256,12 @@ export function visibleAlerts(hospital: string, year: number, department: string
   const scoped = screenDepartment(screenId);
   if (scoped === 'all') {
     const alerts = department === 'All' ? all : all.filter((alert) => alert.department === department);
-    const note = department === 'All' ? '' : `Department filter is ${department}. Alerts are limited to that department for ${hospital} in ${year}.`;
+    const note = department === 'All' ? '' : `Service scope is ${department}. Alerts are limited to that service for this hospital and year.`;
     return { alerts, note };
   }
-  const note = department !== 'All' && department !== scoped
-    ? `Department filter is ${department}. This workspace stays on ${scoped}. Alerts below are the ${scoped} scenario for ${hospital} in ${year}.`
-    : '';
+    const note = department !== 'All' && department !== scoped
+      ? `Service scope is ${department}. This workspace stays on ${scoped}. The alerts below are the ${scoped} view for this hospital and year.`
+      : '';
   return { alerts: all.filter((alert) => alert.department === scoped), note };
 }
 

@@ -119,21 +119,21 @@ const KIND: Record<string, ChartKind> = {
 export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; screens: string[] }[] = [
   {
     id: 'executive',
-    title: 'Executive Intelligence',
+    title: 'Hospital performance',
     titleAr: 'الذكاء التنفيذي',
     lede: 'One picture of pressure, flow, and money before anyone opens a department.',
     screens: ['hub', 'command', 'stability', 'journey', 'revenue', 'risk', 'actions', 'comparison'],
   },
   {
     id: 'clinical',
-    title: 'Clinical Operations',
+    title: 'Hospital operations',
     titleAr: 'العمليات السريرية',
     lede: 'Emergency, beds, stays, theatres, laboratory, imaging, and pharmacy each keep their own picture.',
     screens: ['emergency', 'beds', 'inpatient', 'outpatient', 'appointments', 'dialysis', 'mortality', 'surgery', 'laboratory', 'radiology', 'pharmacy', 'diagnoses', 'ward-transfer', 'assessments-vitals', 'maternal-neonatal', 'morgue'],
   },
   {
     id: 'financial',
-    title: 'Financial Intelligence',
+    title: 'Financial performance',
     titleAr: 'الذكاء المالي',
     lede: 'Claims, denials, authorizations, and collections stay inside one reconciled ledger.',
     screens: ['rcm', 'claims', 'eligibility', 'pre-authorization', 'claims-processing', 'billing-collections'],
@@ -154,9 +154,9 @@ export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; 
   },
   {
     id: 'governance',
-    title: 'Data Governance & AI',
+    title: 'AI oversight',
     titleAr: 'حوكمة البيانات والذكاء',
-    lede: 'Definitions, evidence, and simulated AI. Predictions stay labelled as illustrations.',
+    lede: 'Definitions, evidence, and decision support. Forecasts stay labelled as estimates.',
     screens: ['access', 'audit', 'quality', 'quality-detail', 'metadata', 'kpi-catalog', 'semantic-views', 'verified-queries', 'ai-governance', 'ai-overview', 'ai-cases', 'ai-case', 'predictions', 'insights', 'assistant'],
   },
   {
