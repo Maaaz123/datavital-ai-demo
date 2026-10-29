@@ -103,7 +103,7 @@ No CSS/layout/typography/nav redesign. Only OPD content, copy, alert titles, and
 
 | Field | Value |
 | --- | --- |
-| Commit hash | *(filled after commit)* |
+| Commit hash | `b39fdac327b6b4a0944eee47a9c63576220c67ac` |
 | Build ID | `v58-opd-remediation` |
 | Public verification | `/outpatient`, `/outpatient/flow`, `/outpatient/quality` via SPA `404.html` = `index.html`; refresh wipes SW to v58 |
 
