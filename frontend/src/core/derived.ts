@@ -112,3 +112,65 @@ export function monthlyAcuity(hospital: string, year: number): { month: string; 
     values: [month.acuity1, month.acuity2, month.acuity3, month.acuity4, month.acuity5],
   }));
 }
+
+const DAY_WEIGHTS = [1.04, 1, 1, 1.02, 1.05, 1.12, 1.08];
+const ARRIVAL_MODE_WEIGHTS = [0.62, 0.18, 0.12, 0.08];
+const PERIOD_RANGES: [number, number][] = [[0, 6], [6, 12], [12, 18], [18, 24]];
+
+export function arrivalsByDay(hospital: string, year: number): { name: string; count: number }[] {
+  const counts = splitExact(focus(hospital, year).edArrivals, DAY_WEIGHTS);
+  return DAY_NAMES.map((name, index) => ({ name, count: counts[index] }));
+}
+
+export function arrivalModes(hospital: string, year: number): { name: string; count: number }[] {
+  const names = ['Walk-in', 'Ambulance', 'Transfer', 'Other'];
+  const counts = splitExact(focus(hospital, year).edArrivals, ARRIVAL_MODE_WEIGHTS);
+  return names.map((name, index) => ({ name, count: counts[index] }));
+}
+
+export function peakHours(hospital: string, year: number): { name: string; count: number }[] {
+  return arrivalsByHour(hospital, year)
+    .map((count, hour) => ({ name: `${hour}:00`, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+}
+
+export function acuityByPeriod(hospital: string, year: number): { period: string; values: number[] }[] {
+  const fact = focus(hospital, year);
+  const levels = [fact.acuity1, fact.acuity2, fact.acuity3, fact.acuity4, fact.acuity5];
+  const periodWeights = PERIOD_RANGES.map(([start, end]) => HOUR_WEIGHTS.slice(start, end).reduce((sum, value) => sum + value, 0));
+  const byLevel = levels.map((count) => splitExact(count, periodWeights));
+  return ['Night', 'Morning', 'Afternoon', 'Evening'].map((period, periodIndex) => ({
+    period,
+    values: byLevel.map((row) => row[periodIndex]),
+  }));
+}
+
+export function boardingCount(hospital: string, year: number): number {
+  const fact = focus(hospital, year);
+  const occupancy = fact.staffedBeds ? fact.occupiedBeds / fact.staffedBeds : 0;
+  return Math.round(fact.edAdmitted * (0.05 + occupancy * 0.06));
+}
+
+export function monthlyBoarding(hospital: string, year: number): number[] {
+  const months = scenarioFor(hospital, year).months;
+  return splitExact(boardingCount(hospital, year), months.map((month) => month.edAdmitted));
+}
+
+export function hourlyDoorToProvider(hospital: string, year: number): { median: number[]; p90: number[] } {
+  const fact = focus(hospital, year);
+  const arrivals = arrivalsByHour(hospital, year);
+  return {
+    median: shapeAround(arrivals, fact.edWaitMedianMin),
+    p90: shapeAround(arrivals, fact.edWaitP90Min),
+  };
+}
+
+function shapeAround(arrivals: number[], anchor: number): number[] {
+  const mean = HOUR_WEIGHTS.reduce((sum, value) => sum + value, 0) / HOUR_WEIGHTS.length;
+  const shaped = HOUR_WEIGHTS.map((weight) => anchor * (0.72 + 0.28 * (weight / mean)));
+  const total = arrivals.reduce((sum, value) => sum + value, 0) || 1;
+  const weighted = shaped.reduce((sum, value, index) => sum + value * arrivals[index], 0) / total;
+  const factor = anchor / (weighted || anchor);
+  return shaped.map((value) => Math.round(value * factor));
+}

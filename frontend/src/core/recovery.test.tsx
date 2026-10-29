@@ -3,7 +3,7 @@ import { MemoryRouter, useRoutes } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { clearDemoStorage } from '@/showcase/state';
 import { routes } from '@/routes';
-import { BOARD_TABS } from './boards';
+import { BOARD_TABS, boardRoute } from './boards';
 
 function Harness() {
   return useRoutes(routes);
@@ -15,10 +15,6 @@ function renderAt(path: string) {
       <Harness />
     </MemoryRouter>,
   );
-}
-
-function slug(label: string): string {
-  return label.toLowerCase().replace(/[^a-z]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 describe('command center recovery', () => {
@@ -69,7 +65,9 @@ describe('command center recovery', () => {
     for (const [domain, tabs] of Object.entries(BOARD_TABS)) {
       for (const tab of tabs) {
         if (tab.story) continue;
-        const view = renderAt(`/board/${domain}/${slug(tab.label)}`);
+        const path = boardRoute(domain, tab);
+        if (!path) continue;
+        const view = renderAt(path);
         expect(screen.queryByText('Dashboard not found'), `${domain}/${tab.label}`).not.toBeInTheDocument();
         expect(screen.queryByText('No extra view'), `${domain}/${tab.label}`).not.toBeInTheDocument();
         expect(document.querySelectorAll('[data-chart-state="ok"]').length, `${domain}/${tab.label}`).toBeGreaterThanOrEqual(2);

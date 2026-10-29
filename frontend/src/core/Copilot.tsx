@@ -15,10 +15,11 @@ type CopilotApi = {
   tab: Tab;
   setTab: (tab: Tab) => void;
   chart: string | null;
+  setScopeLabel: (title: string | null) => void;
   focusChart: (title: string) => void;
   clearChart: () => void;
   selectedId: string | null;
-  openAlert: (alert: DemoAlert) => void;
+  openAlert: (alert: DemoAlert, options?: { stay?: boolean }) => void;
 };
 
 const Ctx = createContext<CopilotApi | null>(null);
@@ -31,6 +32,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
   const [chart, setChart] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const clearChart = useCallback(() => setChart(null), []);
+  const setScopeLabel = useCallback((title: string | null) => setChart(title), []);
 
   const api: CopilotApi = {
     open,
@@ -38,6 +40,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
     tab,
     setTab,
     chart,
+    setScopeLabel,
     focusChart: (title) => {
       setChart(title);
       setTab('overview');
@@ -45,12 +48,12 @@ export function CopilotState({ children }: { children: ReactNode }) {
     },
     clearChart,
     selectedId,
-    openAlert: (alert) => {
+    openAlert: (alert, options) => {
       setSelectedId(alert.id);
       setTab('investigate');
       setOpen(true);
       if ((store.alertStatus[alert.id] ?? 'new') === 'new') store.setAlertStatus(alert.id, 'investigating');
-      navigate(`/story/${alert.screen}`);
+      if (!options?.stay) navigate(`/story/${alert.screen}`);
     },
   };
 

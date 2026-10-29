@@ -277,6 +277,8 @@ export function badgeCount(hospital: string, year: number, department: string, s
 export function screenFromPath(path: string): string | null {
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];
+  const board = path.match(/\/board\/([^/]+)/);
+  if (board && SCREEN_DEPARTMENT[board[1]]) return board[1];
   if (path === '/' || path === '') return 'command';
   if (path.startsWith('/experience')) return 'experience';
   return null;

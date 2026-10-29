@@ -10,6 +10,7 @@ import { AREAS, CHALLENGES, LAYERS, PRESENTATION, allScreens, areaFor, featuredK
 import { Chart, screenCharts } from './viz';
 import { visibleAlerts } from './alerts';
 import { DomainTabs } from './boards';
+import { EmergencyBoard } from './emergency';
 import { useCopilot } from './Copilot';
 
 export const COUNTRIES = [
@@ -234,6 +235,7 @@ export function StoryPage({ forcedId }: { forcedId?: string } = {}) {
   const screens = allScreens();
   const index = screens.findIndex((item) => item.id === screenId);
   if (!screen) return <p>This screen is not in the library.</p>;
+  if (screen.id === 'emergency') return <EmergencyBoard tab="overview" />;
   const area = AREAS.find((item) => item.id === areaFor(screen.id)) ?? AREAS[0];
   const keys = featuredKpis(screen.id);
   const cards = keys.map((key) => {

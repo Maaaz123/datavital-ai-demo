@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HOSPITALS, YEARS } from '@/showcase/engine';
 import { scenarioFor } from '@/showcase/facts';
-import { arrivalHeatmap, arrivalsByHour, denialReasons, receivableAging, staffingByService, theatres, waitBins, wards } from './derived';
+import { acuityByPeriod, arrivalHeatmap, arrivalModes, arrivalsByDay, arrivalsByHour, boardingCount, denialReasons, monthlyBoarding, receivableAging, staffingByService, theatres, waitBins, wards } from './derived';
 
 describe('derived allocations', () => {
   it('keeps every allocation inside the hospital total', () => {
@@ -23,6 +23,10 @@ describe('derived allocations', () => {
         const staff = staffingByService(hospital.code, year);
         expect(staff.reduce((sum, item) => sum + item.required, 0)).toBe(Math.round(fact.requiredFte));
         expect(staff.reduce((sum, item) => sum + item.filled, 0)).toBe(Math.round(fact.filledFte));
+        expect(arrivalsByDay(hospital.code, year).reduce((sum, item) => sum + item.count, 0)).toBe(fact.edArrivals);
+        expect(arrivalModes(hospital.code, year).reduce((sum, item) => sum + item.count, 0)).toBe(fact.edArrivals);
+        expect(acuityByPeriod(hospital.code, year).flatMap((item) => item.values).reduce((sum, value) => sum + value, 0)).toBe(fact.edArrivals);
+        expect(monthlyBoarding(hospital.code, year).reduce((sum, value) => sum + value, 0)).toBe(boardingCount(hospital.code, year));
       }
     }
   });

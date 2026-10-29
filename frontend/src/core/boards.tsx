@@ -16,21 +16,13 @@ import {
   waitBins,
   wards,
 } from './derived';
+import { EMERGENCY_TABS, EmergencyBoard } from './emergency';
 import { Chart, type Figure } from './viz';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export const BOARD_TABS: Record<string, { label: string; story?: string }[]> = {
-  emergency: [
-    { label: 'Overview', story: 'emergency' },
-    { label: 'Arrivals' },
-    { label: 'Triage' },
-    { label: 'Waiting time' },
-    { label: 'Patient flow' },
-    { label: 'Capacity' },
-    { label: 'Quality' },
-    { label: 'AI insights' },
-  ],
+export const BOARD_TABS: Record<string, { label: string; story?: string; slug?: string }[]> = {
+  emergency: EMERGENCY_TABS,
   beds: [
     { label: 'Overview', story: 'beds' },
     { label: 'Wards' },
@@ -79,6 +71,11 @@ function slug(label: string): string {
   return label.toLowerCase().replace(/[^a-z]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+export function boardRoute(domain: string, tab: { label: string; story?: string; slug?: string }): string | null {
+  if (tab.story) return null;
+  return `/board/${domain}/${tab.slug ?? slug(tab.label)}`;
+}
+
 export function DomainTabs({ screenId }: { screenId: string }) {
   const domain = Object.keys(BOARD_TABS).find((key) => BOARD_TABS[key].some((tab) => tab.story === screenId) || key === screenId);
   if (!domain) return null;
@@ -88,7 +85,7 @@ export function DomainTabs({ screenId }: { screenId: string }) {
         tab.story ? (
           <NavLink key={tab.label} to={`/story/${tab.story}`} end>{tab.label}</NavLink>
         ) : (
-          <NavLink key={tab.label} to={`/board/${domain}/${slug(tab.label)}`}>{tab.label}</NavLink>
+          <NavLink key={tab.label} to={`/board/${domain}/${tab.slug ?? slug(tab.label)}`}>{tab.label}</NavLink>
         )
       ))}
     </nav>
@@ -112,6 +109,7 @@ export function DomainBoard() {
   const store = useShowcase();
   const copilot = useCopilot();
   const tabs = BOARD_TABS[domain];
+  if (domain === 'emergency') return <EmergencyBoard tab={tab} />;
   if (!tabs) {
     return (
       <article className="gc-command">
