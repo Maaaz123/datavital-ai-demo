@@ -148,7 +148,7 @@ Captured from local production build preview at desktop width.
 
 ## Commit hash
 
-*(filled after commit)*
+`940e582a40d9c4f52110ca06742ac181356dd561`
 
 ## Public deployment URL
 
