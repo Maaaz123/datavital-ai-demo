@@ -158,7 +158,6 @@ Public GitHub Pages verification follows push of this build (see Published commi
 
 ## Published commit and build identifier
 
-Recorded after push in this file’s commit message / subsequent hash note.
-
+- **Commit:** `47f5ad0f3efa65bb880252eae9bb6d055c7a3fda`
 - **BUILD_ID:** `v59-appointments`
 - **JS bundle:** `index-DJayUJ9u.js`
