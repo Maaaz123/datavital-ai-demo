@@ -502,8 +502,8 @@ function Donut({ title, note, parts }: { title: string; note: string; parts: { n
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <section className="gc-panel gc-slot span-6">
-      <figure className="gc-chart" data-chart-state="ok">
+    <section className="gc-panel gc-slot span-12">
+      <figure className="gc-chart gc-donut-wide" data-chart-state="ok">
         <figcaption className="gc-chart-head">
           <div className="gc-chart-copy">
             <strong>{title}</strong>
