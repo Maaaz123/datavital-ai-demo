@@ -15,11 +15,15 @@ function focus(hospital: string, year: number) {
   return scenarioFor(hospital, year).focus;
 }
 
-export function arrivalsByHour(hospital: string, year: number): number[] {
-  return splitExact(focus(hospital, year).edArrivals, HOUR_WEIGHTS);
+export function hoursFor(total: number): number[] {
+  return splitExact(Math.round(total), HOUR_WEIGHTS);
 }
 
-export function arrivalHeatmap(hospital: string, year: number): number[][] {
+export function arrivalsByHour(hospital: string, year: number): number[] {
+  return hoursFor(focus(hospital, year).edArrivals);
+}
+
+function heatmapWeights(): number[] {
   const weights: number[] = [];
   for (let day = 0; day < 7; day += 1) {
     const weekend = day >= 5 ? 1.08 : 1;
@@ -27,8 +31,16 @@ export function arrivalHeatmap(hospital: string, year: number): number[][] {
       weights.push(HOUR_WEIGHTS[block * 2] * weekend * (day === 0 ? 1.04 : 1));
     }
   }
-  const flat = splitExact(focus(hospital, year).edArrivals, weights);
+  return weights;
+}
+
+export function heatmapFor(total: number): number[][] {
+  const flat = splitExact(Math.round(total), heatmapWeights());
   return DAY_NAMES.map((_, day) => BLOCKS.map((_, block) => flat[day * 12 + block]));
+}
+
+export function arrivalHeatmap(hospital: string, year: number): number[][] {
+  return heatmapFor(focus(hospital, year).edArrivals);
 }
 
 export const HEATMAP_DAYS = DAY_NAMES;
@@ -86,14 +98,7 @@ export function receivableAging(hospital: string, year: number): { name: string;
 
 export function waitBins(hospital: string, year: number): { name: string; count: number }[] {
   const fact = focus(hospital, year);
-  const median = fact.edWaitMedianMin;
-  const weights = WAIT_BINS.map((_, index) => {
-    const center = [15, 45, 75, 105, 150, 210][index];
-    const distance = Math.abs(center - median);
-    return Math.max(0.15, 2.4 - distance / 40);
-  });
-  const counts = splitExact(fact.edArrivals, weights);
-  return WAIT_BINS.map((name, index) => ({ name, count: counts[index] }));
+  return binsFor(fact.edArrivals, fact.edWaitMedianMin);
 }
 
 export function staffingByService(hospital: string, year: number): { name: string; required: number; filled: number }[] {
@@ -117,15 +122,48 @@ const DAY_WEIGHTS = [1.04, 1, 1, 1.02, 1.05, 1.12, 1.08];
 const ARRIVAL_MODE_WEIGHTS = [0.62, 0.18, 0.12, 0.08];
 const PERIOD_RANGES: [number, number][] = [[0, 6], [6, 12], [12, 18], [18, 24]];
 
-export function arrivalsByDay(hospital: string, year: number): { name: string; count: number }[] {
-  const counts = splitExact(focus(hospital, year).edArrivals, DAY_WEIGHTS);
+export function daysFor(total: number): { name: string; count: number }[] {
+  const counts = splitExact(Math.round(total), DAY_WEIGHTS);
   return DAY_NAMES.map((name, index) => ({ name, count: counts[index] }));
 }
 
-export function arrivalModes(hospital: string, year: number): { name: string; count: number }[] {
+export function arrivalsByDay(hospital: string, year: number): { name: string; count: number }[] {
+  return daysFor(focus(hospital, year).edArrivals);
+}
+
+export function modesFor(total: number): { name: string; count: number }[] {
   const names = ['Walk-in', 'Ambulance', 'Transfer', 'Other'];
-  const counts = splitExact(focus(hospital, year).edArrivals, ARRIVAL_MODE_WEIGHTS);
+  const counts = splitExact(Math.round(total), ARRIVAL_MODE_WEIGHTS);
   return names.map((name, index) => ({ name, count: counts[index] }));
+}
+
+export function arrivalModes(hospital: string, year: number): { name: string; count: number }[] {
+  return modesFor(focus(hospital, year).edArrivals);
+}
+
+export function binsFor(total: number, median: number): { name: string; count: number }[] {
+  const weights = WAIT_BINS.map((_, index) => {
+    const center = [15, 45, 75, 105, 150, 210][index];
+    return Math.max(0.15, 2.4 - Math.abs(center - median) / 40);
+  });
+  const counts = splitExact(Math.round(total), weights);
+  return WAIT_BINS.map((name, index) => ({ name, count: counts[index] }));
+}
+
+export function leaveSplit(left: number): { before: number; after: number } {
+  const [before, after] = splitExact(Math.round(left), [0.62, 0.38]);
+  return { before, after };
+}
+
+export function waitHeatFor(arrivals: number[][], anchor: number): number[][] {
+  const flat = arrivals.flat();
+  const total = flat.reduce((sum, value) => sum + value, 0) || 1;
+  const mean = total / flat.length;
+  const raw = flat.map((value) => 0.7 + 0.3 * (value / (mean || 1)));
+  const weighted = raw.reduce((sum, value, index) => sum + value * flat[index], 0) / total;
+  const factor = anchor / (weighted || anchor);
+  const minutes = raw.map((value) => Math.max(1, Math.round(value * factor)));
+  return DAY_NAMES.map((_, day) => minutes.slice(day * 12, day * 12 + 12));
 }
 
 export function peakHours(hospital: string, year: number): { name: string; count: number }[] {

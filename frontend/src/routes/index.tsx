@@ -1,114 +1,40 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import CoreApp from '@/core/CoreApp';
-import {
-  Architecture,
-  AreaPage,
-  Challenge,
-  ExperiencePage,
-  ExplorerPage,
-  IntelligencePage,
-  LibraryPage,
-  LifecyclePage,
-  OperationsHub,
-  PlatformPage,
-  PresentPage,
-  SettingsPage,
-  Solution,
-  StoryPage,
-} from '@/core/pages';
-import { CommandCenter } from '@/core/command';
-import { DomainBoard } from '@/core/boards';
+import { CapacityQualityPage, DecisionsPage, FlowPage, OverviewPage } from '@/core/four';
 
-function ToStory() {
-  const { screenId = 'command' } = useParams();
-  return <Navigate to={`/story/${screenId}`} replace />;
-}
-
-function ToKpi() {
-  const { metricKey = 'kpi_bed_occupancy_rate' } = useParams();
-  return <Navigate to={`/kpis/${metricKey}`} replace />;
-}
-
-const LEGACY: Record<string, string> = {
-  '/login': '/',
-  '/dashboard': '/operations/executive',
-  '/command-center': '/story/command',
-  '/demo': '/present',
-  '/copilot': '/intelligence',
-  '/beds': '/story/beds',
-  '/emergency': '/story/emergency',
-  '/inpatient': '/story/inpatient',
-  '/outpatient': '/story/outpatient',
-  '/laboratory': '/story/laboratory',
-  '/radiology': '/story/radiology',
-  '/pharmacy': '/story/pharmacy',
-  '/surgery': '/story/surgery',
-  '/rcm': '/story/rcm',
-  '/appointments': '/story/appointments',
-  '/workforce': '/story/workforce',
-  '/workforce/employees/:id': '/story/workforce',
-  '/diagnoses': '/story/diagnoses',
-  '/patients': '/story/registry',
-  '/patients/:patientId': '/story/registry',
-  '/alerts': '/story/risk',
-  '/ai/bed-forecast': '/story/predictions',
-  '/ai/emergency-intelligence': '/story/emergency',
-  '/ai/appointment-optimizer': '/story/appointments',
-  '/ai/claim-prevention': '/story/claims',
-  '/ai/data-quality-agent': '/story/quality',
-  '/data-quality': '/story/quality',
-  '/clinical-ai/deterioration': '/story/mortality',
-  '/clinical-ai/diagnosis-support': '/story/diagnoses',
-  '/clinical-ai/imaging': '/story/radiology',
-  '/clinical-ai/medication-safety': '/story/pharmacy',
-  '/clinical-ai/outcome-risk': '/story/mortality',
-  '/clinical-ai/governance': '/story/ai-governance',
-  '/clinical-ai/model-monitoring': '/story/ai-governance',
-  '/integration/data-platform': '/story/metadata',
-  '/pipelines': '/story/verified-queries',
-  '/orchestration': '/architecture',
-  '/ai/insights': '/story/insights',
-  '/future': '/solution',
-  '/data/catalog': '/kpis',
-  '/data/lineage': '/architecture',
-  '/data/quality': '/story/quality',
-  '/data/asset': '/story/metadata',
-  '/showcase': '/',
-  '/showcase/tour': '/present',
-  '/showcase/experience': '/experience',
-  '/showcase/compare': '/story/comparison',
-  '/showcase/catalog': '/kpis',
-  '/showcase/assistant': '/intelligence',
-  '/showcase/coverage': '/library',
-};
+const LEGACY = [
+  '/login', '/dashboard', '/command-center', '/demo', '/copilot', '/beds', '/emergency',
+  '/inpatient', '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
+  '/appointments', '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
+  '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
+  '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
+  '/data/catalog', '/data/lineage', '/data/quality', '/data/asset', '/showcase', '/platform',
+  '/challenge', '/solution', '/architecture', '/operations', '/experience', '/intelligence',
+  '/kpis', '/library', '/present', '/story/emergency',
+];
 
 export const routes = [
   {
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <CommandCenter /> },
-      { path: 'platform', element: <PlatformPage /> },
-      { path: 'challenge', element: <Challenge /> },
-      { path: 'solution', element: <Solution /> },
-      { path: 'architecture', element: <Architecture /> },
-      { path: 'operations', element: <OperationsHub /> },
-      { path: 'operations/:area', element: <AreaPage /> },
-      { path: 'story/:screenId', element: <StoryPage /> },
-      { path: 'board/:domain/:tab', element: <DomainBoard /> },
-      { path: 'experience', element: <ExperiencePage /> },
-      { path: 'intelligence', element: <IntelligencePage /> },
-      { path: 'kpis', element: <ExplorerPage /> },
-      { path: 'kpis/:metricKey', element: <LifecyclePage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: 'library', element: <LibraryPage /> },
-      { path: 'present', element: <PresentPage /> },
+      { index: true, element: <OverviewPage /> },
+      { path: 'emergency/flow', element: <FlowPage /> },
+      { path: 'emergency/capacity-quality', element: <CapacityQualityPage /> },
+      { path: 'emergency/ai-decisions', element: <DecisionsPage /> },
     ],
   },
-  ...Object.entries(LEGACY).map(([path, to]) => ({ path, element: <Navigate to={to} replace /> })),
-  { path: '/showcase/screens/:screenId', element: <ToStory /> },
-  { path: '/showcase/extensions/:screenId', element: <ToStory /> },
-  { path: '/showcase/kpis/:metricKey', element: <ToKpi /> },
+  ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),
+  { path: '/workforce/employees/:id', element: <Navigate to="/" replace /> },
+  { path: '/patients/:patientId', element: <Navigate to="/" replace /> },
+  { path: '/operations/:area', element: <Navigate to="/" replace /> },
+  { path: '/story/:screenId', element: <Navigate to="/" replace /> },
+  { path: '/board/:domain/:tab', element: <Navigate to="/" replace /> },
+  { path: '/kpis/:metricKey', element: <Navigate to="/emergency/ai-decisions" replace /> },
+  { path: '/showcase/screens/:screenId', element: <Navigate to="/" replace /> },
+  { path: '/showcase/extensions/:screenId', element: <Navigate to="/" replace /> },
+  { path: '/showcase/kpis/:metricKey', element: <Navigate to="/emergency/ai-decisions" replace /> },
   { path: '/showcase/*', element: <Navigate to="/" replace /> },
+  { path: '/clinical-ai/*', element: <Navigate to="/" replace /> },
   { path: '*', element: <Navigate to="/" replace /> },
 ];

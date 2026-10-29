@@ -42,7 +42,13 @@ export function measure(kpi: KpiDef, hospital: string, year: number, department 
 export function formatMeasure(item: Measure, lang: 'en' | 'ar' = 'en'): string {
   const locale = lang === 'ar' ? 'ar-SA-u-nu-latn' : 'en-US';
   const digits = new Intl.NumberFormat(locale, { maximumFractionDigits: item.kind === 'count' ? 0 : 1 });
-  if (item.kind === 'rate') return `${digits.format(item.value * 100)}%`;
+  if (item.kind === 'rate') {
+    const pct = item.value * 100;
+    if (pct !== 0 && Math.abs(pct) < 0.1) {
+      return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(pct)}%`;
+    }
+    return `${digits.format(pct)}%`;
+  }
   if (item.kind === 'index') return `${digits.format(item.value)} / 100`;
   if (item.kind === 'multiplier') return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value)}×`;
   if (item.kind === 'currency') return `${CURRENCY} ${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(item.value)}`;

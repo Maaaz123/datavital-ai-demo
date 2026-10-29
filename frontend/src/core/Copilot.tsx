@@ -4,8 +4,7 @@ import { answerQuestion, ASSISTANT_PROMPTS } from '@/showcase/assistant';
 import { tx } from '@/showcase/copy';
 import { HOSPITALS } from '@/showcase/engine';
 import { decisionKey, useShowcase } from '@/showcase/state';
-import { badgeCount, screenFromPath, visibleAlerts, type AlertStatus, type DemoAlert, type Severity } from './alerts';
-import { findScreen } from './stories';
+import { alertsFor, visibleAlerts, type AlertStatus, type DemoAlert, type Severity } from './alerts';
 
 type Tab = 'overview' | 'alerts' | 'investigate' | 'predictions' | 'actions' | 'approvals' | 'ask';
 
@@ -53,7 +52,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
       setTab('investigate');
       setOpen(true);
       if ((store.alertStatus[alert.id] ?? 'new') === 'new') store.setAlertStatus(alert.id, 'investigating');
-      if (!options?.stay) navigate(`/story/${alert.screen}`);
+      if (!options?.stay && alert.screen !== 'emergency') navigate(`/emergency/ai-decisions`);
     },
   };
 
@@ -76,10 +75,18 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
+function emergencyCount(hospital: string, year: number, statuses: Record<string, AlertStatus>): number {
+  return alertsFor(hospital, year).filter((alert) => {
+    if (alert.department !== 'Emergency' || alert.severity === 'info') return false;
+    const status = statuses[alert.id] ?? 'new';
+    return status !== 'resolved' && status !== 'dismissed';
+  }).length;
+}
+
 export function CopilotButton() {
   const store = useShowcase();
   const copilot = useCopilot();
-  const count = badgeCount(store.hospital, store.year, store.department, store.alertStatus);
+  const count = emergencyCount(store.hospital, store.year, store.alertStatus);
   return (
     <button
       type="button"
@@ -101,16 +108,19 @@ export function CopilotPanel() {
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const lang = store.lang;
-  const screenId = screenFromPath(location.pathname);
-  const screen = screenId ? findScreen(screenId) : undefined;
-  const { alerts, note } = visibleAlerts(store.hospital, store.year, store.department, screenId);
+  const screenId = 'emergency';
+  const page = location.pathname.startsWith('/emergency/flow') ? 'Patient Flow & Waiting'
+    : location.pathname.startsWith('/emergency/capacity-quality') ? 'Capacity & Quality'
+    : location.pathname.startsWith('/emergency/ai-decisions') ? 'AI Decisions'
+    : 'Emergency Overview';
+  const { alerts, note } = visibleAlerts(store.hospital, store.year, 'All', screenId);
   const selected = alerts.find((alert) => alert.id === copilot.selectedId) ?? alerts[0] ?? null;
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital);
   const name = hospitalName?.name;
-  const count = badgeCount(store.hospital, store.year, store.department, store.alertStatus);
+  const count = emergencyCount(store.hospital, store.year, store.alertStatus);
   const [question, setQuestion] = useState('');
-  const asked = question || (screenId ? `Explain ${screen?.title ?? screenId} for this hospital and year` : ASSISTANT_PROMPTS[0].en);
-  const answer = answerQuestion(asked, store.hospital, store.year, store.department, lang);
+  const asked = question || 'Why is emergency waiting time increasing?';
+  const answer = answerQuestion(asked, store.hospital, store.year, 'Emergency', lang);
 
   useEffect(() => {
     if (!copilot.open) return;
@@ -143,11 +153,10 @@ export function CopilotPanel() {
         <button type="button" className="gc-btn quiet" onClick={() => copilot.setOpen(false)}>{tx(lang, 'Close', 'إغلاق')}</button>
       </header>
       <p className="gc-copilot-scope">
-        {name} · {store.year} · {store.department === 'All' ? tx(lang, 'All departments', 'كل الأقسام') : store.department}
-        {screen ? ` · ${screen.title}` : ''}
+        {name} · {store.year} · Emergency · {page}
         {copilot.chart ? ` · ${copilot.chart}` : ''}
       </p>
-      <p>{tx(lang, `${count} open critical, high, or medium alerts in the badge scope.`, `${count} تنبيهات مفتوحة في نطاق الشارة.`)}</p>
+      <p>{count} open Emergency alerts for this hospital and year.</p>
       {note ? <p>{note}</p> : null}
       <div className="gc-copilot-tabs" role="tablist" aria-label={tx(lang, 'Copilot sections', 'أقسام المساعد')}>
         {TABS.map((tab) => (
@@ -237,7 +246,7 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
         <li>Evidence: {alert.evidence}</li>
       </ol>
       <div className="gc-inline">
-        <button type="button" className="gc-btn" onClick={() => navigate(`/kpis/${alert.kpi}`)}>Expand investigation</button>
+        <button type="button" className="gc-btn" onClick={() => navigate('/emergency/ai-decisions')}>Expand investigation</button>
         <button type="button" className="gc-btn quiet" onClick={() => copilot.setTab('actions')}>Review recommendation</button>
       </div>
     </article>

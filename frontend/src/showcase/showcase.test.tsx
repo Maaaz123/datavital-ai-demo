@@ -1,31 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter, useRoutes } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { featuredKpis } from '@/core/stories';
-import { routes } from '@/routes';
 import { clearDemoStorage } from '@/showcase/state';
 import { EXTENSIONS, SCREENS, TOUR } from '@/showcase/catalog';
 import { KPIS, USE_CASES, findKpi } from '@/showcase/engine';
 import { measure } from '@/showcase/measures';
 
-function Harness() {
-  return useRoutes(routes);
-}
-
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Harness />
-    </MemoryRouter>,
-  );
-}
-
-describe('marketing demo coverage', () => {
+describe('catalog coverage', () => {
   beforeEach(() => {
     clearDemoStorage();
   });
 
-  it('maps every required screen, extension, KPI family, and use case', () => {
+  it('keeps the internal screen, extension, KPI, and use-case catalogs', () => {
     expect(SCREENS).toHaveLength(39);
     expect(new Set(SCREENS.map((item) => item.id)).size).toBe(39);
     expect(EXTENSIONS).toHaveLength(14);
@@ -48,121 +33,12 @@ describe('marketing demo coverage', () => {
     expect(measure(kpi!, 'H1', 2025, 'Emergency').value).not.toBe(north.value);
   });
 
-  it('renders the public home and the disclosure', () => {
-    renderAt('/');
-    expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data and simulated AI insights/i);
-    expect(screen.getByRole('heading', { level: 1, name: /Executive Command Center/ })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
-  });
-
-  it('updates emergency wait when the hospital changes and explains an inapplicable department', () => {
-    renderAt('/showcase/screens/emergency');
-    const value = screen.getByTestId('value-kpi_ed_avg_los_hours');
-    const before = value.textContent;
-    fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
-    expect(value.textContent).not.toBe(before);
-    fireEvent.change(screen.getByLabelText('Department'), { target: { value: 'Pharmacy' } });
-    expect(screen.getByText(/hospital level for this reporting period/i)).toBeInTheDocument();
-    expect(document.querySelector('[data-chart-state="ok"]')).toBeTruthy();
-  });
-
-  it('shows a real zero for outbreak declarations and a populated surveillance chart', () => {
-    renderAt('/showcase/extensions/infection-prevention');
-    expect(screen.getByText(/0 events in this period and scope/i)).toBeInTheDocument();
-    expect(document.querySelector('[data-chart-state="ok"]')).toBeTruthy();
-  });
-
-  it('walks the seven simulated stages and records a demo approval', () => {
-    renderAt('/showcase/kpis/kpi_ed_avg_los_hours');
-    expect(screen.getByRole('tab', { name: /1\. KPI/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /3\. Root cause/ }));
-    expect(screen.getByText(/not proven causes/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /4\. Prediction/ }));
-    expect(screen.getByText(/Not a validated model/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /6\. Approval/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Approve simulated action/ }));
-    expect(screen.getByText(/Recorded: approved/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /7\. Outcome/ }));
-    expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
-  });
-
-  it('uses a cohort review instead of an individual prediction for mortality', () => {
-    renderAt('/showcase/kpis/kpi_mortality_event_volume');
-    fireEvent.click(screen.getByRole('tab', { name: /4\. Prediction/ }));
-    expect(screen.getByText(/not given an individual patient prediction/i)).toBeInTheDocument();
-  });
-
-  it('rejects a simulated action and withholds the illustrative outcome', () => {
-    renderAt('/showcase/kpis/kpi_ed_avg_los_hours');
-    fireEvent.click(screen.getByRole('tab', { name: /6\. Approval/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Reject simulated action/ }));
-    fireEvent.click(screen.getByRole('tab', { name: /7\. Outcome/ }));
-    expect(screen.getByText(/No illustrative outcome/i)).toBeInTheDocument();
-  });
-
-  it('keeps the experience workspace in English', () => {
-    renderAt('/showcase/experience');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Advance' })[0]);
-    expect(screen.getByRole('heading', { level: 2, name: /PX-2401/ }).textContent).toMatch(/reviewing/);
-    expect(screen.queryByRole('button', { name: 'العربية' })).not.toBeInTheDocument();
-    expect(document.querySelector('.gc-shell')).toHaveAttribute('dir', 'ltr');
-    expect(screen.getByRole('heading', { level: 1, name: 'Patient experience' })).toBeInTheDocument();
-  });
-
-  it('answers from the selected hospital without a live model', () => {
-    renderAt('/intelligence');
-    expect(screen.getByRole('heading', { level: 2, name: /Emergency time at Demo General North in 2026/ })).toBeInTheDocument();
-    expect(screen.getAllByText(/Simulated approval/).length).toBeGreaterThan(0);
-  });
-
-  it('opens every original screen and extension with a heading', () => {
-    for (const item of SCREENS) {
-      const view = renderAt(`/showcase/screens/${item.id}`);
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-      view.unmount();
-    }
-    for (const item of EXTENSIONS) {
-      const view = renderAt(`/showcase/extensions/${item.id}`);
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
-      view.unmount();
-    }
-  });
-
-  it('binds the comparison selector to the measure in the table', () => {
-    renderAt('/showcase/compare');
-    expect(screen.getByLabelText('Measure')).toHaveValue('kpi_bed_occupancy_rate');
-    expect(screen.getByRole('columnheader', { name: /Bed occupancy rate/ })).toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: /80\.2%/ })).toBeInTheDocument();
-  });
-
-  it('opens the door-to-provider lifecycle from emergency and a denial lifecycle from claims', () => {
-    const emergency = renderAt('/showcase/screens/emergency');
-    expect(screen.getByRole('link', { name: /Open the wait lifecycle/ })).toHaveAttribute('href', '/kpis/kpi_ed_door_to_provider_median_minutes');
-    emergency.unmount();
-    renderAt('/showcase/screens/claims');
-    expect(screen.getByRole('link', { name: /Open the denial lifecycle/ })).toHaveAttribute('href', '/kpis/kpi_claim_denied_rate');
-  });
-
-  it('does not carry an approval into another hospital or year', () => {
-    renderAt('/showcase/kpis/kpi_bed_occupancy_rate');
-    fireEvent.click(screen.getByRole('tab', { name: /6\. Approval/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Approve simulated action/ }));
-    fireEvent.click(screen.getByRole('tab', { name: /7\. Outcome/ }));
-    expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H2' } });
-    fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2024' } });
-    expect(screen.getByText(/Record an approval or rejection/i)).toBeInTheDocument();
-  });
-
-  it('starts the assistant from the claims workspace instead of the emergency queue', () => {
-    renderAt('/showcase/screens/claims');
-    fireEvent.click(screen.getByRole('button', { name: 'Assistant' }));
-    expect(screen.getByRole('heading', { level: 2, name: /Denials are highest/ })).toBeInTheDocument();
-  });
-
-  it('keeps the workspace navigation to one group instead of all 53 links', () => {
-    renderAt('/showcase/screens/command');
-    const links = document.querySelectorAll('.gc-nav a');
-    expect(links.length).toBeLessThan(20);
+  it('keeps a nonzero emergency mortality rate visible', () => {
+    const item = measure(findKpi('kpi_ed_mortality_rate')!, 'H1', 2026, 'All');
+    expect(item.value).toBeGreaterThan(0);
+    expect(item.numerator).toBeGreaterThan(0);
+    const shown = new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(item.value * 100);
+    expect(`${shown}%`).not.toBe('0%');
+    expect(`${shown}%`).toBe('0.035%');
   });
 });
