@@ -74,7 +74,6 @@ export function bedsIndicatorsFor(input: BedsScopeInput): Indicator[] {
   const occRate = input.occupied / operational;
   const occupiedBedDays = input.occupied * input.days;
   const availableBedDays = input.operational * input.days;
-  const averageDailyOcc = availableBedDays ? occupiedBedDays / availableBedDays : 0;
   const turnover = input.operational ? input.discharges / input.operational : 0;
   const completionDen = input.assignmentCompleted + input.assignmentCancelled || 1;
   const wardLine = input.wards.map((ward) => `${ward.id} ${pct(ward.staffed ? ward.occupied / ward.staffed : 0)}`).join(' · ');
@@ -93,9 +92,9 @@ export function bedsIndicatorsFor(input: BedsScopeInput): Indicator[] {
     row('Bed Inventory & Availability', 'Blocked / Closed Beds', num(input.blocked), 'scenario', 'Blocked or closed staffed beds in the same snapshot. They are not vacant and not occupied.'),
 
     row('Bed Occupancy', 'Current Bed Occupancy Rate', pct(occRate), 'scenario', 'Occupied ÷ operational beds at the snapshot. This is a point-in-time rate, not a sum of monthly averages.'),
-    row('Bed Occupancy', 'Average Daily Occupancy Rate', pct(averageDailyOcc), 'constructed', 'Occupied bed-days ÷ available bed-days, using the snapshot census × period days. Monthly occupancy averages are not summed.'),
-    row('Bed Occupancy', 'Occupied Bed-Days', num(occupiedBedDays), 'constructed', 'Snapshot occupied beds × days in the selected period. Not a sum of nightly census events.'),
-    row('Bed Occupancy', 'Available Bed-Days', num(availableBedDays), 'constructed', 'Operational beds × days in the selected period.'),
+    blank('Bed Occupancy', 'Average Daily Occupancy Rate', 'Nightly census events are not stored. Multiplying the snapshot census by period days would equal current occupancy and would misstate average daily occupancy.'),
+    row('Bed Occupancy', 'Occupied Bed-Days', num(occupiedBedDays), 'constructed', 'Snapshot occupied beds × days in the selected period. Illustrative bed-days only — not a sum of nightly census events.'),
+    row('Bed Occupancy', 'Available Bed-Days', num(availableBedDays), 'constructed', 'Operational beds × days in the selected period. Illustrative capacity days only.'),
     row('Bed Occupancy', 'Occupancy by Ward', wardLine || 'No wards', 'constructed', 'Ward staffed, occupied, vacant, and blocked split from the hospital snapshot.'),
     row('Bed Occupancy', 'Occupancy by Bed Type', typeLine || 'No bed types', 'constructed', 'General and ICU occupancy from the same snapshot. Emergency bays are not inpatient beds.'),
 

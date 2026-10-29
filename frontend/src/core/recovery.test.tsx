@@ -82,9 +82,9 @@ describe('emergency and beds domains', () => {
     renderAt('/');
     fireEvent.click(screen.getByTestId('ed-ribbon').querySelector('button') as HTMLButtonElement);
     expect(screen.getByTestId('kpi-detail').textContent).toMatch(/Emergency arrivals|visits/i);
-    fireEvent.click(screen.getByRole('button', { name: 'Investigate Emergency visits over time' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigate ED visits over time' }));
     expect(screen.getByRole('heading', { name: 'Vital Assist' })).toBeInTheDocument();
-    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/Emergency visits over time/);
+    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/ED visits over time/);
     expect(screen.getByText(/open alert/i)).toBeInTheDocument();
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
@@ -182,6 +182,7 @@ describe('emergency and beds domains', () => {
     expect(bedRows).toHaveLength(36);
     expect(BEDS_AI_CASES).toHaveLength(10);
     expect(bedRows.find((row) => row.name === 'Licensed Beds')?.value).toBe('Not available');
+    expect(bedRows.find((row) => row.name === 'Average Daily Occupancy Rate')?.value).toBe('Not available');
     expect(bedRows.some((row) => /emergency|workforce|experience|revenue/i.test(row.domain))).toBe(false);
 
     const ipd: IpdScopeInput = {
@@ -214,7 +215,7 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Bed Capacity Outlook' })).toBeInTheDocument();
     expect(screen.queryByText(/Door-to-Provider|Left Without Being Seen|ESI-1/i)).not.toBeInTheDocument();
     expect(screen.getByText(/AI decision support/i)).toBeInTheDocument();
-    expect(screen.getByText(/Likely free in 48 hours/i)).toBeInTheDocument();
+    expect(screen.getByText(/Projected available in 48 hours/i)).toBeInTheDocument();
     capacity.unmount();
     const ipd = renderAt('/inpatient/outcomes');
     expect(screen.getByRole('heading', { level: 1, name: 'Care Progress & Outcomes' })).toBeInTheDocument();

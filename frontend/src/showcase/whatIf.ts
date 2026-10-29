@@ -214,7 +214,7 @@ function inpatientWhatIf(
     return {
       id: intent.kind,
       title: 'Delayed discharge reduction scenario',
-      current: `Ready but still here ~${num(ready)} · median stay ${num(los, 1)} days · discharges ${num(fact.discharges)}`,
+      current: `Medically ready, not discharged ~${num(ready)} · median stay ${num(los, 1)} days · discharges ${num(fact.discharges)}`,
       change: `Illustrative ${pct(intent.amount, 0)} reduction in ready-but-not-discharged count`,
       estimated: `Ready-but-not-discharged near ${num(nextReady)} patients · earlier bed release for planned admissions`,
       assumptions: 'Medical readiness remains a clinician decision. AI does not discharge a patient. Delay clocks are not fully stored in this demo.',

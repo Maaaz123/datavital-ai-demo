@@ -516,10 +516,22 @@ function Ask({ label, department, askScope, page }: { label: string; department:
   const ipd = department === 'Inpatient';
   const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const prompts = beds
-    ? ['Which wards have the greatest capacity pressure?', 'Why are bed assignments delayed?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
+    ? page === 'Bed Assignment'
+      ? ['Why are bed assignments delayed?', 'How many beds are awaiting cleaning?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
+      : page === 'Bed Capacity Outlook'
+        ? ['Which wards have the greatest capacity pressure?', 'What is the projected available bed outlook?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
+        : ['Which wards have the greatest capacity pressure?', 'How many vacant and blocked beds are available?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
     : ipd
-      ? ['Why is the average length of stay increasing?', 'Which specialties have the longest stays?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
-      : ['Why is emergency waiting time increasing?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
+      ? page === 'Stay & Discharge'
+        ? ['Why is the average length of stay increasing?', 'How many patients are medically ready but not discharged?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
+        : page === 'Care Progress & Outcomes'
+          ? ['What is the unplanned 30-day readmission rate?', 'Which specialties have the highest return share?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
+          : ['Where are inpatient admissions coming from?', 'Which specialties have the longest stays?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
+      : page === 'Waiting & Patient Flow'
+        ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+        : page === 'Safety & Return Visits'
+          ? ['What is the left-without-being-seen rate?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+          : ['What should the Emergency Director prioritize?', 'How many visits are boarding beyond 4 hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -531,11 +543,23 @@ function Ask({ label, department, askScope, page }: { label: string; department:
       body: [
         `${askScope} · ${label} · ${periodLabel} · ${page}.`,
         beds
-          ? 'Ask about occupancy, blocked beds, assignment delays, or capacity what-if scenarios.'
+          ? page === 'Bed Assignment'
+            ? 'Ask about pending requests, assignment time, beds awaiting cleaning, or turnover on this screen.'
+            : page === 'Bed Capacity Outlook'
+              ? 'Ask about projected available beds, shortfall, ward occupancy, or capacity what-if scenarios on this screen.'
+              : 'Ask about operational, occupied, vacant, and blocked beds, or occupancy on this screen.'
           : ipd
-            ? 'Ask about length of stay, delayed discharge, specialty long stays, or discharge what-if scenarios.'
-            : 'Ask about arrivals, waiting time, boarding, walkaways, or demand what-if scenarios.',
-        'Answers use this hospital scenario. Unsupported questions stay explicit.',
+            ? page === 'Stay & Discharge'
+              ? 'Ask about length of stay, long-stay patients, delayed discharge, or discharge outlook on this screen.'
+              : page === 'Care Progress & Outcomes'
+                ? 'Ask about unplanned readmissions, inpatient mortality, or documentation gaps on this screen.'
+                : 'Ask about admissions, census, admission sources, or specialty volume on this screen.'
+            : page === 'Waiting & Patient Flow'
+              ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
+              : page === 'Safety & Return Visits'
+                ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
+                : 'Ask about ED visits, acuity mix, boarding beyond 4 hours, or disposition outcomes on this screen.',
+        'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
   }, [askScope, beds, ipd, label, page, periodLabel]);

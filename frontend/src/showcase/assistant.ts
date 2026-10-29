@@ -133,7 +133,7 @@ function answerEmergency(
       observation: tx(lang, 'This view covers the emergency visit only.', 'هذه الواجهة تغطي زيارة الطوارئ فقط.'),
       evidence: tx(lang, 'Bed occupancy, workforce, experience, revenue, laboratory, imaging, and pharmacy stay in their own domains.', 'إشغال الأسرة والقوى العاملة والتجربة والإيراد والمختبر والأشعة والصيدلية تبقى في دوميناتها.'),
       explanation: tx(lang, 'A figure from another domain may later help explain an ED delay. It is not owned here.', 'رقم من دومين آخر قد يساعد لاحقاً في تفسير تأخر الطوارئ. لا يُملك هنا.'),
-      action: tx(lang, 'Ask about arrivals, triage, waiting, flow, boarding, left without care, returns, or mortality.', 'اسأل عن الوصول والفرز والانتظار والتدفق والـboarding والمغادرة قبل الكشف والعودة أو الوفيات.'),
+      action: tx(lang, 'Ask about arrivals, triage, waiting, flow, boarding, left without being seen, returns, or mortality.', 'اسأل عن الوصول والفرز والانتظار والتدفق والـboarding والمغادرة دون كشف والعودة أو الوفيات.'),
       role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
       benefit: tx(lang, 'Keeping ownership clear prevents mixed KPI decisions.', 'وضوح الملكية يمنع قرارات مؤشرات مختلطة.'),
     });
@@ -183,26 +183,26 @@ function answerEmergency(
   if (/leav|lwbs|without (being )?seen|before assessment|walk.?away/.test(q)) {
     const leftRate = current.edLeft / Math.max(current.edArrivals, 1);
     return pack(lang, {
-      title: tx(lang, `Left without care at ${name} in ${year}`, `المغادرة دون رعاية في ${name} عام ${year}`),
-      observation: tx(lang, `${current.edLeft.toLocaleString('en-US')} visits left without care (${(leftRate * 100).toFixed(1)}% of ${current.edArrivals.toLocaleString('en-US')} visits). Door-to-provider median ${waitNow.toFixed(1)} minutes.`, `${current.edLeft.toLocaleString('en-US')} زيارة غادرت دون رعاية.`),
-      evidence: tx(lang, `Admitted ${current.edAdmitted.toLocaleString('en-US')}, discharged ${current.edDischarged.toLocaleString('en-US')}, left ${current.edLeft.toLocaleString('en-US')} sum with arrivals. Peak hours ${peakLine}.`, `التنويم والخروج والمغادرة تجمع مع الوصول.`),
-      explanation: tx(lang, 'Hypothesis: longer first-provider waits during peak hours raise walkaway risk. Left-against-medical-advice is not separated in this demo.', 'فرضية: طول انتظار الوصول للطبيب في الذروة يرفع خطر المغادرة.'),
-      action: tx(lang, `Prioritize first-provider coverage at ${peaks[0]?.name ?? 'peak hours'} while door-to-provider is ${waitNow.toFixed(1)} minutes, then re-check the left-without-care rate.`, `أعطِ أولوية لتغطية أول طبيب في ساعات الذروة.`),
+      title: tx(lang, `Left without being seen at ${name} in ${year}`, `المغادرة دون كشف في ${name} عام ${year}`),
+      observation: tx(lang, `${current.edLeft.toLocaleString('en-US')} visits left without being seen (${(leftRate * 100).toFixed(1)}% of ${current.edArrivals.toLocaleString('en-US')} visits). Door-to-provider median ${waitNow.toFixed(1)} minutes.`, `${current.edLeft.toLocaleString('en-US')} زيارة غادرت دون كشف.`),
+      evidence: tx(lang, `Admitted ${current.edAdmitted.toLocaleString('en-US')}, discharged ${current.edDischarged.toLocaleString('en-US')}, left without being seen ${current.edLeft.toLocaleString('en-US')} sum with arrivals. Peak hours ${peakLine}.`, `التنويم والخروج والمغادرة دون كشف تجمع مع الوصول.`),
+      explanation: tx(lang, 'Hypothesis: longer door-to-provider waits during peak hours raise LWBS risk. Left against medical advice is not separated in this demo.', 'فرضية: طول زمن الوصول للطبيب في الذروة يرفع خطر المغادرة دون كشف.'),
+      action: tx(lang, `Prioritize first-provider coverage at ${peaks[0]?.name ?? 'peak hours'} while door-to-provider is ${waitNow.toFixed(1)} minutes, then re-check Left without being seen on Safety & Return Visits.`, `أعطِ أولوية لتغطية أول طبيب في ساعات الذروة ثم أعد قياس المغادرة دون كشف.`),
       role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
-      benefit: tx(lang, 'Lower walkaways protect access and reduce unmeasured demand returning later.', 'تقليل المغادرة يحمي الوصول.'),
+      benefit: tx(lang, 'Lower LWBS protects access and reduces unmeasured demand returning later.', 'تقليل المغادرة دون كشف يحمي الوصول.'),
     });
   }
 
   if (/return|72.?hour|revisit/.test(q)) {
     const revisit = Math.round(current.edArrivals * 0.034);
     return pack(lang, {
-      title: tx(lang, `Emergency returns at ${name} in ${year}`, `عودة الطوارئ في ${name} عام ${year}`),
-      observation: tx(lang, `About ${(0.034 * 100).toFixed(1)}% of arrivals are labelled unplanned 72-hour returns (~${revisit.toLocaleString('en-US')} visits).`, `حوالي ${(0.034 * 100).toFixed(1)}٪ عودة خلال 72 ساعة.`),
-      evidence: tx(lang, `Denominator is arrivals, not eligible discharges. Visits are not linked patient-by-patient. Deaths ${current.deaths.toLocaleString('en-US')}.`, `المقام هو الوصول وليس الخروج المؤهل.`),
+      title: tx(lang, `Unplanned 72-hour returns at ${name} in ${year}`, `عودة غير مخططة خلال 72 ساعة في ${name} عام ${year}`),
+      observation: tx(lang, `About ${(0.034 * 100).toFixed(1)}% of arrivals are labelled unplanned 72-hour returns (~${revisit.toLocaleString('en-US')} visits).`, `حوالي ${(0.034 * 100).toFixed(1)}٪ عودة غير مخططة خلال 72 ساعة.`),
+      evidence: tx(lang, `Denominator is arrivals, not eligible discharges. Visits are not linked patient-by-patient. ED mortality count ${current.edDeaths.toLocaleString('en-US')}.`, `المقام هو الوصول وليس الخروج المؤهل.`),
       explanation: tx(lang, 'Hypothesis only: return share can move with discharge quality and access. This figure is a fixed demonstration share, not a linked cohort.', 'فرضية فقط: حصة العودة قد تتحرك مع جودة الخروج.'),
-      action: tx(lang, 'Review return cases on Safety & Return Visits together with left-without-care and high-acuity volume — do not treat the share as a patient-level risk score.', 'راجع حالات العودة مع المغادرة دون رعاية.'),
+      action: tx(lang, 'Review Unplanned 72-hour return rate on Safety & Return Visits together with Left without being seen and High-acuity arrivals — do not treat the share as a patient-level risk score.', 'راجع معدل العودة خلال 72 ساعة مع المغادرة دون كشف.'),
       role: tx(lang, 'Emergency operations lead', 'قائد عمليات الطوارئ'),
-      benefit: tx(lang, 'Watching returns alongside walkaways shows whether access problems are recycling demand.', 'مراقبة العودة مع المغادرة تُظهر إن كان ضغط الوصول يعيد الطلب.'),
+      benefit: tx(lang, 'Watching returns alongside LWBS shows whether access problems are recycling demand.', 'مراقبة العودة مع المغادرة دون كشف تُظهر إن كان ضغط الوصول يعيد الطلب.'),
     });
   }
 
