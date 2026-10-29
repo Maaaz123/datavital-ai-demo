@@ -212,7 +212,7 @@ function Alerts() {
               <path d="M19 4l.7 1.7L21.4 6.4 19.7 7.1 19 8.8l-.7-1.7L16.6 6.4l1.7-.7z" fill="currentColor" />
             </svg>
           </span>
-          Review in AI
+          Open Vital Assist
         </button>
         {alerts[0] ? (
           <button type="button" className="gc-text-btn" onClick={() => { copilot.openAlert(alerts[0], { stay: true }); copilot.setTab('approvals'); }}>

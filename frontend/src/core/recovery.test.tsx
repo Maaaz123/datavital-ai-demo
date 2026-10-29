@@ -37,7 +37,7 @@ describe('three emergency pages', () => {
     expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes']);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'AI Copilot' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
   });
 
   it('updates visits when the hospital, year, or period changes', () => {
@@ -62,9 +62,9 @@ describe('three emergency pages', () => {
     fireEvent.click(screen.getByRole('button', { name: /ED Visits/ }));
     expect(screen.getByTestId('kpi-detail').textContent).toMatch(/ED arrivals/i);
     fireEvent.click(screen.getByRole('button', { name: 'Investigate ED visits trend' }));
-    expect(screen.getByRole('heading', { name: 'AI Copilot' })).toBeInTheDocument();
-    expect(document.querySelector('.gc-copilot-scope')?.textContent).toMatch(/ED visits trend/);
-    expect(screen.getByText(/open Emergency alerts/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Vital Assist' })).toBeInTheDocument();
+    expect(document.querySelector('.gc-assist-chip-focus')?.textContent).toMatch(/ED visits trend/);
+    expect(screen.getByText(/open alerts/i)).toBeInTheDocument();
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
 
@@ -81,8 +81,8 @@ describe('three emergency pages', () => {
 
   it('approves an estimate from the AI icon, isolates it by hospital, and restores it', () => {
     renderAt('/');
-    fireEvent.click(screen.getByRole('button', { name: 'AI Copilot' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Approvals' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vital Assist' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Decide' }));
     fireEvent.click(screen.getByRole('tab', { name: /2\. Investigation/ }));
     expect(screen.getByText(/Compare the median with the P90/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /3\. Prediction/ }));

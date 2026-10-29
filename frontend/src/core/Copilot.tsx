@@ -67,13 +67,15 @@ export function useCopilot(): CopilotApi {
   return value;
 }
 
+const ASSIST_NAME = { en: 'Vital Assist', ar: 'Vital Assist' } as const;
+
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
+  { id: 'overview', label: 'Home' },
   { id: 'alerts', label: 'Alerts' },
-  { id: 'investigate', label: 'Investigate' },
-  { id: 'predictions', label: 'Forecasts' },
-  { id: 'actions', label: 'Recommendations' },
-  { id: 'approvals', label: 'Approvals' },
+  { id: 'investigate', label: 'Review' },
+  { id: 'predictions', label: 'Forecast' },
+  { id: 'actions', label: 'Actions' },
+  { id: 'approvals', label: 'Decide' },
   { id: 'ask', label: 'Ask' },
 ];
 
@@ -94,8 +96,8 @@ export function CopilotButton() {
       type="button"
       className="gc-copilot-launch"
       data-testid="alert-count"
-      aria-label={tx(store.lang, 'AI Copilot', 'مساعد الذكاء')}
-      title={tx(store.lang, 'AI Copilot', 'مساعد الذكاء')}
+      aria-label={tx(store.lang, ASSIST_NAME.en, ASSIST_NAME.ar)}
+      title={tx(store.lang, ASSIST_NAME.en, ASSIST_NAME.ar)}
       aria-expanded={copilot.open}
       onClick={() => {
         copilot.setTab(copilot.open ? copilot.tab : 'overview');
@@ -157,19 +159,36 @@ export function CopilotPanel() {
       tabIndex={-1}
     >
       <header className="gc-copilot-head">
-        <div>
-          <p className="gc-kicker">Decision support</p>
-          <h2 id={titleId}>AI Copilot</h2>
+        <div className="gc-assist-brand">
+          <span className="gc-assist-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4.2 19.8l7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M13.1 4.8l1.5 3.6 3.6 1.5-3.6 1.5-1.5 3.6-1.5-3.6-3.6-1.5 3.6-1.5z" fill="currentColor" />
+              <path d="M19.2 3.6l.75 1.8 1.8.75-1.8.75-.75 1.8-.75-1.8-1.8-.75 1.8-.75z" fill="currentColor" />
+            </svg>
+          </span>
+          <div>
+            <p className="gc-kicker">Emergency decision support</p>
+            <h2 id={titleId}>{ASSIST_NAME.en}</h2>
+          </div>
         </div>
-        <button type="button" className="gc-btn quiet" onClick={() => copilot.setOpen(false)}>{tx(lang, 'Close', 'إغلاق')}</button>
+        <button type="button" className="gc-assist-close" onClick={() => copilot.setOpen(false)} aria-label={tx(lang, 'Close', 'إغلاق')}>
+          ×
+        </button>
       </header>
-      <p className="gc-copilot-scope">
-        {name} · {store.year} · Emergency · {page}
-        {copilot.chart ? ` · ${copilot.chart}` : ''}
-      </p>
-      <p>{count} open Emergency alerts for this hospital and year.</p>
-      {note ? <p>{note}</p> : null}
-      <div className="gc-copilot-tabs" role="tablist" aria-label={tx(lang, 'Copilot sections', 'أقسام المساعد')}>
+
+      <div className="gc-assist-meta">
+        <span className="gc-assist-chip">{name}</span>
+        <span className="gc-assist-chip">{store.year}</span>
+        <span className="gc-assist-chip">{page}</span>
+        {copilot.chart ? <span className="gc-assist-chip gc-assist-chip-focus">{copilot.chart}</span> : null}
+        <span className={`gc-assist-chip ${count ? 'gc-assist-chip-alert' : 'gc-assist-chip-good'}`}>
+          {count} open alert{count === 1 ? '' : 's'}
+        </span>
+      </div>
+      {note ? <p className="gc-assist-note">{note}</p> : null}
+
+      <div className="gc-copilot-tabs" role="tablist" aria-label={tx(lang, 'Vital Assist sections', 'أقسام Vital Assist')}>
         {TABS.map((tab) => (
           <button key={tab.id} type="button" role="tab" aria-selected={copilot.tab === tab.id} onClick={() => copilot.setTab(tab.id)}>
             {tab.label}
@@ -203,14 +222,28 @@ function Overview({ alerts, selected }: { alerts: DemoAlert[]; selected: DemoAle
   const copilot = useCopilot();
   const ranked = [...alerts].sort((a, b) => rank(a.severity) - rank(b.severity));
   return (
-    <div>
-      <p>This dashboard is the current scope. Drivers are hypotheses. Forecasts are estimates, not validated predictions.</p>
-      {selected ? <p>Primary signal: {selected.title}, observed {selected.observed}.</p> : <p>No alert is defined for this screen.</p>}
-      <ul className="gc-alert-list">
+    <div className="gc-assist-stack">
+      <section className="gc-assist-card">
+        <h3>Current scope</h3>
+        <p>This dashboard is the live scope. Drivers are hypotheses. Forecasts are estimates, not validated predictions.</p>
+      </section>
+      <section className={`gc-assist-card ${selected ? 'gc-tone-watch' : 'gc-tone-neutral'}`}>
+        <h3>Primary signal</h3>
+        {selected ? (
+          <p><strong>{selected.title}</strong> · observed {selected.observed}</p>
+        ) : (
+          <p>No alert is defined for this screen.</p>
+        )}
+      </section>
+      <ul className="gc-assist-alerts">
         {ranked.slice(0, 4).map((alert) => (
           <li key={alert.id}>
-            <button type="button" onClick={() => copilot.openAlert(alert)}>
-              <SeverityMark severity={alert.severity} /> {alert.title}
+            <button type="button" className={`gc-assist-alert gc-tone-${severityTone(alert.severity)}`} onClick={() => copilot.openAlert(alert)}>
+              <SeverityMark severity={alert.severity} />
+              <span>
+                <strong>{alert.title}</strong>
+                <em>{alert.observed}</em>
+              </span>
             </button>
           </li>
         ))}
@@ -224,13 +257,17 @@ function AlertFeed({ alerts, statusOf }: { alerts: DemoAlert[]; statusOf: (alert
   const copilot = useCopilot();
   const ranked = [...alerts].sort((a, b) => rank(a.severity) - rank(b.severity));
   return (
-    <ul className="gc-alert-list">
+    <ul className="gc-assist-alerts">
       {ranked.map((alert) => (
-        <li key={alert.id}>
-          <button type="button" onClick={() => copilot.openAlert(alert)}>
-            <SeverityMark severity={alert.severity} /> {alert.title} · {alert.observed}
+        <li key={alert.id} className={`gc-assist-card gc-tone-${severityTone(alert.severity)}`}>
+          <button type="button" className="gc-assist-alert" onClick={() => copilot.openAlert(alert)}>
+            <SeverityMark severity={alert.severity} />
+            <span>
+              <strong>{alert.title}</strong>
+              <em>{alert.observed}</em>
+            </span>
           </button>
-          <p>{statusLabel(statusOf(alert))} · {alert.period} · {alert.department}</p>
+          <p className="gc-assist-note">{statusLabel(statusOf(alert))} · {alert.period} · {alert.department}</p>
           <div className="gc-inline">
             <button type="button" className="gc-btn quiet" onClick={() => store.setAlertStatus(alert.id, 'acknowledged')}>Acknowledge</button>
             <button type="button" className="gc-btn quiet" onClick={() => copilot.openAlert(alert)}>Investigate</button>
@@ -244,19 +281,25 @@ function AlertFeed({ alerts, statusOf }: { alerts: DemoAlert[]; statusOf: (alert
 
 function Investigate({ alert, status }: { alert: DemoAlert | null; status: AlertStatus }) {
   const copilot = useCopilot();
-  if (!alert) return <p>Choose an alert from this hospital and year.</p>;
+  if (!alert) return <section className="gc-assist-card"><p>Choose an alert from this hospital and year.</p></section>;
   return (
-    <article>
-      <p className="gc-kicker">{statusLabel(status)}</p>
-      <h3>{alert.title}</h3>
-      <ol className="gc-steps">
-        <li>KPI measurement: {alert.observed}</li>
-        <li>Detection: {alert.rule}</li>
-        <li>Root cause: {alert.investigation} These are not proven causes.</li>
-        <li>Evidence: {alert.evidence}</li>
+    <article className="gc-assist-stack">
+      <section className={`gc-assist-card gc-tone-${severityTone(alert.severity)}`}>
+        <p className="gc-kicker">{statusLabel(status)}</p>
+        <h3>{alert.title}</h3>
+        <p>{alert.observed}</p>
+      </section>
+      <ol className="gc-assist-steps">
+        <li><strong>Measurement</strong><span>{alert.observed}</span></li>
+        <li><strong>Detection</strong><span>{alert.rule}</span></li>
+        <li><strong>Hypotheses</strong><span>{alert.investigation} These are not proven causes.</span></li>
+        <li><strong>Evidence</strong><span>{alert.evidence}</span></li>
       </ol>
       <div className="gc-inline">
-        <button type="button" className="gc-btn" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
+        <button type="button" className="gc-ai-cta" onClick={() => copilot.setTab('approvals')}>
+          <span className="gc-ai-orb" aria-hidden="true">✓</span>
+          Open decision review
+        </button>
         <button type="button" className="gc-btn quiet" onClick={() => copilot.setTab('actions')}>Review recommendation</button>
       </div>
     </article>
@@ -264,12 +307,17 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
 }
 
 function Prediction({ alert }: { alert: DemoAlert | null }) {
-  if (!alert) return <p>No signal is selected.</p>;
+  if (!alert) return <section className="gc-assist-card"><p>No signal is selected.</p></section>;
   return (
-    <article>
-      <h3>Illustrative prediction</h3>
-      <p>Not a validated model. If the current {alert.title.toLowerCase()} stayed near {alert.observed}, the story would continue at that level. This is not a forecast and not a clinical validation.</p>
-      <p>{alert.comparison}</p>
+    <article className="gc-assist-stack">
+      <section className="gc-assist-card">
+        <h3>Illustrative prediction</h3>
+        <p>Not a validated model. If the current {alert.title.toLowerCase()} stayed near {alert.observed}, the story would continue at that level.</p>
+      </section>
+      <section className="gc-assist-card gc-tone-watch">
+        <h3>Comparison</h3>
+        <p>{alert.comparison}</p>
+      </section>
     </article>
   );
 }
@@ -277,19 +325,26 @@ function Prediction({ alert }: { alert: DemoAlert | null }) {
 function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' | 'decide' }) {
   const store = useShowcase();
   const copilot = useCopilot();
-  if (!alert) return <p>No recommendation is selected.</p>;
+  if (!alert) return <section className="gc-assist-card"><p>No recommendation is selected.</p></section>;
   const key = decisionKey(alert.kpi, store.hospital, store.year, 'Emergency');
   const decision = store.approvals[key];
   return (
-    <article>
-      <h3>{alert.action}</h3>
-      <p>Rationale: {alert.investigation}</p>
-      <p>Indicator: {alert.title}. Observed {alert.observed}.</p>
-      <p>Expected impact is an estimate. It is not a result that has already occurred.</p>
-      <p>Owner: {alert.owner}.</p>
-      <p>Decision: {decision ?? 'waiting for a person'}.</p>
+    <article className="gc-assist-stack">
+      <section className="gc-assist-card">
+        <h3>{alert.action}</h3>
+        <p>{alert.investigation}</p>
+      </section>
+      <section className="gc-assist-card gc-tone-neutral">
+        <p><strong>{alert.title}</strong> · observed {alert.observed}</p>
+        <p>Expected impact is an estimate. It is not a result that has already occurred.</p>
+        <p>Owner: {alert.owner}</p>
+        <p>Decision: {decision ?? 'waiting for a person'}</p>
+      </section>
       {mode === 'decide' ? null : (
-        <button type="button" className="gc-btn" onClick={() => copilot.setTab('approvals')}>Open decision review</button>
+        <button type="button" className="gc-ai-cta" onClick={() => copilot.setTab('approvals')}>
+          <span className="gc-ai-orb" aria-hidden="true">✓</span>
+          Open decision review
+        </button>
       )}
     </article>
   );
@@ -307,9 +362,11 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
   const median = medianMatch ? Number(medianMatch[1]) : 63.3;
   const gap = median - 60;
   return (
-    <article className="gc-decision">
-      <h3>Decision review</h3>
-      <p>{lead ? `${lead.title} · ${lead.observed}` : 'Door-to-provider wait · selected hospital and year'}</p>
+    <article className="gc-decision gc-assist-stack">
+      <section className="gc-assist-card">
+        <h3>Decision review</h3>
+        <p>{lead ? `${lead.title} · ${lead.observed}` : 'Door-to-provider wait · selected hospital and year'}</p>
+      </section>
       <div className="gc-progress-steps" role="tablist" aria-label="Decision stages">
         {STEPS.map((label, index) => (
           <button key={label} type="button" role="tab" aria-selected={step === index} aria-label={`${index + 1}. ${label}`} data-done={index < step ? 'true' : undefined} onClick={() => setStep(index)}>
@@ -318,26 +375,28 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
           </button>
         ))}
       </div>
-      {step === 0 ? <p>Detection: observed median is {median.toFixed(1)} minutes. Review line 60 minutes. Gap {gap > 0 ? '+' : ''}{gap.toFixed(1)} minutes. {lead?.rule ?? 'No open emergency alert.'}</p> : null}
-      {step === 1 ? <p>Investigation: Compare the median with the P90. {lead?.investigation ?? 'Review arrivals and boarding together.'} These are not proven causes.</p> : null}
-      {step === 2 ? <p>Prediction: Not a validated model. Continued demand is not converted into a predicted wait.</p> : null}
-      {step === 3 ? <p>Recommendation: {lead?.action ?? 'Review the peak arrival hours against the door-to-provider median.'} Expected impact is not calculated.</p> : null}
-      {step === 4 ? (
-        <div>
-          <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
-          <div className="gc-inline">
-            <button type="button" className="gc-btn primary" onClick={() => store.decide(key, 'approved')}>Approve</button>
-            <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject</button>
+      <section className="gc-assist-card">
+        {step === 0 ? <p>Detection: observed median is {median.toFixed(1)} minutes. Review line 60 minutes. Gap {gap > 0 ? '+' : ''}{gap.toFixed(1)} minutes. {lead?.rule ?? 'No open emergency alert.'}</p> : null}
+        {step === 1 ? <p>Investigation: Compare the median with the P90. {lead?.investigation ?? 'Review arrivals and boarding together.'} These are not proven causes.</p> : null}
+        {step === 2 ? <p>Prediction: Not a validated model. Continued demand is not converted into a predicted wait.</p> : null}
+        {step === 3 ? <p>Recommendation: {lead?.action ?? 'Review the peak arrival hours against the door-to-provider median.'} Expected impact is not calculated.</p> : null}
+        {step === 4 ? (
+          <div>
+            <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
+            <div className="gc-inline">
+              <button type="button" className="gc-btn primary" onClick={() => store.decide(key, 'approved')}>Approve</button>
+              <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject</button>
+            </div>
           </div>
-        </div>
-      ) : null}
-      {step === 5 ? (
-        <div>
-          {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
-          {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
-          {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
-        </div>
-      ) : null}
+        ) : null}
+        {step === 5 ? (
+          <div>
+            {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
+            {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
+            {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
+          </div>
+        ) : null}
+      </section>
     </article>
   );
 }
@@ -360,25 +419,35 @@ function Ask({
   department: string;
 }) {
   return (
-    <form onSubmit={(event) => event.preventDefault()}>
-      <p>Scope: {hospital}, {year}, department {department}. The answer uses this scope.</p>
-      <label className="gc-field">
-        Ask DataVital AI
-        <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={asked} />
-      </label>
-      <div className="gc-inline">
-        {ASSISTANT_PROMPTS.slice(0, 4).map((prompt) => (
-          <button key={prompt.en} type="button" className="gc-btn quiet" onClick={() => setQuestion(prompt.en)}>{prompt.en}</button>
-        ))}
-      </div>
-      <h3>{answer.title}</h3>
-      <p>{answer.observation}</p>
-      <p>{answer.evidence}</p>
-      <p>{answer.explanation}</p>
-      <p>{answer.action}</p>
-      <p>Suggested next step: open the related dashboard, then record a human decision. {answer.approval}</p>
+    <form className="gc-assist-stack" onSubmit={(event) => event.preventDefault()}>
+      <section className="gc-assist-card">
+        <p className="gc-assist-note">Scope: {hospital}, {year}, department {department}.</p>
+        <label className="gc-field">
+          Ask Vital Assist
+          <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={asked} />
+        </label>
+        <div className="gc-inline">
+          {ASSISTANT_PROMPTS.slice(0, 4).map((prompt) => (
+            <button key={prompt.en} type="button" className="gc-btn quiet" onClick={() => setQuestion(prompt.en)}>{prompt.en}</button>
+          ))}
+        </div>
+      </section>
+      <section className="gc-assist-card">
+        <h3>{answer.title}</h3>
+        <p>{answer.observation}</p>
+        <p>{answer.evidence}</p>
+        <p>{answer.explanation}</p>
+        <p>{answer.action}</p>
+        <p className="gc-assist-note">Suggested next step: open the related dashboard, then record a human decision. {answer.approval}</p>
+      </section>
     </form>
   );
+}
+
+function severityTone(severity: Severity): 'alert' | 'watch' | 'neutral' | 'good' {
+  if (severity === 'critical' || severity === 'high') return 'alert';
+  if (severity === 'medium') return 'watch';
+  return 'neutral';
 }
 
 function SeverityMark({ severity }: { severity: Severity }) {
