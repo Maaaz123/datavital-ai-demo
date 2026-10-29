@@ -5,7 +5,7 @@
 **Constraint:** UI/UX, layout, colors, typography, chart styling, spacing, and navigation frozen  
 **Live:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh:** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
-**Final commit hash:** `PENDING_COMMIT_HASH`
+**Final commit hash:** `d7d0335f5833753dd67c76d0d60410a5a5a72e51`
 
 ## 1. Dashboards reviewed
 
@@ -111,7 +111,7 @@ No changes to page layouts, sidebar structure, colors, typography sizes, KPI car
 
 ## 11. Final commit hash
 
-`PENDING_COMMIT_HASH`
+`d7d0335f5833753dd67c76d0d60410a5a5a72e51`
 
 ## 12. Live deployment URL
 
