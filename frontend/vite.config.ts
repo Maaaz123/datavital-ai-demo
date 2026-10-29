@@ -38,7 +38,8 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: '/datavital-ai-demo/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /refresh\.html$/],
+
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],
         runtimeCaching: [
           {
@@ -47,15 +48,9 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
           {
-            // HTML navigations: always prefer network so denser UI deploys immediately
+            // HTML navigations: network only so public demos never stick on an old shell
             urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'html-navigations-v17',
-              networkTimeoutSeconds: 3,
-              cacheableResponse: { statuses: [0, 200, 404] },
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
-            },
+            handler: 'NetworkOnly',
           },
           {
             urlPattern: ({ request, url }) =>
@@ -63,12 +58,13 @@ export default defineConfig({
               request.destination === 'script' ||
               request.destination === 'font' ||
               /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname),
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'static-assets-v17',
+              cacheName: 'static-assets-v18',
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 120,
-                maxAgeSeconds: 60 * 60 * 24 * 7,
+                maxAgeSeconds: 60 * 60 * 6,
               },
             },
           },

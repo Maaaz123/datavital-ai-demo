@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
+define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -77,11 +77,14 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
    * See https://goo.gl/S9QRab
    */
   workbox.precacheAndRoute([{
+    "url": "refresh.html",
+    "revision": "c15f0e0199e94f90b859c4f88d534a25"
+  }, {
     "url": "manifest.webmanifest",
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "345c3480f8848601c2528ab2929337a5"
+    "revision": "a9e83b1114e19ef231b67e2c02832bfb"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -89,7 +92,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-uvXb_a7B.js",
+    "url": "assets/pwa-B7SGBLpo.js",
     "revision": null
   }, {
     "url": "assets/plus-jakarta-sans-vietnamese-700-normal-CV6qDkkj.woff2",
@@ -215,7 +218,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/index-fG1X-46Y.css",
     "revision": null
   }, {
-    "url": "assets/index-CheOB3cM.js",
+    "url": "assets/index-CpcIbcjK.js",
     "revision": null
   }, {
     "url": "favicon.svg",
@@ -226,31 +229,23 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/datavital-ai-demo/index.html"), {
-    denylist: [/^\/api\//]
+    denylist: [/^\/api\//, /refresh\.html$/]
   }));
   workbox.registerRoute(({
     url
   }) => url.pathname.startsWith("/api/"), new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(({
     request
-  }) => request.mode === "navigate", new workbox.NetworkFirst({
-    "cacheName": "html-navigations-v17",
-    "networkTimeoutSeconds": 3,
-    plugins: [new workbox.CacheableResponsePlugin({
-      statuses: [0, 200, 404]
-    }), new workbox.ExpirationPlugin({
-      maxEntries: 20,
-      maxAgeSeconds: 86400
-    })]
-  }), 'GET');
+  }) => request.mode === "navigate", new workbox.NetworkOnly(), 'GET');
   workbox.registerRoute(({
     request,
     url
-  }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.StaleWhileRevalidate({
-    "cacheName": "static-assets-v17",
+  }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.NetworkFirst({
+    "cacheName": "static-assets-v18",
+    "networkTimeoutSeconds": 3,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 120,
-      maxAgeSeconds: 604800
+      maxAgeSeconds: 21600
     })]
   }), 'GET');
 
