@@ -5,7 +5,7 @@
 **Deployment URL:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh (cache wipe):** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
 **BUILD_ID:** `v45-ipd-final`  
-**Commit:** *(filled at publish)*  
+**Commit:** 14a7448  
 
 ---
 
