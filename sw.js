@@ -81,7 +81,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "90c43d338a38a88abe113255bc017832"
+    "revision": "1761fd7e86efde2a0b5be897e7cd7e56"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -89,7 +89,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-D0lNez0k.js",
+    "url": "assets/pwa-D_6SCWRl.js",
     "revision": null
   }, {
     "url": "assets/plus-jakarta-sans-vietnamese-700-normal-CV6qDkkj.woff2",
@@ -164,10 +164,58 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     "url": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
     "revision": null
   }, {
-    "url": "assets/index-DZOrqsy8.js",
+    "url": "assets/outfit-latin-ext-800-normal-DyhPHUt-.woff",
     "revision": null
   }, {
-    "url": "assets/index-CBAlGQdg.css",
+    "url": "assets/outfit-latin-ext-800-normal-DRv2ic_2.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-700-normal-fjS8-Gm7.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-700-normal-CI4iH74K.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-600-normal-CWJcPgd7.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-600-normal-B85nYjL1.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-500-normal-zeox_O30.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-ext-500-normal-DrCvqoFD.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-800-normal-CQna6-G7.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-800-normal-BRHLSPcU.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-700-normal-D4itBLBr.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-700-normal-Cu9v6i1X.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-600-normal-BEfTtDA7.woff",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-600-normal-B7SfZ07L.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-500-normal-DKnIMDSk.woff2",
+    "revision": null
+  }, {
+    "url": "assets/outfit-latin-500-normal-ClnHRwRh.woff",
+    "revision": null
+  }, {
+    "url": "assets/index-C-rlzJbd.js",
+    "revision": null
+  }, {
+    "url": "assets/index-Bcx4nWm4.css",
     "revision": null
   }, {
     "url": "favicon.svg",
@@ -186,7 +234,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
   workbox.registerRoute(({
     request
   }) => request.mode === "navigate", new workbox.NetworkFirst({
-    "cacheName": "html-navigations-v15",
+    "cacheName": "html-navigations-v16",
     "networkTimeoutSeconds": 3,
     plugins: [new workbox.CacheableResponsePlugin({
       statuses: [0, 200, 404]
@@ -199,7 +247,7 @@ define(['./workbox-f4158c38'], (function (workbox) { 'use strict';
     request,
     url
   }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.StaleWhileRevalidate({
-    "cacheName": "static-assets-v15",
+    "cacheName": "static-assets-v16",
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 120,
       maxAgeSeconds: 604800

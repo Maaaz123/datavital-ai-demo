@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { DISCLAIMER, HOSPITALS, YEARS } from '@/showcase/engine';
 import { ShowcaseState, useShowcase } from '@/showcase/state';
@@ -10,7 +10,6 @@ const NAV = [
   { to: '/', label: 'Overview', end: true },
   { to: '/emergency/flow', label: 'Patient Flow & Waiting', end: false },
   { to: '/emergency/quality', label: 'ED Quality & Outcomes', end: false },
-  { to: '/emergency/ai', label: 'ED AI Intelligence', end: false },
 ];
 
 function Shell() {
@@ -18,7 +17,12 @@ function Shell() {
   const copilot = useCopilot();
   const location = useLocation();
   const [menu, setMenu] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('year');
+  const filterRef = useRef<HTMLDivElement>(null);
+  const filterTitle = useId();
+  const hospitalName = HOSPITALS.find((item) => item.code === store.hospital)?.name ?? store.hospital;
+  const periodLabel = PERIODS.find((item) => item.id === period)?.label ?? period;
 
   useEffect(() => {
     if (store.department !== 'All') store.setDepartment('All');
@@ -26,6 +30,7 @@ function Shell() {
 
   useEffect(() => {
     setMenu(false);
+    setFiltersOpen(false);
     copilot.clearChart();
     try {
       if (!/jsdom/i.test(window.navigator.userAgent)) window.scrollTo(0, 0);
@@ -33,6 +38,22 @@ function Shell() {
       /* ignore */
     }
   }, [location.pathname, copilot.clearChart]);
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onPointer = (event: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setFiltersOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFiltersOpen(false);
+    };
+    window.addEventListener('mousedown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [filtersOpen]);
 
   return (
     <PeriodContext.Provider value={{ period, setPeriod }}>
@@ -59,28 +80,43 @@ function Shell() {
               <button type="button" className="gc-menu gc-btn quiet" aria-expanded={menu} onClick={() => setMenu((value) => !value)}>
                 Menu
               </button>
-              <div className="gc-scope">
-                <label>
-                  Hospital
-                  <select aria-label="Hospital" value={store.hospital} onChange={(event) => store.setHospital(event.target.value)}>
-                    {HOSPITALS.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Reporting year
-                  <select aria-label="Year" value={store.year} onChange={(event) => store.setYear(Number(event.target.value))}>
-                    {YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Period
-                  <select aria-label="Period" value={period} onChange={(event) => setPeriod(event.target.value as ReportPeriod)}>
-                    {PERIODS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-                  </select>
-                </label>
+              <div className="gc-filter-wrap" ref={filterRef}>
+                <button
+                  type="button"
+                  className="gc-filter-trigger"
+                  aria-expanded={filtersOpen}
+                  aria-controls={filterTitle}
+                  onClick={() => setFiltersOpen((value) => !value)}
+                >
+                  <span className="gc-filter-label">Filters</span>
+                  <strong>{hospitalName}</strong>
+                  <em>{store.year} · {periodLabel}</em>
+                </button>
+                {filtersOpen ? (
+                  <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Emergency filters">
+                    <label>
+                      Hospital
+                      <select aria-label="Hospital" value={store.hospital} onChange={(event) => store.setHospital(event.target.value)}>
+                        {HOSPITALS.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Reporting year
+                      <select aria-label="Year" value={store.year} onChange={(event) => store.setYear(Number(event.target.value))}>
+                        {YEARS.map((year) => <option key={year} value={year}>{year}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Period
+                      <select aria-label="Period" value={period} onChange={(event) => setPeriod(event.target.value as ReportPeriod)}>
+                        {PERIODS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                      </select>
+                    </label>
+                    <button type="button" className="gc-btn quiet" onClick={() => { store.reset(); setPeriod('year'); setFiltersOpen(false); }}>Reset view</button>
+                  </div>
+                ) : null}
               </div>
               <div className="gc-inline">
-                <button type="button" className="gc-btn quiet" onClick={() => { store.reset(); setPeriod('year'); }}>Reset view</button>
                 <CopilotButton />
               </div>
             </header>
@@ -99,8 +135,7 @@ function Shell() {
 function NavGlyph({ label }: { label: string }) {
   const path = label.startsWith('Overview') ? 'M4 10.5 12 4l8 6.5V20H4z'
     : label.startsWith('Patient') ? 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0'
-    : label.startsWith('ED Quality') ? 'M5 19V5h10l4 4v10H5zm8-14v4h4'
-    : 'M12 3l1.8 4.7L18 9.5l-4.2 1.8L12 16l-1.8-4.7L6 9.5l4.2-1.8z';
+    : 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" />

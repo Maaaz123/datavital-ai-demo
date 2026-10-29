@@ -19,26 +19,32 @@ function renderAt(path: string) {
   );
 }
 
-describe('four emergency pages', () => {
+function openFilters() {
+  fireEvent.click(screen.getByRole('button', { name: /Filters/i }));
+}
+
+describe('three emergency pages', () => {
   beforeEach(() => {
     clearDemoStorage();
   });
 
-  it('opens Emergency Overview and only four primary links', () => {
+  it('opens Emergency Overview and only three primary links', () => {
     renderAt('/');
     expect(screen.getByRole('heading', { level: 1, name: 'Emergency Overview' })).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data/i);
     expect(screen.getAllByText('68,372').length).toBeGreaterThan(0);
     const labels = [...document.querySelectorAll('.gc-nav a')].map((item) => item.textContent);
-    expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes', 'ED AI Intelligence']);
+    expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes']);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'AI Copilot' })).toBeInTheDocument();
   });
 
   it('updates visits when the hospital, year, or period changes', () => {
     renderAt('/');
     const ribbon = screen.getByTestId('ed-ribbon');
     const north = ribbon.textContent;
+    openFilters();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
     expect(ribbon.textContent).not.toBe(north);
     expect(screen.getByTestId('value-kpi_ed_avg_los_hours').textContent).not.toMatch(/2\.5 hours/);
@@ -62,8 +68,8 @@ describe('four emergency pages', () => {
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
 
-  it('renders the other three pages with charts', () => {
-    for (const path of ['/emergency/flow', '/emergency/quality', '/emergency/ai']) {
+  it('renders the other two pages with charts', () => {
+    for (const path of ['/emergency/flow', '/emergency/quality']) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
       expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(2);
@@ -73,8 +79,10 @@ describe('four emergency pages', () => {
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
   });
 
-  it('approves an estimate, isolates it by hospital, and restores it', () => {
-    renderAt('/emergency/ai');
+  it('approves an estimate from the AI icon, isolates it by hospital, and restores it', () => {
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: 'AI Copilot' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Approvals' }));
     fireEvent.click(screen.getByRole('tab', { name: /2\. Investigation/ }));
     expect(screen.getByText(/Compare the median with the P90/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /3\. Prediction/ }));
@@ -87,6 +95,7 @@ describe('four emergency pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/not a measured hospital result/i)).toBeInTheDocument();
+    openFilters();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
     fireEvent.click(screen.getByRole('tab', { name: /6\. Outcome/ }));
     expect(screen.getByText(/Record an approval or rejection/i)).toBeInTheDocument();
@@ -96,7 +105,7 @@ describe('four emergency pages', () => {
   });
 
   it('sends legacy public routes back to Emergency Overview', () => {
-    for (const path of ['/dashboard', '/story/pharmacy', '/board/pharmacy/medication-flow', '/kpis', '/present', '/intelligence']) {
+    for (const path of ['/dashboard', '/story/pharmacy', '/board/pharmacy/medication-flow', '/kpis', '/present', '/intelligence', '/emergency/ai', '/emergency/ai-decisions']) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1, name: 'Emergency Overview' }), path).toBeInTheDocument();
       expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
@@ -114,7 +123,6 @@ describe('four emergency pages', () => {
     expect(modesFor(fact.edArrivals).reduce((sum, item) => sum + item.count, 0)).toBe(fact.edArrivals);
     const leave = leaveSplit(fact.edLeft);
     expect(leave.before + leave.after).toBe(fact.edLeft);
-    expect(fact.edArrivals - leave.before + leave.after).toBe(fact.edArrivals - leave.before + leave.after);
     expect(fact.occupiedBeds + fact.availableBeds + fact.blockedBeds).toBe(fact.staffedBeds);
     const quarter = months.slice(0, 3).reduce((sum, month) => sum + month.edArrivals, 0);
     expect(quarter).toBeLessThan(fact.edArrivals);

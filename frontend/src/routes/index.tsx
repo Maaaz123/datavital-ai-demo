@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import CoreApp from '@/core/CoreApp';
-import { DecisionsPage, FlowPage, OverviewPage, QualityPage } from '@/core/four';
+import { FlowPage, OverviewPage, QualityPage } from '@/core/four';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot', '/beds', '/emergency',
@@ -21,9 +21,9 @@ export const routes = [
       { index: true, element: <OverviewPage /> },
       { path: 'emergency/flow', element: <FlowPage /> },
       { path: 'emergency/quality', element: <QualityPage /> },
-      { path: 'emergency/ai', element: <DecisionsPage /> },
+      { path: 'emergency/ai', element: <Navigate to="/" replace /> },
       { path: 'emergency/capacity-quality', element: <Navigate to="/emergency/quality" replace /> },
-      { path: 'emergency/ai-decisions', element: <Navigate to="/emergency/ai" replace /> },
+      { path: 'emergency/ai-decisions', element: <Navigate to="/" replace /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),
@@ -32,10 +32,10 @@ export const routes = [
   { path: '/operations/:area', element: <Navigate to="/" replace /> },
   { path: '/story/:screenId', element: <Navigate to="/" replace /> },
   { path: '/board/:domain/:tab', element: <Navigate to="/" replace /> },
-  { path: '/kpis/:metricKey', element: <Navigate to="/emergency/ai" replace /> },
+  { path: '/kpis/:metricKey', element: <Navigate to="/" replace /> },
   { path: '/showcase/screens/:screenId', element: <Navigate to="/" replace /> },
   { path: '/showcase/extensions/:screenId', element: <Navigate to="/" replace /> },
-  { path: '/showcase/kpis/:metricKey', element: <Navigate to="/emergency/ai" replace /> },
+  { path: '/showcase/kpis/:metricKey', element: <Navigate to="/" replace /> },
   { path: '/showcase/*', element: <Navigate to="/" replace /> },
   { path: '/clinical-ai/*', element: <Navigate to="/" replace /> },
   { path: '*', element: <Navigate to="/" replace /> },

@@ -51,7 +51,7 @@ export default defineConfig({
             urlPattern: ({ request }) => request.mode === 'navigate',
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'html-navigations-v15',
+              cacheName: 'html-navigations-v16',
               networkTimeoutSeconds: 3,
               cacheableResponse: { statuses: [0, 200, 404] },
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
@@ -65,7 +65,7 @@ export default defineConfig({
               /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname),
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'static-assets-v15',
+              cacheName: 'static-assets-v16',
               expiration: {
                 maxEntries: 120,
                 maxAgeSeconds: 60 * 60 * 24 * 7,

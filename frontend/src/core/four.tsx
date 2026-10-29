@@ -1,8 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { answerQuestion } from '@/showcase/assistant';
 import { scenarioFor } from '@/showcase/facts';
-import { decisionKey, useShowcase } from '@/showcase/state';
+import { useShowcase } from '@/showcase/state';
 import { alertsFor } from './alerts';
 import { useCopilot } from './Copilot';
 import {
@@ -17,7 +15,7 @@ import {
   waitHeatFor,
 } from './derived';
 import { sumKey, usePeriod, weighted } from './period';
-import { AI_CASES, indicatorsFor, type Indicator, type ScopeInput } from './scope';
+import { indicatorsFor, type Indicator, type ScopeInput } from './scope';
 import { Chart, type Figure } from './viz';
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74'];
@@ -187,8 +185,12 @@ function Alerts() {
       <div className="gc-next">
         <h2>Management action</h2>
         <p>Review the peak arrival hours while door-to-provider median is {num(view.median, 1)} minutes.</p>
-        <button type="button" className="gc-btn primary" onClick={() => copilot.setOpen(true)}>Review in the copilot</button>
-        {alerts[0] ? <Link to="/emergency/ai">Open the decision review</Link> : <p>No open emergency alert for this hospital and year.</p>}
+        <button type="button" className="gc-btn primary" onClick={() => { if (alerts[0]) copilot.openAlert(alerts[0], { stay: true }); else copilot.setOpen(true); }}>Review in AI</button>
+        {alerts[0] ? (
+          <button type="button" className="gc-text-btn" onClick={() => { copilot.openAlert(alerts[0], { stay: true }); copilot.setTab('approvals'); }}>
+            Open the decision review
+          </button>
+        ) : <p>No open emergency alert for this hospital and year.</p>}
       </div>
     </section>
   );
@@ -231,35 +233,47 @@ function scopeInput(view: View): ScopeInput {
 
 function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; domains: string[] }) {
   const [domain, setDomain] = useState(domains[0]);
+  const [open, setOpen] = useState(false);
   const rows = indicators.filter((item) => item.domain === domain);
   const valued = indicators.filter((item) => item.status !== 'unavailable').length;
   return (
-    <section className="gc-panel span-12">
-      <h2>{domains.length === 1 ? domain : 'Indicator scope'}</h2>
-      <p>{valued} of {indicators.length} emergency-visit indicators have an illustrative value. Blank rows are not estimated. Hospital beds, workforce, experience, revenue, laboratory, imaging, and pharmacy are outside this view.</p>
-      {domains.length > 1 ? (
-        <div className="gc-chips">
-          {domains.map((item) => (
-            <button key={item} type="button" aria-pressed={domain === item} onClick={() => setDomain(item)}>{item}</button>
-          ))}
+    <section className="gc-panel gc-fit span-12">
+      <div className="gc-index-head">
+        <div>
+          <h2>{domains.length === 1 ? domain : 'Indicator scope'}</h2>
+          <p>{valued} of {indicators.length} emergency-visit indicators have a value. Blank rows stay blank.</p>
         </div>
-      ) : null}
-      <div className="gc-index-wrap">
-        <table className="gc-index">
-          <thead>
-            <tr><th>Indicator</th><th>Value</th><th>Basis</th></tr>
-          </thead>
-          <tbody>
-            {rows.map((item) => (
-              <tr key={item.name}>
-                <td>{item.name}</td>
-                <td>{item.value}</td>
-                <td>{item.method}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <button type="button" className="gc-btn quiet" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+          {open ? 'Hide list' : 'Show list'}
+        </button>
       </div>
+      {open ? (
+        <>
+          {domains.length > 1 ? (
+            <div className="gc-chips">
+              {domains.map((item) => (
+                <button key={item} type="button" aria-pressed={domain === item} onClick={() => setDomain(item)}>{item}</button>
+              ))}
+            </div>
+          ) : null}
+          <div className="gc-index-wrap">
+            <table className="gc-index">
+              <thead>
+                <tr><th>Indicator</th><th>Value</th><th>Basis</th></tr>
+              </thead>
+              <tbody>
+                {rows.map((item) => (
+                  <tr key={item.name}>
+                    <td>{item.name}</td>
+                    <td>{item.value}</td>
+                    <td>{item.method}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }
@@ -348,103 +362,6 @@ export function QualityPage() {
       <Slot figure={fig('bars', 'Emergency mortality', view.labels, [{ name: 'Deaths', values: view.monthlyDeaths }], 'deaths', `${num(view.deaths)} deaths among ${num(view.arrivals)} visits (${pct(mortality)}).`)} />
       <Slot figure={fig('bars', 'High-acuity arrivals', ['ESI-1', 'ESI-2'], [{ name: 'Arrivals', values: [view.acuity[0], view.acuity[1]] }], 'visits', 'ESI-1 and ESI-2 are part of the five-level distribution. Their waits are not separate.')} />
       <IndicatorIndex indicators={indicatorsFor(scopeInput(view))} domains={['ED Quality & Outcomes']} />
-    </Page>
-  );
-}
-
-const STEPS = ['Detection', 'Investigation', 'Prediction', 'Recommendation', 'Approval', 'Outcome'] as const;
-
-export function DecisionsPage() {
-  const store = useShowcase();
-  const view = useView();
-  const { period } = usePeriod();
-  const copilot = useCopilot();
-  const [step, setStep] = useState(0);
-  const [caseId, setCaseId] = useState('AI-10');
-  const [question, setQuestion] = useState('Why is emergency waiting time increasing?');
-  const selected = AI_CASES.find((item) => item.id === caseId) ?? AI_CASES[0];
-  const reviewGap = view.median - 60;
-  const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Emergency' && alert.severity !== 'info');
-  const lead = alerts[0];
-  const key = decisionKey(lead?.kpi ?? 'kpi_ed_door_to_provider_median_minutes', store.hospital, store.year, 'Emergency');
-  const decision = store.approvals[key];
-  const answer = answerQuestion(question, store.hospital, store.year, 'Emergency', 'en');
-  return (
-    <Page title="ED AI Intelligence" kpis={[
-      score('Door-to-Provider Median', `${num(view.median, 1)} minutes`, 'Selected signal', 'The decision uses the door-to-provider median unless another emergency alert is chosen.', `${num(view.median, 1)} minutes.`),
-      score('Boarding Beyond 4 Hours', pct(view.admitted ? view.boarding / view.admitted : 0), 'Selected signal', 'Boarding longer than 4 hours divided by emergency admissions.', `${num(view.boarding)} admissions.`),
-      score('ED Visits', num(view.arrivals), 'Context', 'Arrivals in the selected period.', `${num(view.arrivals)} arrivals.`),
-      score('Left Without Being Seen', pct(view.arrivals ? view.left / view.arrivals : 0), 'Context', 'Left visits divided by arrivals.', `${num(view.left)} left.`),
-    ]}>
-      <section className="gc-panel gc-fit span-4">
-        <h2>Active emergency alerts</h2>
-        <ul className="gc-alert-list">
-          {alerts.map((alert) => (
-            <li key={alert.id}>
-              <button type="button" onClick={() => { copilot.openAlert(alert, { stay: true }); setStep(1); }}>
-                <span className={`gc-sev gc-sev-${alert.severity}`}>{alert.severity}</span>
-                {alert.title} · {alert.observed}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {period === 'year' ? null : <p>These alerts use the full reporting year. The scores above use the selected period.</p>}
-      </section>
-      <section className="gc-panel span-8">
-        <h2>10 ED use cases</h2>
-        <div className="gc-chips">
-          {AI_CASES.map((item) => (
-            <button key={item.id} type="button" aria-pressed={caseId === item.id} onClick={() => setCaseId(item.id)}>{item.id}</button>
-          ))}
-        </div>
-        <p>{selected.id} {selected.name}. {selected.level}. {selected.inputs}</p>
-        <div className="gc-progress-steps" role="tablist" aria-label="Decision stages">
-          {STEPS.map((label, index) => (
-            <button key={label} type="button" role="tab" aria-selected={step === index} aria-label={`${index + 1}. ${label}`} data-done={index < step ? 'true' : undefined} onClick={() => setStep(index)}>
-              <i />
-              <span>{index === step ? label : index + 1}</span>
-            </button>
-          ))}
-        </div>
-        {step === 0 ? <p>Detection: observed door-to-provider median is {num(view.median, 1)} minutes. The hospital review line in this scenario is 60 minutes. Gap {reviewGap > 0 ? '+' : ''}{num(reviewGap, 1)} minutes. {lead ? `${lead.title} is ${lead.severity}. ${lead.rule}` : 'No open emergency alert.'}</p> : null}
-        {step === 1 ? <p>Investigation: {selected.id === 'AI-10' ? 'Compare the median with the P90. ' : null}{selected.analysis} These are not proven causes.</p> : null}
-        {step === 2 ? <p>Prediction: {selected.limit} Not a validated model.</p> : null}
-        {step === 3 ? <p>Recommendation: {lead?.action ?? answer.action} Expected impact is not calculated. A clinical and operational owner reviews the action before anyone acts.</p> : null}
-        {step === 4 ? (
-          <div>
-            <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
-            <div className="gc-inline">
-              <button type="button" className="gc-btn primary" onClick={() => store.decide(key, 'approved')}>Approve</button>
-              <button type="button" className="gc-btn quiet" onClick={() => store.decide(key, 'rejected')}>Reject</button>
-            </div>
-          </div>
-        ) : null}
-        {step === 5 ? (
-          <div>
-            {decision === 'approved' ? <p>Illustrative outcome. This is not a measured hospital result. Decision: approved.</p> : null}
-            {decision === 'rejected' ? <p>No illustrative outcome is shown after a rejection.</p> : null}
-            {!decision ? <p>Record an approval or rejection before an outcome is shown.</p> : null}
-          </div>
-        ) : null}
-      </section>
-      <Slot span="span-6" figure={fig('line', 'Door-to-provider evidence', view.labels, [
-        { name: 'Median', values: view.monthlyMedian },
-        { name: 'P90', values: view.monthlyP90 },
-      ], 'minutes', 'Monthly median and P90. The score above is visit-weighted.')} />
-      <Slot span="span-6" figure={fig('bars', 'Boarding evidence', view.labels, [{ name: 'Boarded', values: view.monthlyBoard }], 'patients', 'Counts sum to the period boarding total.')} />
-      <section className="gc-panel span-12">
-        <h2>Ask DataVital AI</h2>
-        <p>Prepared emergency questions only. This is not a live model.</p>
-        <div className="gc-ask">
-          {['Why is emergency waiting time increasing?', 'How many emergency arrivals are there this year?', 'Which operational interventions should be reviewed?'].map((item) => (
-            <button type="button" className="gc-btn quiet" key={item} onClick={() => setQuestion(item)}>{item}</button>
-          ))}
-        </div>
-        <h3>{answer.title}</h3>
-        <p>{answer.observation}</p>
-        <p>{answer.evidence}</p>
-        <p>{answer.action}</p>
-      </section>
     </Page>
   );
 }
