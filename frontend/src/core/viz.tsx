@@ -699,11 +699,22 @@ function BulletChart({ figure }: { figure: Figure }) {
 function axisMax(values: number[]): number {
   const peak = Math.max(...values, 0);
   if (peak <= 0) return 1;
-  if (peak <= 100) return 100;
+  // Nice scale around the actual peak. Do not force 0–100 — that flattens day/hour
+  // charts (LOS ≈ 4–8) into an empty-looking band at the bottom of the plot.
+  // Keep tighter steps under 10 so specialty LOS (~4–6 days) does not jump to 10.
   const padded = peak * 1.12;
   const power = 10 ** Math.floor(Math.log10(padded));
   const fraction = padded / power;
-  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 2.5 ? 2.5 : fraction <= 5 ? 5 : 10;
+  const nice = fraction <= 1 ? 1
+    : fraction <= 1.5 ? 1.5
+    : fraction <= 2 ? 2
+    : fraction <= 2.5 ? 2.5
+    : fraction <= 3 ? 3
+    : fraction <= 4 ? 4
+    : fraction <= 5 ? 5
+    : fraction <= 6 ? 6
+    : fraction <= 8 ? 8
+    : 10;
   return nice * power;
 }
 
