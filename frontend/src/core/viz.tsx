@@ -443,7 +443,12 @@ export function Chart({ figure, compact = false, action }: { figure: Figure; com
         <div className="gc-chart-copy">
           <strong>{figure.title}</strong>
           <span>{figure.note}</span>
-          {figure.series.length > 1 && figure.type !== 'heatmap' ? (
+          {figure.type === 'pareto' ? (
+            <ul className="gc-legend">
+              <li><i style={{ background: PALETTE[0] }} />{figure.series[0]?.name ?? 'Count'}</li>
+              <li><i style={{ background: '#8c6a3d' }} />Cumulative %</li>
+            </ul>
+          ) : figure.series.length > 1 && figure.type !== 'heatmap' ? (
             <ul className="gc-legend">
               {figure.series.map((item, index) => (
                 <li key={item.name}><i style={{ background: PALETTE[index % PALETTE.length] }} />{item.name}</li>
@@ -509,14 +514,31 @@ const CHART_WIDTH = 720;
 const CHART_PAD_L = 56;
 const CHART_PAD_R = 14;
 
+function orderPareto(figure: Figure): { categories: string[]; series: Figure['series'] } {
+  if (figure.type !== 'pareto') return { categories: figure.categories, series: figure.series };
+  const primary = figure.series[0]?.values ?? [];
+  const order = figure.categories
+    .map((category, index) => ({ category, index, value: primary[index] ?? 0 }))
+    .sort((a, b) => b.value - a.value);
+  return {
+    categories: order.map((item) => item.category),
+    series: figure.series.map((item) => ({
+      ...item,
+      values: order.map((entry) => item.values[entry.index] ?? 0),
+    })),
+  };
+}
+
 function BarChart({ figure, pareto = false, compact = false }: { figure: Figure; pareto?: boolean; compact?: boolean }) {
-  const { categories, series, digits, title, note } = figure;
+  const ordered = pareto ? orderPareto(figure) : { categories: figure.categories, series: figure.series };
+  const { categories, series } = ordered;
+  const { digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat.map((value) => Math.abs(value)));
   const width = CHART_WIDTH;
   const height = compact ? 148 : 240;
   const padL = CHART_PAD_L;
-  const padR = CHART_PAD_R;
+  const padR = pareto ? 40 : CHART_PAD_R;
   const padT = compact ? 8 : 16;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
@@ -524,6 +546,7 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
   const groupW = innerW / Math.max(categories.length, 1);
   const barW = Math.max(4, Math.min(28, (groupW * 0.72) / series.length));
   const ticks = [0, max / 2, max];
+  const pctTicks = [0, 50, 100];
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${note}`}>
       <title>{title}</title>
@@ -536,6 +559,12 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
           </g>
         );
       })}
+      {pareto ? pctTicks.map((tick) => {
+        const y = padT + innerH - (tick / 100) * innerH;
+        return (
+          <text key={`pct-${tick}`} x={width - padR + 6} y={y + 4} textAnchor="start" fill="#8c6a3d">{`${tick}%`}</text>
+        );
+      }) : null}
       {categories.map((category, categoryIndex) =>
         series.map((item, seriesIndex) => {
           const value = item.values[categoryIndex] ?? 0;
@@ -558,7 +587,7 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
           );
         }),
       )}
-      {pareto ? <ParetoLine figure={figure} padL={padL} padT={padT} innerH={innerH} groupW={groupW} /> : null}
+      {pareto ? <ParetoLine categories={categories} values={series[0]?.values ?? []} padL={padL} padT={padT} innerH={innerH} groupW={groupW} /> : null}
       {categories.map((category, index) => (
         <text key={category} x={padL + index * groupW + groupW / 2} y={height - 10} textAnchor="middle">
           {category.length > 16 ? `${category.slice(0, 14)}…` : category}
@@ -568,16 +597,33 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
   );
 }
 
-function ParetoLine({ figure, padL, padT, innerH, groupW }: { figure: Figure; padL: number; padT: number; innerH: number; groupW: number }) {
-  const values = figure.series[0]?.values ?? [];
+function ParetoLine({ categories, values, padL, padT, innerH, groupW }: { categories: string[]; values: number[]; padL: number; padT: number; innerH: number; groupW: number }) {
   const total = values.reduce((sum, value) => sum + value, 0) || 1;
   let running = 0;
   const points = values.map((value, index) => {
     running += value;
-    const y = padT + innerH - (running / total) * innerH;
-    return `${padL + index * groupW + groupW / 2},${y}`;
-  }).join(' ');
-  return <polyline points={points} fill="none" stroke="#8c6a3d" strokeWidth="2" />;
+    const pct = (running / total) * 100;
+    const x = padL + index * groupW + groupW / 2;
+    const y = padT + innerH - (pct / 100) * innerH;
+    return { x, y, pct, category: categories[index] ?? `Step ${index + 1}` };
+  });
+  return (
+    <g>
+      <polyline points={points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#8c6a3d" strokeWidth="2" />
+      {points.map((point) => (
+        <circle
+          key={`${point.category}-cum`}
+          className="gc-mark"
+          cx={point.x}
+          cy={point.y}
+          r="3.5"
+          fill="#8c6a3d"
+          data-tip-title={point.category}
+          data-tip-value={`Cumulative share: ${point.pct.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`}
+        />
+      ))}
+    </g>
+  );
 }
 
 function StackedChart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {

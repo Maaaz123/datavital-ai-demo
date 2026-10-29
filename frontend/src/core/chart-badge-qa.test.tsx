@@ -61,11 +61,12 @@ describe('Inpatient chart data integrity', () => {
     expect(lineDomain(census).max).toBeLessThan(lineDomain(discharges).max);
   });
 
-  it('keeps Snapshot volume bars on period flows only (no census mix)', () => {
+  it('keeps Snapshot volume bars on comparable lower-volume movements', () => {
     renderAt('/inpatient');
     expect(screen.getByRole('heading', { level: 1, name: 'Inpatient Snapshot' })).toBeInTheDocument();
-    expect(screen.getByText(/Period flow totals only/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Census \(snapshot\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Inbound vs outbound transfer volume on one shared scale/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Non-home episode exits').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Episode volume summary')).not.toBeInTheDocument();
   });
 });
 
@@ -108,7 +109,7 @@ describe('Inpatient chart SVG contract on all three screens', () => {
       'Inpatient admissions over time',
       'Inpatient volume context',
       'Admissions by specialty',
-      'Episode volume summary',
+      'Non-home episode exits',
     ] },
     { path: '/inpatient/stay', title: 'Stay & Discharge', charts: [
       'Median length of stay over time',

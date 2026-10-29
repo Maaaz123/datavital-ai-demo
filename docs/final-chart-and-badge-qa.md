@@ -1,10 +1,12 @@
 # Final chart and badge QA
 
-**Verification timestamp (UTC):** 2026-10-29T16:41:00Z  
-**Build ID:** `v52-chart-badge-qa`  
-**Deployed commit:** `f56f044` (content: `ebe2557`)  
+**Verification timestamp (UTC):** 2026-10-29T19:10:00Z  
+**Build ID:** `v55-public-ipd-fix`  
+**Root cause of prior mismatch:** `v54` chart fixes existed only in the local working tree and were never committed/pushed; GitHub Pages continued serving `v52-chart-badge-qa` from `main`.  
 **Live URL:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh:** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
+**Note:** Badge work remains frozen. This pass publishes Inpatient chart content/scale (`v55`) to Pages.  
+
 
 ---
 
@@ -23,15 +25,15 @@
 | # | Screen | Chart | Result |
 |---|---|---|---|
 | 1 | Snapshot | Inpatient admissions over time | Pass — viewBox `0 0 720 148`, ticks inside pad |
-| 2 | Snapshot | Inpatient volume context | Pass — period flows only; zero baseline preserved |
+| 2 | Snapshot | Inpatient volume context | Pass — Transfers in/out only; admissions/discharges on KPIs |
 | 3 | Snapshot | Admission source mix | Pass — donut layout unchanged |
 | 4 | Snapshot | Admissions by specialty | Pass — stacked viewBox contract |
-| 5 | Snapshot | Episode volume summary | Pass — admissions/discharges/deaths, no census mix |
-| 6 | Stay | Median length of stay over time | Pass — day-scale domain |
+| 5 | Snapshot | Non-home episode exits | Pass — replaces duplicate Episode volume summary |
+| 6 | Stay | Median length of stay over time | Pass — day-scale domain; flat trend preserved |
 | 7 | Stay | Length of stay vs review lines | Pass — zero baseline bars |
 | 8 | Stay | Long-stay contribution by specialty | Pass — pareto + bars |
 | 9 | Stay | Length of stay by specialty | Pass — day-scale bars |
-| 10 | Stay | Discharge destinations | Pass — data intact; Home dominates by design |
+| 10 | Stay | Discharge destinations | Pass — non-home % shares; Home in note (87.2%) |
 | 11 | Stay | Expected discharge outlook | Pass — horizon line |
 | 12 | Outcomes | Est. 30-day readmissions over time | Pass — own scale |
 | 13 | Outcomes | Inpatient deaths over time | Pass — own scale (not mixed with readmits) |

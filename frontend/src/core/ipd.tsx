@@ -305,7 +305,7 @@ export function IpdSnapshotPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Inpatient volume context', ['Admissions', 'Transfers in', 'Discharges', 'Transfers out', 'Deaths'], [{ name: 'Patients', values: [view.admissions, view.transfersIn, view.discharges, view.transfersOut, view.deaths] }], 'patients', 'Period flow totals only. Census stays on the ribbon KPI — mixing a snapshot count with period flows collapses the smaller bars. Bed status ownership stays in Beds & Capacity.')} />
+          <Slot span={false} figure={fig('bars', 'Inpatient volume context', ['Transfers in', 'Transfers out'], [{ name: 'Patients', values: [view.transfersIn, view.transfersOut] }], 'patients', 'Inbound vs outbound transfer volume on one shared scale. Answers whether transfer activity is balanced. Period admissions and discharges stay on the ribbon KPIs and the admissions-over-time chart.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Donut packed title="Admission source mix" note="From emergency, elective/direct, transfer in, and other partition admissions and sum to the period admission total." parts={view.sources.map((item) => ({ name: item.id, value: item.count }))} />
@@ -316,7 +316,12 @@ export function IpdSnapshotPage() {
           <Slot span={false} figure={fig('stacked', 'Admissions by specialty', view.labels, view.specialties.map((specialty) => ({ name: specialty.id, values: splitExact(specialty.admissions, view.monthlyAdmissions.map((value) => value || 0.0001)) })), 'patients', 'Specialty stacks still sum to monthly admissions.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Episode volume summary', ['Admissions', 'Discharges', 'Deaths'], [{ name: 'Patients', values: [view.admissions, view.discharges, view.deaths] }], 'patients', 'Period admissions, discharges, and deaths on one scale. Census stays on the ribbon KPI so a snapshot count is not drawn against period totals.')} />
+          <Slot span={false} figure={fig('bars', 'Non-home episode exits', ['Transfer out', 'Rehab / step-down', 'Left against medical advice', 'Inpatient deaths'], [{ name: 'Patients', values: [
+            view.destinations.find((item) => item.id === 'Transfer out')?.count ?? 0,
+            view.destinations.find((item) => item.id === 'Rehab / step-down')?.count ?? 0,
+            view.destinations.find((item) => item.id === 'Left against medical advice')?.count ?? 0,
+            view.deaths,
+          ] }], 'patients', 'How inpatient episodes end when the destination is not Home. Answers transfer, rehab, AMA, and mortality exits without repeating the admissions/discharges totals already on the ribbon.')} />
         </div>
       </div>
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Admissions & Inpatient Activity']} />
@@ -350,7 +355,7 @@ export function IpdStayPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Specialty shares sum to ${num(view.longStayCount)} long-stay discharges (7-day review line). Severity is not adjusted.`)} />
+          <Slot span={false} figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Bars are long-stay patient counts (left axis). The brown line is cumulative % of ${num(view.longStayCount)} long-stay discharges (right axis, reaches 100%). Categories are ranked high→low. Severity is not adjusted.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Length of stay by specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.los) }], 'days', 'Specialty medians around the hospital median. Raw gaps are not proof of better or worse care.')} />
@@ -358,7 +363,10 @@ export function IpdStayPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Discharge destinations', view.destinations.map((item) => item.id), [{ name: 'Discharges', values: view.destinations.map((item) => item.count) }], 'patients', 'Destinations partition completed discharges and sum to the period discharge total. Inpatient deaths are counted separately (not a discharge destination).')} />
+          <Slot span={false} figure={fig('bars', 'Discharge destinations', view.destinations.filter((item) => item.id !== 'Home').map((item) => item.id), [{ name: 'Share of discharges', values: view.destinations.filter((item) => item.id !== 'Home').map((item) => (view.discharges ? Math.round((item.count / view.discharges) * 1000) / 10 : 0)) }], '%', (() => {
+            const homeShare = view.discharges ? Math.round(((view.destinations.find((item) => item.id === 'Home')?.count ?? 0) / view.discharges) * 1000) / 10 : 0;
+            return `Non-home destination shares of ${num(view.discharges)} discharges. Home is ${homeShare}% and stays readable in the note so it does not flatten transfer, rehab, and AMA bars. Counts remain in the indicator catalog. Inpatient deaths are not a discharge destination.`;
+          })())} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative cumulative sketch from the period daily discharge rate (24–96h). Not a validated forecast.')} />
