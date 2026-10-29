@@ -197,7 +197,8 @@ export function CopilotPanel() {
             <p className="gc-kicker">
               {domain.department === 'Beds' ? 'Beds & capacity decision support'
                 : domain.department === 'Inpatient' ? 'Inpatient care decision support'
-                  : 'Emergency decision support'}
+                  : domain.department === 'Outpatient' ? 'Outpatient decision support'
+                    : 'Emergency decision support'}
             </p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
           </div>
@@ -412,7 +413,7 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
         <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
         <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : ''}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' ? ' AI does not change clinic schedules alone.' : ''}</p>
       </section>
       <div className="gc-inline">
         {mode === 'decide' ? null : (
@@ -487,6 +488,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
           <p>
             Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : 'Review the peak arrival hours against the door-to-provider median.')}
             {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd ? ' AI does not change clinic schedules alone.' : ''}
+            {lead?.period ? ` Alert evidence period: ${lead.period}.` : ''}
           </p>
         ) : null}
         {step === 4 ? (

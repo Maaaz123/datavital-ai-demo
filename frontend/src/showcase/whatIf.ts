@@ -288,6 +288,7 @@ function outpatientWhatIf(
 ): WhatIfResult {
   const view = buildOpdView(hospital, year, period);
   const hot = [...view.specialties].sort((a, b) => b.waitMedian - a.waitMedian)[0];
+  const busiest = [...view.specialties].sort((a, b) => b.visits - a.visits)[0];
 
   if (intent.kind === 'opd-wait-down') {
     const nextWait = Math.max(8, view.waitMedian * (1 - intent.amount));
@@ -379,7 +380,7 @@ function outpatientWhatIf(
     change: `Illustrative ${pct(lift, 0)} rise in outpatient arrivals/attended demand`,
     estimated: `About ${num(extra)} additional visits · median wait near ${num(nextWait, 1)} minutes if session capacity is unchanged`,
     assumptions: `Uses ${view.periodLabel} attended-visit baseline. Booking no-shows stay outside OPD. Not a calibrated forecast.`,
-    implications: `Demand growth pressures ${hot.id} first unless session starts and utilization recover.`,
+    implications: `Demand growth pressures ${busiest.id} first unless session starts and utilization recover.`,
     followUp: 'Total outpatient visits, median arrival-to-provider, and clinic session utilization',
     owner: 'Outpatient operations lead',
   };

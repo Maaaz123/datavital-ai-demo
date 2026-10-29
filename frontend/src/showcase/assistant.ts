@@ -512,7 +512,7 @@ function answerOutpatient(
   const highestDemand = [...view.specialties].sort((a, b) => b.visits - a.visits)[0];
   const mostActions = [...view.specialties].sort((a, b) => b.pendingActions - a.pendingActions)[0];
 
-  if (/ed |emergency|boarding|inpatient|bed occupancy|no-show|slot fill|appointment cancel/.test(q)) {
+  if (/\bed\b|emergency|boarding|inpatient|bed occupancy|no-show|slot fill|appointment cancel/.test(q) && !/outpatient|clinic|follow-up|referral|documentation|waiting|consultation/.test(q)) {
     return pack(lang, {
       title: tx(lang, 'Outside Outpatient focus', 'خارج تركيز العيادات الخارجية'),
       observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
@@ -548,6 +548,18 @@ function answerOutpatient(
     });
   }
 
+  if (/unplanned|return rate|return share/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Unplanned outpatient return · ${name} · ${view.periodLabel}`, `عودة العيادات غير المخططة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Illustrative unplanned return share ${((view.unplannedReturnRate) * 100).toFixed(1)}% (~${view.unplannedReturns.toLocaleString('en-US')} of ${view.completed.toLocaleString('en-US')} completed consultations).`, `حصة عودة توضيحية ${((view.unplannedReturnRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, 'This is a fixed scenario share. Visits are not linked patient-by-patient. Genuine returns or causes were not detected.', 'حصة سيناريو ثابتة. الزيارات غير مربوطة بالمريض.'),
+      explanation: tx(lang, 'Potential reasons (not proven) are not offered as confirmed clinical causes.', 'لا تُعرض أسباب مؤكدة.'),
+      action: tx(lang, 'Treat this card as an illustrative watch signal only. Do not manage individual patients from it.', 'عامل البطاقة كإشارة مراقبة توضيحية فقط.'),
+      role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+      benefit: tx(lang, 'Honest disclosure protects decision quality.', 'الإفصاح الصادق يحمي جودة القرار.'),
+    });
+  }
+
   if (/complet|incomplete|document|referral|follow-up|action|outstanding|priorit/.test(q)) {
     const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Outpatient' && alert.severity !== 'info');
     const topAlert = hot[0];
@@ -556,7 +568,7 @@ function answerOutpatient(
       observation: tx(lang, topAlert
         ? `${topAlert.title}: ${topAlert.observed}`
         : `Completion ${((view.completionRate) * 100).toFixed(1)}% · documentation ${((view.docCompletionRate) * 100).toFixed(1)}% · pending referrals ${view.pendingReferrals.toLocaleString('en-US')} · outstanding actions ${view.outstandingActions.toLocaleString('en-US')} (most in ${mostActions.id}).`, topAlert ? topAlert.title : `الإكمال ${((view.completionRate) * 100).toFixed(1)}٪.`),
-      evidence: tx(lang, `Follow-up coordination ${((view.followUpCoordRate) * 100).toFixed(1)}% · unplanned return share ${((view.unplannedReturnRate) * 100).toFixed(1)}% (illustrative, not patient-linked).`, `تنسيق المتابعة ${((view.followUpCoordRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Follow-up coordination ${((view.followUpCoordRate) * 100).toFixed(1)}% · unplanned return share ${((view.unplannedReturnRate) * 100).toFixed(1)}% (illustrative scenario share only — not patient-linked returns or confirmed causes). Alert evidence uses full-year figures when the dashboard period is a quarter.`, `تنسيق المتابعة ${((view.followUpCoordRate) * 100).toFixed(1)}٪.`),
       explanation: tx(lang, 'Potential reasons (not proven): documentation backlog and open referrals accumulate after busy clinic days. Drivers are hypotheses.', 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, topAlert?.action ?? `Clear pending referrals and outstanding actions starting with ${mostActions.id}, then re-check documentation completion.`, topAlert?.action ?? `أغلق الإحالات والإجراءات المفتوحة بدءاً من ${mostActions.id}.`),
       role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),

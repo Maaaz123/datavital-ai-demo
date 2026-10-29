@@ -296,14 +296,14 @@ export function OpdOverviewPage() {
     <Page title="Outpatient Performance Overview" kpis={[
       score('Total outpatient visits', num(view.visits), compare(view, prior, (item) => item.visits), 'Attended clinic visits in the selected hospital and reporting period. Derived from the scenario appointment-attended cohort — not ED visits and not inpatient admissions.', `${num(view.visits)} visits · ${view.periodLabel}.`, 'value-kpi_opd_visits', 'neutral'),
       score('Completed consultations', num(view.completed), compare(view, prior, (item) => item.completed), 'Visits with a completed consultation. Incomplete visits remain in the attended cohort.', `${num(view.completed)} of ${num(view.visits)}.`, undefined, 'good'),
-      score('Unique outpatients', num(view.uniqueOutpatients), compare(view, prior, (item) => item.uniqueOutpatients), 'Illustrative unique-patient count. Visits are not linked patient-by-patient.', `${num(view.uniqueOutpatients)} patients.`, undefined, 'neutral'),
+      score('Unique outpatients', num(view.uniqueOutpatients), compare(view, prior, (item) => item.uniqueOutpatients), 'Illustrative unique-patient estimate ≈ 61% of attended visits. Not patient-level deduplication — visits are not linked patient-by-patient in this demo. Distinct from follow-up visit volume.', `Illustrative estimate ${num(view.uniqueOutpatients)} · ${view.periodLabel}.`, undefined, 'neutral'),
       score('New patient visits', num(view.newVisits), compare(view, prior, (item) => item.newVisits), 'New visits share of attended visits. New + follow-up = total visits.', `${num(view.newVisits)} new visits.`, undefined, 'watch'),
       score('Follow-up visits', num(view.followUpVisits), compare(view, prior, (item) => item.followUpVisits), 'Follow-up visits are the remainder after new visits.', `${num(view.followUpVisits)} follow-up visits.`, undefined, 'neutral'),
       score('Visit completion rate', pct(view.completionRate), compare(view, prior, (item) => item.completionRate, true), 'Completed consultations ÷ attended visits.', `${num(view.completed)} / ${num(view.visits)}.`, undefined, rateTone(view.completionRate, 0.93, 0.9, false)),
       score('Walk-in visit share', pct(view.walkInShare), compare(view, prior, (item) => item.walkInShare, true), 'Walk-in share of attended visits. Appointment booking performance stays outside OPD.', `${num(view.walkInVisits)} walk-ins.`, undefined, 'watch'),
       score('Same-day visit volume', num(view.sameDayVisits), compare(view, prior, (item) => item.sameDayVisits), 'Same-day clinic visits inside the attended cohort.', `${num(view.sameDayVisits)} same-day visits.`, undefined, 'neutral'),
-      score('Clinic session utilization', pct(view.sessionUtilization), compare(view, prior, (item) => item.sessionUtilization, true), 'Illustrative filled clinic capacity share for sessions in the period.', `${pct(view.sessionUtilization)} of session capacity.`, undefined, rateTone(view.sessionUtilization, 0.82, 0.7, false)),
-      score('Visits per clinic session', num(view.visitsPerSession, 1), compare(view, prior, (item) => item.visitsPerSession), 'Attended visits ÷ clinic sessions.', `${num(view.visits)} visits / ${num(view.clinicSessions)} sessions.`, undefined, 'neutral'),
+      score('Clinic session utilization', pct(view.sessionUtilization), compare(view, prior, (item) => item.sessionUtilization, true), 'Illustrative clinic capacity utilization for sessions in the period. Not an appointment slot-fill KPI from real schedules.', `${pct(view.sessionUtilization)} illustrative utilization.`, undefined, rateTone(view.sessionUtilization, 0.82, 0.7, false)),
+      score('Visits per clinic session', num(view.visitsPerSession, 1), compare(view, prior, (item) => item.visitsPerSession), 'Attended visits ÷ clinic sessions (rounded to one decimal). Matches the displayed numerator and denominator.', `${num(view.visits)} visits / ${num(view.clinicSessions)} sessions.`, undefined, 'neutral'),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
@@ -349,13 +349,13 @@ export function OpdFlowPage() {
     <Page title="Clinic Waiting & Patient Flow" kpis={[
       score('Median arrival-to-provider time', `${num(view.waitMedian, 1)} min`, compare(view, prior, (item) => item.waitMedian), 'Median minutes from clinic arrival to first provider start. Not ED door-to-provider and not consultation duration.', `Median ${num(view.waitMedian, 1)} minutes · ${view.periodLabel}.`, 'value-kpi_opd_wait_median', waitTone(view.waitMedian)),
       score('P90 arrival-to-provider time', `${num(view.waitP90, 1)} min`, compare(view, prior, (item) => item.waitP90), '90th-percentile arrival-to-provider for the same visits.', `P90 ${num(view.waitP90, 1)} minutes.`, undefined, view.waitP90 >= 55 ? 'alert' : view.waitP90 >= 40 ? 'watch' : 'good'),
-      score('Median clinic cycle time', `${num(view.cycleMedian, 1)} min`, compare(view, prior, (item) => item.cycleMedian), 'Arrival-to-provider median + consultation duration.', `Median cycle ${num(view.cycleMedian, 1)} minutes.`, undefined, view.cycleMedian >= 55 ? 'alert' : view.cycleMedian >= 42 ? 'watch' : 'good'),
-      score('P90 clinic cycle time', `${num(view.cycleP90, 1)} min`, compare(view, prior, (item) => item.cycleP90), 'Arrival-to-provider P90 + stretched consultation duration.', `P90 cycle ${num(view.cycleP90, 1)} minutes.`, undefined, view.cycleP90 >= 75 ? 'alert' : 'watch'),
+      score('Median clinic cycle time', `${num(view.cycleMedian, 1)} min`, compare(view, prior, (item) => item.cycleMedian), 'Constructed as median arrival-to-provider + illustrative consultation duration. Not a measured patient-level cycle-time median.', `Constructed ${num(view.cycleMedian, 1)} minutes · ${view.cycleBasis}.`, undefined, view.cycleMedian >= 55 ? 'alert' : view.cycleMedian >= 42 ? 'watch' : 'good'),
+      score('P90 clinic cycle time', `${num(view.cycleP90, 1)} min`, compare(view, prior, (item) => item.cycleP90), 'Constructed as P90 arrival-to-provider + stretched illustrative consultation duration. Not a measured patient-level P90 cycle time.', `Constructed ${num(view.cycleP90, 1)} minutes.`, undefined, view.cycleP90 >= 75 ? 'alert' : 'watch'),
       score('Registration-to-consultation time', `${num(view.registrationToConsult, 1)} min`, compare(view, prior, (item) => item.registrationToConsult), 'Illustrative post-registration share of arrival-to-provider.', `${num(view.registrationToConsult, 1)} minutes.`, undefined, 'watch'),
       score('Consultation duration', `${num(view.consultDuration, 1)} min`, compare(view, prior, (item) => item.consultDuration), 'Illustrative consult length. Distinct from waiting and from total cycle time.', `${num(view.consultDuration, 1)} minutes.`, undefined, 'neutral'),
       score('Visits exceeding waiting threshold', num(view.exceedingWait), compare(view, prior, (item) => item.exceedingWait), `Visits with arrival-to-provider above the ${view.waitThresholdMin}-minute scenario review line.`, `${num(view.exceedingWait)} of ${num(view.visits)}.`, undefined, view.exceedingWait > view.visits * 0.15 ? 'alert' : 'watch'),
       score('On-time consultation start rate', pct(view.onTimeStartRate), compare(view, prior, (item) => item.onTimeStartRate, true), 'Share of consultations starting within the scenario on-time window.', `${pct(view.onTimeStartRate)} on time.`, undefined, rateTone(view.onTimeStartRate, 0.75, 0.65, false)),
-      score('Delayed clinic sessions', num(view.delayedSessions), compare(view, prior, (item) => item.delayedSessions), 'Sessions with delayed first-provider starts.', `${num(view.delayedSessions)} of ${num(view.clinicSessions)} sessions.`, undefined, view.delayedSessions > 20 ? 'alert' : 'watch'),
+      score('Delayed clinic sessions', num(view.delayedSessions), compare(view, prior, (item) => item.delayedSessions), 'Clinic sessions whose first-provider start was late. Session count ≈ clinic sessions × late-start share. Distinct from individual late consultations and from the on-time start rate card.', `${num(view.delayedSessions)} of ${num(view.clinicSessions)} sessions · late-start share ${pct(view.lateStartShare)}.`, undefined, view.delayedSessions > 20 ? 'alert' : 'watch'),
       score('Visits completed within target time', num(view.withinTarget), compare(view, prior, (item) => item.withinTarget), 'Visits finishing inside the scenario cycle-time target.', `${num(view.withinTarget)} · ${pct(view.withinTargetRate)}.`, undefined, 'good'),
     ]}>
       <div className="gc-ed-pack">
@@ -376,7 +376,7 @@ export function OpdFlowPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Waiting time distribution', view.waitDistribution.map((item) => item.name), [{ name: 'Visits', values: view.waitDistribution.map((item) => item.count) }], 'visits', `Visit bins shaped around the ${num(view.waitMedian, 1)}-minute median. Bins sum to period visits.`)} />
+          <Slot span={false} figure={fig('bars', 'Waiting time distribution', view.waitDistribution.map((item) => item.name), [{ name: 'Visits', values: view.waitDistribution.map((item) => item.count) }], 'visits', `Illustrative bins coherent with median ${num(view.waitMedian, 1)} min, P90 ${num(view.waitP90, 1)} min, and ${num(view.exceedingWait)} visits over the ${view.waitThresholdMin}-minute line. Bins sum to ${num(view.visits)} visits.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Clinic cycle time by specialty', view.specialties.map((item) => item.id), [{ name: 'Median minutes', values: view.specialties.map((item) => item.cycleMedian) }], 'min', 'Cycle time = waiting + consultation duration by specialty.')} />
@@ -384,12 +384,12 @@ export function OpdFlowPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Patient flow stage volumes', ['Arrived', 'Registered', 'In consultation', 'Completed'], [{ name: 'Visits', values: [
-            view.visits,
-            Math.round(view.visits * 0.97),
-            view.completed,
-            view.completed,
-          ] }], 'visits', 'Pathway volumes for the same period. Registered and completed are subsets of arrived — not four additive populations. Top delay specialty: ' + (topDelay?.id ?? 'n/a') + '.')} />
+          <Slot span={false} figure={fig('bars', 'Patient flow stage volumes', ['Arrived', 'Registered', 'Consultation started', 'Completed'], [{ name: 'Visits', values: [
+            view.flowArrived,
+            view.flowRegistered,
+            view.flowConsultationStarted,
+            view.flowCompleted,
+          ] }], 'visits', `Period pathway milestones for the same attended-visit cohort — not four additive populations and not a point-in-time queue snapshot. Top delay specialty: ${topDelay?.id ?? 'n/a'}.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Delay contribution by clinic', view.specialties.map((item) => item.id), [{ name: 'Visits over threshold', values: view.specialties.map((item) => item.delayContribution) }], 'visits', `Specialty contributions sum to ${num(view.exceedingWait)} visits above the ${view.waitThresholdMin}-minute waiting review line.`)} />
@@ -412,7 +412,7 @@ export function OpdQualityPage() {
       score('Follow-up recommendation rate', pct(view.followUpRecommendRate), compare(view, prior, (item) => item.followUpRecommendRate, true), 'Share of completed consultations with a follow-up recommendation.', `${pct(view.followUpRecommendRate)} of completed.`, undefined, 'neutral'),
       score('Referral completion rate', pct(view.referralCompletionRate), compare(view, prior, (item) => item.referralCompletionRate, true), 'Completed clinical referrals ÷ recommended referrals in the scenario.', `${pct(view.referralCompletionRate)} completed.`, undefined, rateTone(view.referralCompletionRate, 0.8, 0.7, false)),
       score('Pending clinical referrals', num(view.pendingReferrals), compare(view, prior, (item) => item.pendingReferrals), 'Open clinical referrals awaiting completion.', `${num(view.pendingReferrals)} open.`, undefined, view.pendingReferrals > 40 ? 'alert' : 'watch'),
-      score('Unplanned outpatient return rate', pct(view.unplannedReturnRate), 'Scenario share', 'Illustrative unplanned return share of completed consultations. Visits are not linked patient-by-patient.', `${num(view.unplannedReturns)} of ${num(view.completed)}.`, undefined, rateTone(view.unplannedReturnRate, 0.03, 0.045)),
+      score('Unplanned outpatient return rate', pct(view.unplannedReturnRate), 'Scenario share', 'Illustrative 2.8% scenario share of completed consultations. Not a patient-linked return or readmission calculation — causes were not detected.', `${num(view.unplannedReturns)} of ${num(view.completed)} · illustrative only.`, undefined, rateTone(view.unplannedReturnRate, 0.03, 0.045)),
       score('Outstanding clinical actions', num(view.outstandingActions), compare(view, prior, (item) => item.outstandingActions), 'Open clinical actions after the visit.', `${num(view.outstandingActions)} open actions.`, undefined, view.outstandingActions > 35 ? 'alert' : 'watch'),
       score('Follow-up coordination completion', pct(view.followUpCoordRate), compare(view, prior, (item) => item.followUpCoordRate, true), 'Illustrative coordination completion share.', `${pct(view.followUpCoordRate)} coordinated.`, undefined, rateTone(view.followUpCoordRate, 0.78, 0.7, false)),
     ]}>
@@ -446,7 +446,7 @@ export function OpdQualityPage() {
           <Slot span={false} figure={fig('bars', 'Follow-up recommendations by specialty', view.specialties.map((item) => item.id), [{ name: 'Recommendations', values: view.specialties.map((item) => item.followRecommendations) }], 'visits', 'Follow-up recommendations constructed around completed consultations by specialty.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Referral status breakdown', ['Open', 'In progress', 'Completed'], [{ name: 'Referrals', values: [view.referralOpen, view.referralInProgress, view.referralCompleted] }], 'referrals', `Open, in-progress, and completed clinical referrals in the scenario (${num(view.referralTotal)} shown).`)} />
+          <Slot span={false} figure={fig('bars', 'Referral status breakdown', ['Open — not started', 'In progress', 'Completed'], [{ name: 'Referrals', values: [view.referralOpen, view.referralInProgress, view.referralCompleted] }], 'referrals', `Mutually exclusive statuses of ${num(view.referralsRecommended)} recommended referrals. Pending (${num(view.pendingReferrals)}) = Open + In progress. Completion rate uses the same recommended-referral denominator.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
@@ -454,7 +454,7 @@ export function OpdQualityPage() {
           <Slot span={false} figure={fig('bars', 'Pending clinical actions by specialty', view.specialties.map((item) => item.id), [{ name: 'Open actions', values: view.specialties.map((item) => item.pendingActions) }], 'actions', `Specialty shares sum to ${num(view.outstandingActions)} outstanding clinical actions.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Consultation outcomes', view.outcomes.map((item) => item.id), [{ name: 'Share of visits', values: view.outcomes.map((item) => (view.visits ? Math.round((item.count / view.visits) * 1000) / 10 : 0)) }], '%', `Outcome shares of ${num(view.visits)} attended visits. Referred-onward is also counted inside completed consultations.`)} />
+          <Slot span={false} figure={fig('bars', 'Consultation outcomes', view.outcomes.map((item) => item.id), [{ name: 'Share of visits', values: view.outcomes.map((item) => (view.visits ? Math.round((item.count / view.visits) * 1000) / 10 : 0)) }], '%', `Mutually exclusive shares of ${num(view.visits)} attended visits (sum to 100%). Completed-with-referral is not double-counted inside completed-no-referral.`)} />
         </div>
       </div>
       <Slot span="span-12" figure={fig('line', 'Follow-up coordination trend', view.labels, [{ name: 'Coordination completion %', values: view.monthlyFollowCoord.map((value) => Math.round(value * 1000) / 10) }], '%', 'Illustrative monthly follow-up coordination completion. Not a patient-linked care-plan extract.')} />
