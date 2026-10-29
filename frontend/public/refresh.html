@@ -11,7 +11,7 @@
     <script>
       (async function () {
         try {
-          localStorage.setItem('datavital-build-id', 'v29-business-nav');
+          localStorage.setItem('datavital-build-id', 'v30-inpatient-ipd');
           if (window.caches) {
             const keys = await caches.keys();
             await Promise.all(keys.map((key) => caches.delete(key)));
@@ -23,7 +23,7 @@
         } catch (error) {
           console.warn(error);
         }
-        location.replace('/datavital-ai-demo/?fresh=v29-business-nav');
+        location.replace('/datavital-ai-demo/?fresh=v30-inpatient-ipd');
       })();
     </script>
   </body>

@@ -109,6 +109,34 @@ const RULES: Rule[] = [
     medium: 45,
   },
   {
+    kpi: 'kpi_inpatient_median_los_days',
+    department: 'Inpatient',
+    screen: 'inpatient',
+    title: 'Median inpatient stay',
+    owner: 'Inpatient operations lead',
+    investigation: 'Compare median, average, and P90 stay. Pair long stays with ready-but-not-discharged. This is not bed occupancy.',
+    action: 'Review specialty long-stay lists and pending discharge barriers with the care team.',
+    rule: 'Critical at 6 days or more, high at 4.8, medium at 4.2.',
+    worse: true,
+    critical: 6,
+    high: 4.8,
+    medium: 4.2,
+  },
+  {
+    kpi: 'kpi_readmission_30d_rate',
+    department: 'Inpatient',
+    screen: 'inpatient',
+    title: '30-day unplanned return',
+    owner: 'Inpatient operations lead',
+    investigation: 'Returns are a share of discharges. Visits are not linked patient-by-patient in this demo.',
+    action: 'Review discharge instructions and follow-up plans for the specialties with the highest return share.',
+    rule: 'Critical at 12% or more, high at 10%, medium at 8% of discharges.',
+    worse: true,
+    critical: 0.12,
+    high: 0.1,
+    medium: 0.08,
+  },
+  {
     kpi: 'kpi_med_order_cancelled_rate',
     department: 'Pharmacy',
     screen: 'pharmacy',
@@ -214,6 +242,8 @@ const SCREEN_DEPARTMENT: Record<string, string> = {
   beds: 'Beds',
   inpatient: 'Inpatient',
   'ward-transfer': 'Inpatient',
+  'inpatient-stay': 'Inpatient',
+  'inpatient-outcomes': 'Inpatient',
   'assessments-vitals': 'Inpatient',
   morgue: 'Inpatient',
   'maternal-neonatal': 'Inpatient',
@@ -304,6 +334,7 @@ export function badgeCount(hospital: string, year: number, department: string, s
 
 export function screenFromPath(path: string): string | null {
   if (path.startsWith('/beds')) return 'beds';
+  if (path.startsWith('/inpatient')) return 'inpatient';
   if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];

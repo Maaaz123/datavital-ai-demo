@@ -2,16 +2,17 @@ import { Navigate } from 'react-router-dom';
 import CoreApp from '@/core/CoreApp';
 import { BedsCapacityPage, BedsOverviewPage, BedsPlacementPage } from '@/core/beds';
 import { FlowPage, OverviewPage, QualityPage } from '@/core/four';
+import { IpdOutcomesPage, IpdSnapshotPage, IpdStayPage } from '@/core/ipd';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
-  '/inpatient', '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
+  '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
   '/appointments', '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
   '/data/catalog', '/data/lineage', '/data/quality', '/data/asset', '/showcase', '/platform',
   '/challenge', '/solution', '/architecture', '/operations', '/experience', '/intelligence',
-  '/kpis', '/library', '/present', '/story/emergency', '/story/beds',
+  '/kpis', '/library', '/present', '/story/emergency', '/story/beds', '/story/inpatient',
   '/emergency/ai', '/emergency/capacity-quality', '/emergency/ai-decisions',
 ];
 
@@ -27,6 +28,9 @@ export const routes = [
       { path: 'beds', element: <BedsOverviewPage /> },
       { path: 'beds/placement', element: <BedsPlacementPage /> },
       { path: 'beds/capacity', element: <BedsCapacityPage /> },
+      { path: 'inpatient', element: <IpdSnapshotPage /> },
+      { path: 'inpatient/stay', element: <IpdStayPage /> },
+      { path: 'inpatient/outcomes', element: <IpdOutcomesPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

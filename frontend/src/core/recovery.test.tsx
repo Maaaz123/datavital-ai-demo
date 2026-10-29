@@ -6,6 +6,7 @@ import { clearDemoStorage } from '@/showcase/state';
 import { scenarioFor, wardRows } from '@/showcase/facts';
 import { daysFor, hoursFor, leaveSplit, modesFor } from './derived';
 import { BEDS_AI_CASES, bedsIndicatorsFor, type BedsScopeInput } from './bedsScope';
+import { IPD_AI_CASES, ipdIndicatorsFor, type IpdScopeInput } from './ipdScope';
 import { NAV_DOMAINS } from './nav';
 import { AI_CASES, indicatorsFor, type ScopeInput } from './scope';
 
@@ -43,8 +44,9 @@ describe('emergency and beds domains', () => {
     ]);
     expect(screen.getByRole('button', { name: 'Emergency domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Beds & Capacity domain' })).toBeInTheDocument();
-    expect(NAV_DOMAINS).toHaveLength(2);
-    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(6);
+    expect(screen.getByRole('button', { name: 'Inpatient Care domain' })).toBeInTheDocument();
+    expect(NAV_DOMAINS).toHaveLength(3);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(9);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
@@ -87,8 +89,8 @@ describe('emergency and beds domains', () => {
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
   });
 
-  it('renders emergency and beds child pages with charts', () => {
-    for (const path of ['/emergency/flow', '/emergency/quality', '/beds/placement', '/beds/capacity']) {
+  it('renders emergency, beds, and inpatient child pages with charts', () => {
+    for (const path of ['/emergency/flow', '/emergency/quality', '/beds/placement', '/beds/capacity', '/inpatient', '/inpatient/stay', '/inpatient/outcomes']) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
       expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(2);
@@ -148,7 +150,7 @@ describe('emergency and beds domains', () => {
     expect(wards.reduce((sum, ward) => sum + ward.staffed, 0)).toBe(fact.staffedBeds);
   });
 
-  it('keeps the 30 emergency and 36 beds indicators honest', () => {
+  it('keeps emergency, beds, and inpatient indicators honest', () => {
     const ed: ScopeInput = {
       arrivals: 100, admitted: 20, discharged: 78, left: 2, deaths: 1,
       triageCompleted: 99, median: 63.3, p90: 109.4, losMedian: 141, losP90: 233,
@@ -181,6 +183,26 @@ describe('emergency and beds domains', () => {
     expect(BEDS_AI_CASES).toHaveLength(10);
     expect(bedRows.find((row) => row.name === 'Licensed Beds')?.value).toBe('Not in scenario');
     expect(bedRows.some((row) => /emergency|workforce|experience|revenue/i.test(row.domain))).toBe(false);
+
+    const ipd: IpdScopeInput = {
+      admissions: 100, census: 40, discharges: 95, deaths: 2, edAdmitted: 45, directAdmissions: 50,
+      transfersIn: 5, transfersOut: 4, losAvg: 4.2, losMedian: 3.8, losP90: 7.1,
+      longStayCount: 12, longStayRate: 0.12, expectedDischarges: 3, readyNotDischarged: 4,
+      delayedDischargeRate: 0.1, readmit7: 0.03, readmit30: 0.08, amaRate: 0.02,
+      specialties: [{ id: 'Medicine', admissions: 40, discharges: 38, los: 4.1 }],
+      sources: [{ id: 'From emergency', count: 45 }],
+      destinations: [{ id: 'Home', count: 80 }],
+      oeLos: null, delayP50: null, delayP90: null, readinessDocRate: null, dischargeSummaryRate: null,
+      carePlanDocRate: null, carePlanReviewRate: null, dailyReviewRate: null, consultResponseHours: null,
+      pendingConsults: null, milestoneRate: null, admissionAssessmentRate: null, diagnosisDocRate: null,
+      dischargeInstructionsRate: null, medRecRate: null, followUpPlanRate: null, cancelRate: null,
+    };
+    const ipdRows = ipdIndicatorsFor(ipd);
+    expect(ipdRows).toHaveLength(40);
+    expect(IPD_AI_CASES).toHaveLength(12);
+    expect(ipdRows.find((row) => row.name === 'Observed-to-Expected LOS Ratio')?.value).toBe('Not in scenario');
+    expect(ipdRows.find((row) => row.name === 'Current Inpatient Census (Patients)')?.method).toMatch(/not a bed occupancy rate/i);
+    expect(ipdRows.some((row) => /bed occupancy|workforce|experience|emergency waiting/i.test(row.domain))).toBe(false);
   });
 
   it('keeps domains separated on their pages', () => {
@@ -194,5 +216,11 @@ describe('emergency and beds domains', () => {
     expect(screen.getByText(/AI use cases/i)).toBeInTheDocument();
     expect(screen.getByText(/Likely free in 48 hours/i)).toBeInTheDocument();
     capacity.unmount();
+    const ipd = renderAt('/inpatient/outcomes');
+    expect(screen.getByRole('heading', { level: 1, name: 'Care Progress & Outcomes' })).toBeInTheDocument();
+    expect(screen.queryByText(/Door-to-Provider|Operational bed occupancy|Beds short vs requests/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Inpatient journey/i)).toBeInTheDocument();
+    ipd.unmount();
   });
 });
+
