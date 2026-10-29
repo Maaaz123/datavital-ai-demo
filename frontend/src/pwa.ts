@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v19-tooltips-ai';
+const BUILD_ID = 'v20-no-edge-line';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
