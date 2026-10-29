@@ -64,6 +64,7 @@ const ASSUMPTIONS: KpiDef[] = [
   assumption('demo_morgue_release_hours', 'Morgue release hours', 'Morgue', 'hours', 'NMR section 15 names morgue. Columns are absent, so hours are a labelled demo assumption.'),
   assumption('demo_birth_encounter_volume', 'Birth encounter volume', 'Maternal and neonatal', 'count', 'NMR section 6 names childbirth. Columns are absent, so volume is a labelled demo assumption.'),
   assumption('demo_eligibility_check_volume', 'Eligibility check volume', 'Eligibility', 'count', 'NMR section 17 names eligibility. Columns are absent, so volume is a labelled demo assumption.'),
+  assumption('kpi_appointment_unfilled_released_slots', 'Unfilled released appointment slots', 'Appointments', 'count', 'Released slots without a confirmed replacement booking. Derived from the appointment recovery lifecycle.'),
 ];
 
 function assumption(key: string, name: string, domain: string, unit: string, note: string): KpiDef {

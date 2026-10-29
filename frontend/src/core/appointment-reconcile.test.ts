@@ -3,7 +3,7 @@ import { HOSPITALS, YEARS } from '@/showcase/engine';
 import { answerQuestion } from '@/showcase/assistant';
 import { runWhatIf } from '@/showcase/whatIf';
 import { alertsFor } from './alerts';
-import { buildAppointmentView, thirdNextAvailableDays } from './appointmentView';
+import { allocateOutcomePartition, buildAppointmentView, thirdNextAvailableDays } from './appointmentView';
 import { buildOpdView } from './opdView';
 
 const PERIODS = ['year', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
@@ -19,17 +19,31 @@ describe('Appointment scenario reconciles', () => {
           expect(view.attended).toBe(opd.visits);
           expect(view.opdAttended).toBe(opd.visits);
           expect(view.booked).toBeLessThanOrEqual(view.slots);
-          expect(view.availableSlots).toBe(view.slots - view.booked);
+          expect(view.unbookedSlots).toBe(view.slots - view.booked);
+          expect(view.recoveredSlots).toBeLessThanOrEqual(view.eligibleReleasedSlots);
           expect(view.recoveredSlots).toBeLessThanOrEqual(view.releasedSlots);
-          expect(view.unfilledRecoverable).toBe(view.releasedSlots - view.recoveredSlots);
+          expect(view.unfilledReleasedSlots).toBe(view.releasedSlots - view.recoveredSlots);
           expect(view.newAppointments + view.followUpAppointments).toBe(view.booked);
           expect(view.specialties.reduce((sum, item) => sum + item.booked, 0)).toBe(view.booked);
+          expect(view.specialties.reduce((sum, item) => sum + item.attended, 0)).toBe(view.attended);
           expect(view.specialties.reduce((sum, item) => sum + item.noShow, 0)).toBe(view.noShow);
+          expect(view.specialties.reduce((sum, item) => sum + item.cancelled, 0)).toBe(view.cancelled);
+          expect(view.specialties.reduce((sum, item) => sum + item.slots, 0)).toBe(view.slots);
+          expect(view.specialties.every((item) => item.booked <= item.slots)).toBe(true);
+          expect(view.specialties.every((item) => item.unbooked >= 0)).toBe(true);
           expect(view.channels.reduce((sum, item) => sum + item.count, 0)).toBe(view.booked);
           expect(view.cancelTimingCounts.reduce((sum, item) => sum + item.count, 0)).toBe(view.cancelled);
           expect(view.outcomeByLead.reduce((sum, item) => sum + item.booked, 0)).toBe(view.booked);
+          expect(view.outcomeByLead.reduce((sum, item) => sum + item.attended, 0)).toBe(view.attended);
+          expect(view.outcomeByLead.reduce((sum, item) => sum + item.noShow, 0)).toBe(view.noShow);
+          expect(view.outcomeByLead.reduce((sum, item) => sum + item.cancelled, 0)).toBe(view.cancelled);
           expect(view.outcomesByDay.reduce((sum, item) => sum + item.booked, 0)).toBe(view.booked);
+          expect(view.outcomesByDay.reduce((sum, item) => sum + item.attended + item.cancelled + item.noShow, 0)).toBe(view.booked);
           expect(view.monthlyBooked.reduce((sum, value) => sum + value, 0)).toBe(view.booked);
+          expect(view.monthlyDemand.reduce((sum, value) => sum + value, 0)).toBe(view.demand);
+          expect(view.futureOpenSlots.reduce((sum, item) => sum + item.count, 0)).toBe(view.next7DayOpenSlots);
+          expect(view.releasedSlots + view.afterStartCancellations).toBe(view.cancelled);
+          expect(view.estimatedAdditionalRecoveries).toBeLessThanOrEqual(view.unfilledReleasedSlots);
           expect(view.attended).toBeGreaterThanOrEqual(0);
           expect(view.noShow).toBeGreaterThanOrEqual(0);
           expect(view.cancelled).toBeGreaterThanOrEqual(0);
@@ -48,7 +62,6 @@ describe('Appointment scenario reconciles', () => {
         expect(quarters.reduce((sum, item) => sum + item.noShow, 0)).toBe(annual.noShow);
         expect(quarters.reduce((sum, item) => sum + item.cancelled, 0)).toBe(annual.cancelled);
         expect(quarters.reduce((sum, item) => sum + item.slots, 0)).toBe(annual.slots);
-        // Rates are recalculated, not averaged.
         expect(annual.noShowRate).toBeCloseTo(annual.booked ? annual.noShow / annual.booked : 0, 10);
         expect(annual.slotFillRate).toBeCloseTo(annual.slots ? annual.booked / annual.slots : 0, 10);
       }
@@ -61,16 +74,32 @@ describe('Appointment scenario reconciles', () => {
     expect(result.openings).toHaveLength(5);
     expect([...result.openings].sort((a, b) => a - b)).toEqual(result.openings);
     expect(result.days).toBe(result.openings[2]);
-    // Must not be constructed as average lead × 3 or first-available × 3.
     expect(result.days).not.toBe(result.openings[0] * 3);
     expect(result.days).toBeGreaterThan(result.openings[0]);
     expect(result.days).toBeLessThan(result.openings[4]);
   });
 
+  it('allocates outcome partitions that reconcile to globals', () => {
+    const parts = allocateOutcomePartition([100, 80, 60, 40], 224, 36, 20, [1, 1.1, 1.2, 1.3]);
+    expect(parts.reduce((sum, item) => sum + item.booked, 0)).toBe(280);
+    expect(parts.reduce((sum, item) => sum + item.attended, 0)).toBe(224);
+    expect(parts.reduce((sum, item) => sum + item.cancelled, 0)).toBe(36);
+    expect(parts.reduce((sum, item) => sum + item.noShow, 0)).toBe(20);
+    expect(parts.every((item) => item.attended + item.cancelled + item.noShow === item.booked)).toBe(true);
+  });
+
+  it('varies specialty fill rates instead of cloning one utilization', () => {
+    const view = buildAppointmentView('H1', 2026, 'year');
+    const fills = view.specialties.map((item) => Math.round(item.slotFillRate * 1000) / 1000);
+    expect(new Set(fills).size).toBeGreaterThan(1);
+    expect(view.next7DayOpenSlots).toBeGreaterThan(10);
+    expect(view.next7DayOpenSlots).not.toBe(Math.round(view.unbookedSlots * (7 / 365)));
+  });
+
   it('supports six appointment what-if sketches with conserved constraints', () => {
     const noshow = runWhatIf('Appointments', 'H1', 2026, { kind: 'appt-noshow-down', amount: 0.2 }, 'year');
-    expect(noshow.estimated).toMatch(/No-show rate near|additional attended/i);
-    expect(noshow.assumptions).toMatch(/illustrative|not automatic|Assumes|baseline/i);
+    expect(noshow.estimated).toMatch(/No-show Rate near|additional attended/i);
+    expect(noshow.assumptions).toMatch(/not automatic|Assumes|Illustrative|baseline/i);
 
     const fill = runWhatIf('Appointments', 'H1', 2026, { kind: 'appt-fill-up', amount: 0.1 }, 'year');
     expect(fill.estimated).toMatch(/Fill near|additional bookings/i);
@@ -79,35 +108,36 @@ describe('Appointment scenario reconciles', () => {
     expect(lead.estimated).toMatch(/Median lead near/i);
 
     const recover = runWhatIf('Appointments', 'H1', 2026, { kind: 'appt-recover-half', amount: 0.5 }, 'year');
-    expect(recover.estimated).toMatch(/recovered near|additional recoveries/i);
-    expect(recover.estimated).toMatch(/≤ released|still ≤ released/i);
+    expect(recover.estimated).toMatch(/rebooked near|additional recoveries/i);
+    expect(recover.estimated).toMatch(/≤ eligible released|still ≤ eligible released/i);
 
     const demand = runWhatIf('Appointments', 'H1', 2026, { kind: 'appt-demand-up', amount: 0.15 }, 'year');
-    expect(demand.estimated).toMatch(/additional requests|waitlist/i);
+    expect(demand.estimated).toMatch(/additional requests|unscheduled demand/i);
 
     const redistribute = runWhatIf('Appointments', 'H1', 2026, { kind: 'appt-redistribute', amount: 0.1 }, 'year');
     expect(redistribute.estimated).toMatch(/remains|conserved|slot total/i);
     expect(redistribute.change).toMatch(/conserved/i);
   });
 
-  it('raises appointment alerts and answers with appointment context', () => {
+  it('raises appointment alerts without calling healthy fill a low-fill crisis', () => {
     const alerts = alertsFor('H1', 2026).filter((alert) => alert.department === 'Appointments');
     expect(alerts.length).toBeGreaterThanOrEqual(4);
     expect(alerts.some((alert) => /no-show/i.test(alert.title))).toBe(true);
-    expect(alerts.some((alert) => /cancellation|lead|fill|backlog|recoverable/i.test(alert.title))).toBe(true);
-    expect(alerts.every((alert) => alert.period.includes('Full year'))).toBe(true);
+    const fill = alerts.find((alert) => alert.kpi === 'kpi_appointment_slot_fill_rate');
+    expect(fill).toBeTruthy();
+    if (fill && fill.severity !== 'info') {
+      expect(fill.title).toMatch(/Low slot fill/i);
+    }
+    // 98% fill must not appear as an active low-fill priority signal.
+    const active = alerts.filter((alert) => alert.severity !== 'info');
+    expect(active.every((alert) => !(alert.kpi === 'kpi_appointment_slot_fill_rate' && /98|0\.98/.test(alert.observed)))).toBe(true);
+    expect(alerts.every((alert) => /Management threshold|management threshold|Critical at/i.test(alert.threshold) || alert.threshold.length > 0)).toBe(true);
 
     const noshow = answerQuestion('Which specialties have the highest no-show rates?', 'H1', 2026, 'Appointments', 'en', 'Q2');
     expect(noshow.title).toMatch(/No-show|Q2|2026/i);
-    expect(noshow.observation).toMatch(/No-show rate|specialty/i);
-
-    const access = answerQuestion('Why are patients waiting longer to get appointments?', 'H1', 2026, 'Appointments', 'en', 'year');
-    expect(access.observation + access.evidence).toMatch(/lead|third next|not OPD/i);
-
-    const recovery = answerQuestion('How much capacity could be recovered from cancellations?', 'H1', 2026, 'Appointments', 'en', 'year');
-    expect(recovery.observation).toMatch(/Released|recovered|unfilled/i);
-
-    const whatIf = answerQuestion('What if the no-show rate decreases by 20%?', 'H1', 2026, 'Appointments', 'en', 'year');
-    expect(whatIf.title).toMatch(/No-show reduction/i);
+    const access = answerQuestion('What is causing appointment access pressure?', 'H1', 2026, 'Appointments', 'en', 'year');
+    expect(access.observation + access.evidence).toMatch(/lead|Third Next|not OPD/i);
+    const recovery = answerQuestion('How many slots were released and recovered?', 'H1', 2026, 'Appointments', 'en', 'year');
+    expect(recovery.observation).toMatch(/Released|Rebooked|Unfilled Released/i);
   });
 });

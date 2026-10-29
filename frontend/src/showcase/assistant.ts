@@ -602,7 +602,7 @@ function answerAppointments(
   const hotNoShow = [...view.specialties].sort((a, b) => b.noShowRate - a.noShowRate)[0];
   const hotAccess = [...view.specialties].sort((a, b) => b.accessPressure - a.accessPressure)[0];
   const hotLead = [...view.specialties].sort((a, b) => b.leadMedian - a.leadMedian)[0];
-  const hotRecover = [...view.specialties].sort((a, b) => (b.released - b.recovered) - (a.released - a.recovered))[0];
+  const hotRecover = [...view.specialties].sort((a, b) => b.unfilledReleased - a.unfilledReleased)[0];
 
   if (/\bed\b|emergency|boarding|inpatient los|bed occupancy|arrival-to-provider|clinic wait|documentation completion|pending referral/.test(q)
     && !/appointment|no-?show|slot|lead time|waitlist|schedul|cancel|recover|book/.test(q)) {
@@ -629,25 +629,25 @@ function answerAppointments(
     });
   }
 
-  if (/lead time|waiting longer|access|third next|tna|pressure/.test(q)) {
+  if (/lead time|waiting longer|access|third next|tna|pressure|causing/.test(q)) {
     return pack(lang, {
-      title: tx(lang, `Access & scheduling · ${name} · ${view.periodLabel}`, `الوصول والجدولة · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Median booking lead ${view.leadMedian.toFixed(1)} days · P90 ${view.leadP90.toFixed(1)} · third next available ${view.thirdNextAvailable} days (observation ${view.observationDate}) · highest pressure ${hotAccess.id}.`, `وسيط مهلة الحجز ${view.leadMedian.toFixed(1)} يوماً.`),
-      evidence: tx(lang, `Longest lead specialty ${hotLead.id} at ${hotLead.leadMedian.toFixed(1)} days · slots ${view.slots.toLocaleString('en-US')} · booked ${view.booked.toLocaleString('en-US')} · fill ${((view.slotFillRate) * 100).toFixed(1)}% · capacity gap ${view.capacityGap.toLocaleString('en-US')}. Lead time is not OPD clinic waiting after arrival.`, `أطول مهلة ${hotLead.id}.`),
-      explanation: tx(lang, 'Potential reasons (not proven): specialty template imbalance and demand above slots stretch openings. Third-next uses ordered future eligible openings, not average wait × 3.', 'أسباب محتملة وليست مثبتة.'),
-      action: tx(lang, `Review Access days and Third next available by specialty, starting with ${hotAccess.id}, then redistribute openings under conserved total capacity.`, `راجع أيام الوصول والموعد الثالث المتاح بدءاً من ${hotAccess.id}.`),
+      title: tx(lang, `Appointment access & capacity · ${name} · ${view.periodLabel}`, `الوصول وسعة المواعيد · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median Booking Lead Time ${view.leadMedian.toFixed(1)} days · P90 ${view.leadP90.toFixed(1)} · Third Next Available ${view.thirdNextAvailable} days (observation ${view.observationDate}) · highest pressure ${hotAccess.id}.`, `وسيط مهلة الحجز ${view.leadMedian.toFixed(1)} يوماً.`),
+      evidence: tx(lang, `Longest lead specialty ${hotLead.id} at ${hotLead.leadMedian.toFixed(1)} days · Bookable Slots ${view.slots.toLocaleString('en-US')} · Booked ${view.booked.toLocaleString('en-US')} · Slot Fill Rate ${((view.slotFillRate) * 100).toFixed(1)}% · Capacity Shortfall ${view.capacityShortfall.toLocaleString('en-US')}. Lead time is not OPD clinic waiting after arrival.`, `أطول مهلة ${hotLead.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): specialty template imbalance and demand above bookable slots stretch openings. Third-next uses ordered illustrative openings, not average wait × 3.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review Booking Lead Time by Specialty and Third Next Available by Specialty, starting with ${hotAccess.id}, then redistribute openings under conserved total capacity.`, `راجع مهلة الحجز والموعد الثالث المتاح بدءاً من ${hotAccess.id}.`),
       role: tx(lang, 'Clinic scheduling lead', 'قائد جدولة العيادات'),
       benefit: tx(lang, 'Shorter access waits protect attendance without inventing clinical causes.', 'وصول أقصر يحمي الحضور دون اختلاق أسباب سريرية.'),
     });
   }
 
-  if (/unused|available slot|fill rate|unfilled|waitlist/.test(q)) {
+  if (/unused|unbooked|fill rate|unfilled|waitlist|capacity/.test(q)) {
     return pack(lang, {
-      title: tx(lang, `Unused scheduling capacity · ${name} · ${view.periodLabel}`, `سعة الجدولة غير المستخدمة · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Available slots ${view.availableSlots.toLocaleString('en-US')} of ${view.slots.toLocaleString('en-US')} eligible · fill ${((view.slotFillRate) * 100).toFixed(1)}% · waitlist demand ${view.waitlistDemand.toLocaleString('en-US')} · next-7-day available sketch ${view.next7DayAvailable.toLocaleString('en-US')}.`, `الفترات المتاحة ${view.availableSlots.toLocaleString('en-US')}.`),
-      evidence: tx(lang, `Booked ${view.booked.toLocaleString('en-US')} never exceeds slots in this scenario. Eligible waitlist candidates ${view.eligibleWaitlist.toLocaleString('en-US')} are capped by openings.`, `المحجوز ${view.booked.toLocaleString('en-US')}.`),
+      title: tx(lang, `Unused appointment capacity · ${name} · ${view.periodLabel}`, `سعة المواعيد غير المستخدمة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Unbooked Slots ${view.unbookedSlots.toLocaleString('en-US')} of ${view.slots.toLocaleString('en-US')} bookable · Slot Fill Rate ${((view.slotFillRate) * 100).toFixed(1)}% · Unscheduled Demand ${view.waitlistDemand.toLocaleString('en-US')} · Next 7-Day Open Slots ${view.next7DayOpenSlots.toLocaleString('en-US')} (after ${view.observationDate}).`, `الفترات غير المحجوزة ${view.unbookedSlots.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Booked ${view.booked.toLocaleString('en-US')} never exceeds bookable slots. Eligible Waitlist Candidates ${view.eligibleWaitlist.toLocaleString('en-US')}. Period unbooked capacity is distinct from future open-slot sketches.`, `المحجوز ${view.booked.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Potential reasons (not proven): template gaps and incomplete waitlist outreach leave openings idle while demand waits.', 'أسباب محتملة وليست مثبتة.'),
-      action: tx(lang, 'Activate eligible waitlist outreach for open and released slots before approving new sessions.', 'فعّل تواصل قائمة الانتظار للفترات المفتوحة والمحررة قبل اعتماد جلسات جديدة.'),
+      action: tx(lang, 'Activate eligible waitlist outreach for unbooked and unfilled released slots before approving new sessions.', 'فعّل تواصل قائمة الانتظار للفترات غير المحجوزة والمحررة قبل اعتماد جلسات جديدة.'),
       role: tx(lang, 'Clinic scheduling lead', 'قائد جدولة العيادات'),
       benefit: tx(lang, 'Filling unused slots converts existing capacity into attended visits.', 'ملء الفترات غير المستخدمة يحوّل السعة الحالية إلى زيارات.'),
     });
@@ -656,26 +656,26 @@ function answerAppointments(
   if (/recover|cancell|released|rebook/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Slot recovery · ${name} · ${view.periodLabel}`, `استرداد الفترات · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Released ${view.releasedSlots.toLocaleString('en-US')} · recovered ${view.recoveredSlots.toLocaleString('en-US')} (${((view.recoveryRate) * 100).toFixed(1)}%) · unfilled recoverable ${view.unfilledRecoverable.toLocaleString('en-US')} · late cancellations ${view.lateCancellations.toLocaleString('en-US')}.`, `المحرر ${view.releasedSlots.toLocaleString('en-US')}.`),
-      evidence: tx(lang, `Largest unfilled recovery specialty ${hotRecover.id}. Rebooking opportunities ${view.rebookingOpportunities.toLocaleString('en-US')}. A slot counts as recovered only when rebooked — not when merely released.`, `أكبر فجوة استرداد ${hotRecover.id}.`),
+      observation: tx(lang, `Released ${view.releasedSlots.toLocaleString('en-US')} · Rebooked ${view.recoveredSlots.toLocaleString('en-US')} (${((view.recoveryRate) * 100).toFixed(1)}% of eligible ${view.eligibleReleasedSlots.toLocaleString('en-US')}) · Unfilled Released ${view.unfilledReleasedSlots.toLocaleString('en-US')} · late cancellations ${view.lateCancellations.toLocaleString('en-US')}.`, `المحرر ${view.releasedSlots.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Largest unfilled released specialty ${hotRecover.id}. Potential Rebooking Opportunities ${view.potentialRebookingOpportunities.toLocaleString('en-US')}. A slot counts as recovered only when rebooked — no-shows do not release early.`, `أكبر فجوة استرداد ${hotRecover.id}.`),
       explanation: tx(lang, 'Potential reasons (not proven): late-cancel cutoffs and slow waitlist contact leave released slots empty.', 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, `Recover late-cancelled openings in ${hotRecover.id} via eligible waitlist outreach under approved policy.`, `استرد الفترات الملغاة متأخراً في ${hotRecover.id} عبر قائمة الانتظار.`),
       role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
-      benefit: tx(lang, 'Recovered slots protect fill without adding clinic sessions.', 'الفترات المستردة تحمي الملء دون إضافة جلسات.'),
+      benefit: tx(lang, 'Rebooked released slots protect fill without adding clinic sessions.', 'الفترات المستردة تحمي الملء دون إضافة جلسات.'),
     });
   }
 
-  if (/priorit|action|recommend|schedul/.test(q)) {
+  if (/priorit|action|recommend|schedul|manager/.test(q)) {
     const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Appointments' && alert.severity !== 'info');
     const topAlert = hot[0];
     return pack(lang, {
       title: tx(lang, `Scheduling priorities · ${name} · ${view.periodLabel}`, `أولويات الجدولة · ${name} · ${view.periodLabel}`),
       observation: tx(lang, topAlert
         ? `${topAlert.title}: ${topAlert.observed}`
-        : `No-show ${((view.noShowRate) * 100).toFixed(1)}% · fill ${((view.slotFillRate) * 100).toFixed(1)}% · median lead ${view.leadMedian.toFixed(1)} days · unfilled recoverable ${view.unfilledRecoverable.toLocaleString('en-US')}.`, topAlert ? topAlert.title : `الغياب ${((view.noShowRate) * 100).toFixed(1)}٪.`),
+        : `No-show Rate ${((view.noShowRate) * 100).toFixed(1)}% · Slot Fill Rate ${((view.slotFillRate) * 100).toFixed(1)}% · Median Booking Lead Time ${view.leadMedian.toFixed(1)} days · Unfilled Released ${view.unfilledReleasedSlots.toLocaleString('en-US')}.`, topAlert ? topAlert.title : `الغياب ${((view.noShowRate) * 100).toFixed(1)}٪.`),
       evidence: tx(lang, `Focus specialties: no-show ${hotNoShow.id}, access ${hotAccess.id}, recovery ${hotRecover.id}. Alert evidence uses full-year figures when the dashboard period is a quarter.`, `تخصصات التركيز: غياب ${hotNoShow.id}.`),
       explanation: tx(lang, 'Potential reasons (not proven): reminder gaps, template imbalance, and incomplete recovery pathways. Drivers are hypotheses.', 'أسباب محتملة وليست مثبتة.'),
-      action: tx(lang, topAlert?.action ?? `Prioritize reminder coverage for ${hotNoShow.id}, waitlist fill for open slots, and recovery of late cancels in ${hotRecover.id}.`, topAlert?.action ?? `أعطِ أولوية للتذكير والملء والاسترداد.`),
+      action: tx(lang, topAlert?.action ?? `Prioritize reminder coverage for ${hotNoShow.id}, waitlist fill for unbooked slots, and recovery of late cancels in ${hotRecover.id}.`, topAlert?.action ?? `أعطِ أولوية للتذكير والملء والاسترداد.`),
       role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
       benefit: tx(lang, topAlert?.consequence ?? 'Sequenced scheduling actions protect access and attendance without inventing capacity.', 'إجراءات جدولة متسلسلة تحمي الوصول والحضور.'),
     });

@@ -415,17 +415,17 @@ function appointmentsWhatIf(
   const hotAccess = [...view.specialties].sort((a, b) => b.leadMedian - a.leadMedian)[0];
 
   if (intent.kind === 'appt-fill-up') {
-    const nextFill = Math.min(0.98, view.slotFillRate + intent.amount);
+    const nextFill = Math.min(0.995, view.slotFillRate + intent.amount);
     const extraBooked = Math.round(view.slots * (nextFill - view.slotFillRate));
     return {
       id: intent.kind,
       title: 'Slot fill improvement scenario',
-      current: `Slot fill ${pct(view.slotFillRate)} · available ${num(view.availableSlots)} · waitlist ${num(view.waitlistDemand)} (${view.periodLabel})`,
-      change: `Illustrative ${pct(intent.amount, 0)} point rise in slot fill rate, capped at 98%`,
+      current: `Slot Fill Rate ${pct(view.slotFillRate)} · Unbooked Slots ${num(view.unbookedSlots)} · Unscheduled Demand ${num(view.waitlistDemand)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} point rise in Slot Fill Rate, capped near 99.5%`,
       estimated: `Fill near ${pct(nextFill)} · about ${num(Math.max(0, extraBooked))} additional bookings if waitlist candidates convert`,
-      assumptions: `Uses ${view.periodLabel} slots. Extra bookings require eligible demand. Not a validated forecast.`,
+      assumptions: `Uses ${view.periodLabel} Bookable Slots. Extra bookings require eligible demand. Not a validated forecast.`,
       implications: 'Higher fill reduces idle capacity but may not shorten lead time if demand still exceeds slots.',
-      followUp: 'Slot fill rate, available slots, and waitlist demand',
+      followUp: 'Slot Fill Rate, Unbooked Slots, and Unscheduled Appointment Demand',
       owner: 'Clinic scheduling lead',
     };
   }
@@ -435,45 +435,45 @@ function appointmentsWhatIf(
     return {
       id: intent.kind,
       title: 'Booking lead-time reduction scenario',
-      current: `Median lead ${num(view.leadMedian, 1)} days · P90 ${num(view.leadP90, 1)} · third-next ${num(view.thirdNextAvailable)} days (${view.periodLabel})`,
-      change: `Illustrative ${pct(intent.amount, 0)} reduction in median booking lead time`,
+      current: `Median Booking Lead Time ${num(view.leadMedian, 1)} days · P90 ${num(view.leadP90, 1)} · Third Next Available ${num(view.thirdNextAvailable)} days (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in Median Booking Lead Time`,
       estimated: `Median lead near ${num(nextLead, 1)} days if specialty templates and openings improve`,
       assumptions: `Observation date ${view.observationDate}. Lead time is not OPD clinic waiting. Illustrative only.`,
       implications: `Shorter access waits help ${hotAccess.id} first and may lower no-show tilt in long-lead bands.`,
-      followUp: 'Median booking lead time and third next available',
+      followUp: 'Median Booking Lead Time and Third Next Available Appointment',
       owner: 'Clinic scheduling lead',
     };
   }
 
   if (intent.kind === 'appt-recover-half') {
-    const eligible = view.lateCancellations;
-    const recoveredExtra = Math.round(eligible * intent.amount);
-    const nextRecovered = Math.min(view.releasedSlots, view.recoveredSlots + recoveredExtra);
+    const eligibleLate = Math.round(view.lateCancellations * 0.2); // minority of late cancels still rebookable
+    const recoveredExtra = Math.round(eligibleLate * intent.amount);
+    const nextRecovered = Math.min(view.eligibleReleasedSlots, view.recoveredSlots + recoveredExtra);
     return {
       id: intent.kind,
       title: 'Late-cancel recovery scenario',
-      current: `Late cancellations ${num(view.lateCancellations)} · recovered ${num(view.recoveredSlots)} of ${num(view.releasedSlots)} released (${view.periodLabel})`,
+      current: `Late cancellations ${num(view.lateCancellations)} · Rebooked ${num(view.recoveredSlots)} of ${num(view.eligibleReleasedSlots)} eligible released (${view.periodLabel})`,
       change: `Illustrative recovery of ${pct(intent.amount, 0)} of eligible late-cancelled slots`,
-      estimated: `About ${num(recoveredExtra)} additional recoveries · recovered near ${num(nextRecovered)} (still ≤ released)`,
-      assumptions: 'A released slot is recovered only when rebooked. Waitlist candidates are assumed contactable.',
+      estimated: `About ${num(recoveredExtra)} additional recoveries · rebooked near ${num(nextRecovered)} (still ≤ eligible released)`,
+      assumptions: 'A released slot is recovered only when rebooked. No-shows do not release early. Waitlist candidates are assumed contactable.',
       implications: 'Recovering late cancels protects fill without adding clinic sessions.',
-      followUp: 'Recovered slots, unfilled recoverable slots, and slot recovery rate',
+      followUp: 'Rebooked Released Slots, Unfilled Released Slots, and Slot Recovery Rate',
       owner: 'Outpatient access manager',
     };
   }
 
   if (intent.kind === 'appt-demand-up') {
     const extra = Math.round(view.demand * intent.amount);
-    const nextWaitlist = Math.max(0, view.waitlistDemand + extra - view.availableSlots);
+    const nextWaitlist = Math.max(0, view.waitlistDemand + extra - view.unbookedSlots);
     return {
       id: intent.kind,
       title: 'Appointment demand increase scenario',
-      current: `Demand ${num(view.demand)} · slots ${num(view.slots)} · waitlist ${num(view.waitlistDemand)} (${view.periodLabel})`,
+      current: `Demand ${num(view.demand)} · Bookable Slots ${num(view.slots)} · Unscheduled Demand ${num(view.waitlistDemand)} (${view.periodLabel})`,
       change: `Illustrative ${pct(intent.amount, 0)} rise in appointment demand`,
-      estimated: `About ${num(extra)} additional requests · waitlist near ${num(nextWaitlist)} if slots stay fixed`,
+      estimated: `About ${num(extra)} additional requests · unscheduled demand near ${num(nextWaitlist)} if slots stay fixed`,
       assumptions: `Uses ${view.periodLabel} demand baseline. Slot supply held constant unless templates change.`,
       implications: 'Demand growth without fill or recovery improvements lengthens lead time.',
-      followUp: 'Appointment demand, waitlist demand, and median booking lead time',
+      followUp: 'Appointment Demand, Unscheduled Appointment Demand, and Median Booking Lead Time',
       owner: 'Outpatient access manager',
     };
   }
@@ -483,12 +483,12 @@ function appointmentsWhatIf(
     return {
       id: intent.kind,
       title: 'Specialty capacity redistribution scenario',
-      current: `Eligible slots ${num(view.slots)} · fill ${pct(view.slotFillRate)} · longest access ${hotAccess.id} (${view.periodLabel})`,
+      current: `Bookable Slots ${num(view.slots)} · fill ${pct(view.slotFillRate)} · longest access ${hotAccess.id} (${view.periodLabel})`,
       change: `Illustrative redistribution of about ${num(moved)} slots toward higher-pressure specialties (total capacity conserved)`,
       estimated: `Hospital slot total remains ${num(view.slots)} · ${hotAccess.id} access pressure eases if openings move there`,
       assumptions: 'Total eligible capacity is conserved. Staffing and room constraints are assumed feasible.',
       implications: 'Redistribution helps access without claiming new capacity was created.',
-      followUp: 'Third next available by specialty and specialty slot fill',
+      followUp: 'Third Next Available by Specialty and specialty Slot Fill Rate',
       owner: 'Clinic scheduling lead',
     };
   }
@@ -498,12 +498,12 @@ function appointmentsWhatIf(
   return {
     id: 'appt-noshow-down',
     title: 'No-show reduction scenario',
-    current: `No-show rate ${pct(view.noShowRate)} (${num(view.noShow)} of ${num(view.booked)}) · focus specialty ${hotNoShow.id} (${view.periodLabel})`,
-    change: `Illustrative ${pct(intent.amount, 0)} relative reduction in no-show rate`,
-    estimated: `No-show rate near ${pct(nextNoShow)} · about ${num(saved)} additional attended visits if those patients convert`,
+    current: `No-show Rate ${pct(view.noShowRate)} (${num(view.noShow)} of ${num(view.booked)}) · focus specialty ${hotNoShow.id} (${view.periodLabel})`,
+    change: `Illustrative ${pct(intent.amount, 0)} relative reduction in No-show Rate`,
+    estimated: `No-show Rate near ${pct(nextNoShow)} · about ${num(saved)} additional attended visits if those patients convert`,
     assumptions: `Uses ${view.periodLabel} booked denominator. Conversion assumes outreach succeeds; not automatic attendance.`,
     implications: `Focusing ${hotNoShow.id} reminders and confirmation pathways concentrates impact where no-shows accumulate.`,
-    followUp: 'No-show rate, attendance rate, and lost booked slots',
+    followUp: 'No-show Rate, Attendance Rate, and Slots Lost to No-shows & Late Cancellations',
     owner: 'Outpatient access manager',
   };
 }

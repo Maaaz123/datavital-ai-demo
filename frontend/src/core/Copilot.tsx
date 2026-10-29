@@ -111,7 +111,7 @@ function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpat
     return { screenId: 'outpatient', department: 'Outpatient', page, askScope: 'Outpatient Department' };
   }
   if (path.startsWith('/appointments')) {
-    const page = path.startsWith('/appointments/access') ? 'Access & Scheduling Capacity'
+    const page = path.startsWith('/appointments/access') ? 'Appointment Access & Capacity'
       : path.startsWith('/appointments/attendance') ? 'Attendance & No-show Intelligence'
         : path.startsWith('/appointments/recovery') ? 'Slot Recovery & Optimization'
           : 'Appointment Command Center';
@@ -205,7 +205,7 @@ export function CopilotPanel() {
               {domain.department === 'Beds' ? 'Beds & capacity decision support'
                 : domain.department === 'Inpatient' ? 'Inpatient care decision support'
                   : domain.department === 'Outpatient' ? 'Outpatient decision support'
-                    : domain.department === 'Appointments' ? 'Appointments & scheduling decision support'
+                    : domain.department === 'Appointments' ? 'Appointments & Scheduling Decision Support'
                       : 'Emergency decision support'}
             </p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
@@ -565,13 +565,13 @@ function Ask({ label, department, askScope, page }: { label: string; department:
             ? ['Where are follow-up actions accumulating?', 'What is reducing visit completion?', ...WHAT_IF_PROMPTS.Outpatient.slice(4, 6)]
             : ['Which specialties have the highest outpatient demand?', 'What should the OPD Director prioritize?', ...WHAT_IF_PROMPTS.Outpatient.slice(0, 1)]
         : appt
-          ? page === 'Access & Scheduling Capacity'
-            ? ['Why are patients waiting longer to get appointments?', 'Which clinics have the greatest access pressure?', ...WHAT_IF_PROMPTS.Appointments.slice(2, 4)]
+          ? page === 'Appointment Access & Capacity'
+            ? ['What is causing appointment access pressure?', 'Which specialties have the longest booking lead times?', ...WHAT_IF_PROMPTS.Appointments.slice(2, 4)]
             : page === 'Attendance & No-show Intelligence'
-              ? ['Which specialties have the highest no-show rates?', 'Can we reduce no-shows without adding clinic capacity?', ...WHAT_IF_PROMPTS.Appointments.slice(0, 2)]
+              ? ['Which specialties have the highest no-show rates?', 'What is the potential benefit of reducing no-shows by 20%?', ...WHAT_IF_PROMPTS.Appointments.slice(0, 2)]
               : page === 'Slot Recovery & Optimization'
-                ? ['How much capacity could be recovered from cancellations?', 'Which scheduling actions should we prioritize?', ...WHAT_IF_PROMPTS.Appointments.slice(3, 6)]
-                : ['How many appointment slots are currently unused?', 'What happens if demand increases by 15%?', ...WHAT_IF_PROMPTS.Appointments.slice(0, 1)]
+                ? ['How many slots were released and recovered?', 'Which actions should the scheduling manager prioritize?', ...WHAT_IF_PROMPTS.Appointments.slice(3, 6)]
+                : ['Where is there unused appointment capacity?', 'What would happen if demand increased by 15%?', ...WHAT_IF_PROMPTS.Appointments.slice(0, 1)]
           : page === 'Waiting & Patient Flow'
             ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
             : page === 'Safety & Return Visits'
@@ -606,12 +606,12 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                   ? 'Ask about documentation completion, pending referrals, or follow-up coordination on this screen.'
                   : 'Ask about outpatient visit volume, specialty demand, completion, or session utilization on this screen.'
               : appt
-                ? page === 'Access & Scheduling Capacity'
+                ? page === 'Appointment Access & Capacity'
                   ? 'Ask about booking lead time, third next available, slot fill, or specialty access pressure on this screen.'
                   : page === 'Attendance & No-show Intelligence'
                     ? 'Ask about no-show rates, cancellations, lost booked slots, or reminder coverage on this screen.'
                     : page === 'Slot Recovery & Optimization'
-                      ? 'Ask about released and recovered slots, waitlist outreach, or recoverable capacity on this screen.'
+                      ? 'Ask about released and rebooked slots, waitlist outreach, or recovery opportunities on this screen.'
                       : 'Ask about scheduled demand, attendance outcomes, or specialty booking mix on this screen.'
                 : page === 'Waiting & Patient Flow'
                   ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'

@@ -406,6 +406,13 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_discharge_ready_still_admitted') return count(Math.round(fact.occupiedBeds * 0.08), 'down', 'Discharge-ready patients still in a bed are 8% of the occupied snapshot.');
   if (key === 'kpi_discharge_barrier_active_count') return count(Math.round(fact.occupiedBeds * 0.05), 'down', 'Active discharge barriers are 5% of the occupied snapshot.');
   if (key === 'kpi_appointment_open_future_slot_count') return count(Math.max(0, fact.apptSlots - fact.apptBooked), 'up', 'Unbooked slots. Booked does not exceed slots.');
+  if (key === 'kpi_appointment_unfilled_released_slots') {
+    const afterStart = Math.round(fact.apptCancelled * 0.12);
+    const released = Math.max(0, fact.apptCancelled - afterStart);
+    const eligible = Math.round(fact.apptCancelled * (0.35 + 0.28 + 0.25 * 0.2));
+    const recovered = Math.min(eligible, Math.round(eligible * (0.48 + Math.min(0.12, Math.max(0, occ - 0.78)) * 0.12)));
+    return count(Math.max(0, released - recovered), 'down', 'Released slots without a confirmed replacement booking (appointment recovery lifecycle).');
+  }
   if (key === 'kpi_outpatient_checked_in_count') return count(Math.round(fact.apptAttended / days), 'neutral', 'A one-day snapshot of attended visits.');
   if (key === 'kpi_outpatient_follow_up_count') return count(Math.round(fact.apptAttended * 0.62), 'neutral', 'Follow-up visits are 62% of attended appointments.');
   if (key === 'kpi_staff_expired_license_count') return count(Math.round(fact.filledFte * 0.01), 'down', 'Expired licenses are 1% of filled FTE.');

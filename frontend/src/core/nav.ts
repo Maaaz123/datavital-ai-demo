@@ -160,7 +160,7 @@ export const NAV_DOMAINS: NavDomain[] = [
       {
         to: '/appointments/access',
         short: 'Access',
-        title: 'Access & Scheduling Capacity',
+        title: 'Appointment Access & Capacity',
         purpose: 'Lead time, third-next-available, and slot fill',
         glyph: 'access',
       },

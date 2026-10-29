@@ -103,7 +103,7 @@ function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | fal
 }
 
 function fig(type: Figure['type'], title: string, categories: string[], series: Figure['series'], unit: string, note: string, extra?: Partial<Figure>): Figure {
-  const digits = unit === '%' || unit === 'days' || unit === 'rate' ? 1 : 0;
+  const digits = unit === '%' || unit === 'days' || unit === 'rate' || unit === 'index' ? 1 : 0;
   return { type, title, categories, series, unit, digits, note, domain: 'appointments', subjects: [title], ...extra };
 }
 
@@ -143,7 +143,7 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
           <li>
             <button type="button" onClick={() => copilot.setOpen(true)}>
               <span className="gc-sev gc-sev-medium">review</span>
-              Scheduling within review lines · open Vital Assist
+              Scheduling within management thresholds · open Vital Assist
             </button>
           </li>
         )}
@@ -151,7 +151,7 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
       {period === 'year' ? null : <p>These alerts use the full reporting year. The scores above use the selected period.</p>}
       <div className="gc-next">
         <h2>Management action</h2>
-        <p>Review no-show and fill rates while attendance is {pct(view.attendanceRate)}, slot fill is {pct(view.slotFillRate)}, and third-next-available is {num(view.thirdNextAvailable)} days (observation {view.observationDate}).</p>
+        <p>Review no-show and fill rates while attendance is {pct(view.attendanceRate)}, slot fill is {pct(view.slotFillRate)}, and third next available is {num(view.thirdNextAvailable)} days (observation {view.observationDate}).</p>
         <button
           type="button"
           className="gc-ai-cta"
@@ -288,23 +288,23 @@ export function ApptCommandPage() {
   const prior = usePrior();
   return (
     <Page title="Appointment Command Center" kpis={[
-      score('Scheduled appointments', num(view.booked), compare(view, prior, (item) => item.booked), 'Booked appointments. Attended + cancelled + no-show = booked.', `${num(view.booked)} booked · ${view.periodLabel}.`, 'value-kpi_appt_scheduled', 'neutral'),
-      score('Attended appointments', num(view.attended), compare(view, prior, (item) => item.attended), 'Attended scheduled appointments. Equals OPD attended visits for the same hospital and period.', `${num(view.attended)} attended · OPD match ${num(view.opdAttended)}.`, undefined, 'good'),
-      score('Attendance rate', pct(view.attendanceRate), compare(view, prior, (item) => item.attendanceRate, true), 'Attended ÷ booked.', `${num(view.attended)} / ${num(view.booked)}.`, undefined, rateTone(view.attendanceRate, 0.88, 0.82, false)),
-      score('No-show appointments', num(view.noShow), compare(view, prior, (item) => item.noShow), 'No-shows inside the booked cohort.', `${num(view.noShow)} no-shows.`, undefined, 'watch'),
-      score('No-show rate', pct(view.noShowRate), compare(view, prior, (item) => item.noShowRate, true), 'No-shows ÷ booked.', `${pct(view.noShowRate)} of booked.`, undefined, rateTone(view.noShowRate, 0.05, 0.08)),
-      score('Cancelled appointments', num(view.cancelled), compare(view, prior, (item) => item.cancelled), 'Cancellations inside the booked cohort.', `${num(view.cancelled)} cancelled.`, undefined, 'watch'),
-      score('Cancellation rate', pct(view.cancellationRate), compare(view, prior, (item) => item.cancellationRate, true), 'Cancellations ÷ booked.', `${pct(view.cancellationRate)} of booked.`, undefined, rateTone(view.cancellationRate, 0.06, 0.1)),
-      score('Rescheduled appointments', num(view.rescheduled), compare(view, prior, (item) => item.rescheduled), 'Reschedule events — not an outcome partition of attended/cancelled/no-show.', `${num(view.rescheduled)} reschedule events.`, undefined, 'neutral'),
-      score('New appointment share', pct(view.newShare), 'Scenario share', 'New appointments as a share of booked. New + follow-up = booked.', `${num(view.newAppointments)} new.`, undefined, 'neutral'),
-      score('Follow-up appointment share', pct(view.followUpShare), 'Scenario share', 'Follow-up appointments as the remainder of booked.', `${num(view.followUpAppointments)} follow-up.`, undefined, 'neutral'),
+      score('Scheduled Appointments', num(view.booked), compare(view, prior, (item) => item.booked), 'Booked appointments. Attended + Cancelled + No-show = Scheduled.', `${num(view.booked)} booked · ${view.periodLabel}.`, 'value-kpi_appt_scheduled', 'neutral'),
+      score('Attended Appointments', num(view.attended), compare(view, prior, (item) => item.attended), 'Attended scheduled appointments. Equals OPD attended visits for the same hospital and period.', `${num(view.attended)} attended · OPD match ${num(view.opdAttended)}.`, undefined, 'good'),
+      score('Attendance Rate', pct(view.attendanceRate), compare(view, prior, (item) => item.attendanceRate, true), 'Attended ÷ Scheduled.', `${num(view.attended)} / ${num(view.booked)}.`, undefined, rateTone(view.attendanceRate, 0.88, 0.82, false)),
+      score('No-show Appointments', num(view.noShow), compare(view, prior, (item) => item.noShow), 'No-shows inside the booked cohort.', `${num(view.noShow)} no-shows.`, undefined, 'watch'),
+      score('No-show Rate', pct(view.noShowRate), compare(view, prior, (item) => item.noShowRate, true), 'No-shows ÷ Scheduled.', `${pct(view.noShowRate)} of booked.`, undefined, rateTone(view.noShowRate, 0.05, 0.08)),
+      score('Cancelled Appointments', num(view.cancelled), compare(view, prior, (item) => item.cancelled), 'Cancellations inside the booked cohort.', `${num(view.cancelled)} cancelled.`, undefined, 'watch'),
+      score('Cancellation Rate', pct(view.cancellationRate), compare(view, prior, (item) => item.cancellationRate, true), 'Cancellations ÷ Scheduled.', `${pct(view.cancellationRate)} of booked.`, undefined, rateTone(view.cancellationRate, 0.06, 0.1)),
+      score('Rescheduled Appointments', num(view.rescheduled), compare(view, prior, (item) => item.rescheduled), 'Reschedule events — not a mutually exclusive attendance outcome.', `${num(view.rescheduled)} reschedule events.`, undefined, 'neutral'),
+      score('New Appointment Share', pct(view.newShare), 'Scenario share', 'New appointments as a share of booked. New + Follow-up = Scheduled.', `${num(view.newAppointments)} new.`, undefined, 'neutral'),
+      score('Follow-up Appointment Share', pct(view.followUpShare), 'Scenario share', 'Follow-up appointments as the remainder of booked.', `${num(view.followUpAppointments)} follow-up.`, undefined, 'neutral'),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('area', 'Appointment demand over time', view.labels, [
-            { name: 'Demand', values: view.monthlyBooked.map((booked) => Math.round(booked * (view.demand / Math.max(view.booked, 1)))) },
+          <Slot span={false} figure={fig('area', 'Appointment Demand vs Bookings', view.labels, [
+            { name: 'Demand', values: view.monthlyDemand },
             { name: 'Booked', values: view.monthlyBooked },
-          ], 'appointments', 'Monthly demand sketch vs booked. Booked months sum to period booked.')} />
+          ], 'appointments', 'Monthly scenario demand and booked series for the same reporting period. Booked months sum to period scheduled.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Alerts packed />
@@ -312,28 +312,28 @@ export function ApptCommandPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Donut packed title="Appointment outcomes" note="Mutually exclusive partition of booked: attended + cancelled + no-show." parts={[
+          <Donut packed title="Appointment Outcomes Breakdown" note="Mutually exclusive partition of scheduled appointments: Attended + Cancelled + No-show." parts={[
             { name: 'Attended', value: view.attended },
             { name: 'Cancelled', value: view.cancelled },
             { name: 'No-show', value: view.noShow },
           ]} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Appointments by specialty', view.specialties.map((item) => item.id), [{ name: 'Booked', values: view.specialties.map((item) => item.booked) }], 'appointments', 'Specialty booked shares sum to period booked.')} />
+          <Slot span={false} figure={fig('bars', 'Scheduled Appointments by Specialty', view.specialties.map((item) => item.id), [{ name: 'Booked', values: view.specialties.map((item) => item.booked) }], 'appointments', 'Specialty booked shares sum to period scheduled appointments.')} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Attendance and no-show trends', view.labels, [
-            { name: 'Attendance %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyAttended[index] / booked) * 1000) / 10 : 0)) },
-            { name: 'No-show %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyNoShow[index] / booked) * 1000) / 10 : 0)) },
-          ], '%', 'Monthly rates from monthly counts. Not naive averages of annual rates.')} />
+          <Slot span={false} figure={fig('line', 'Attendance & No-show Trends', view.labels, [
+            { name: 'Attendance Rate %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyAttended[index] / booked) * 1000) / 10 : 0)) },
+            { name: 'No-show Rate %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyNoShow[index] / booked) * 1000) / 10 : 0)) },
+          ], '%', 'Monthly attendance and no-show rates from monthly counts on a common percent axis.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Booking lead time trend', view.labels, [{ name: 'Median days', values: view.monthlyLead }], 'days', 'Illustrative median booking lead time. Not OPD clinic waiting after arrival.')} />
+          <Slot span={false} figure={fig('line', 'Booking Lead Time Trend', view.labels, [{ name: 'Median days', values: view.monthlyLead }], 'days', 'Illustrative median booking lead time (request/booking → scheduled visit). Not OPD clinic waiting after arrival.')} />
         </div>
       </div>
-      <Slot span="span-12" figure={fig('bars', 'Appointment channel mix', view.channels.map((item) => item.id), [{ name: 'Booked', values: view.channels.map((item) => item.count) }], 'appointments', 'Constructed booking channel mix. Channels sum to period booked.')} />
+      <Slot span="span-12" figure={fig('bars', 'Bookings by Channel', view.channels.map((item) => item.id), [{ name: 'Booked', values: view.channels.map((item) => item.count) }], 'appointments', 'Constructed scenario channel mix. Channels sum to period scheduled appointments — not a live booking-system extract.')} />
       <IndicatorIndex indicators={appointmentIndicatorsFor(view)} domains={['Booking Demand', 'Appointment Outcomes']} />
     </Page>
   );
@@ -344,43 +344,46 @@ export function ApptAccessPage() {
   const prior = usePrior();
   const hottest = [...view.specialties].sort((a, b) => b.accessPressure - a.accessPressure)[0];
   return (
-    <Page title="Access & Scheduling Capacity" kpis={[
-      score('Median booking lead time', `${num(view.leadMedian, 1)} days`, compare(view, prior, (item) => item.leadMedian), 'Median days from booking/request to scheduled visit. Not clinic waiting after arrival.', `${num(view.leadMedian, 1)} days · ${view.periodLabel}.`, 'value-kpi_appt_lead', view.leadMedian >= 14 ? 'alert' : view.leadMedian >= 10 ? 'watch' : 'good'),
-      score('P90 booking lead time', `${num(view.leadP90, 1)} days`, compare(view, prior, (item) => item.leadP90), '90th-percentile booking lead time.', `P90 ${num(view.leadP90, 1)} days.`, undefined, view.leadP90 >= 28 ? 'alert' : 'watch'),
-      score('Third next available', `${num(view.thirdNextAvailable)} days`, compare(view, prior, (item) => item.thirdNextAvailable), `Third eligible routine opening from ordered future slots. Observation date ${view.observationDate}.`, `Openings: ${view.thirdNextOpenings.join(', ')} days.`, undefined, view.thirdNextAvailable >= 18 ? 'alert' : 'watch'),
-      score('Eligible appointment slots', num(view.slots), compare(view, prior, (item) => item.slots), 'Offered bookable slots in the period.', `${num(view.slots)} slots.`, undefined, 'neutral'),
-      score('Booked slots', num(view.booked), compare(view, prior, (item) => item.booked), 'Booked slots (equals scheduled appointments).', `${num(view.booked)} booked.`, undefined, 'neutral'),
-      score('Available slots', num(view.availableSlots), compare(view, prior, (item) => item.availableSlots), 'Slots − booked.', `${num(view.availableSlots)} open.`, undefined, view.availableSlots < view.slots * 0.05 ? 'alert' : 'good'),
-      score('Slot fill rate', pct(view.slotFillRate), compare(view, prior, (item) => item.slotFillRate, true), 'Booked ÷ eligible slots.', `${num(view.booked)} / ${num(view.slots)}.`, undefined, rateTone(view.slotFillRate, 0.9, 0.82, false)),
-      score('Capacity gap', num(view.capacityGap), compare(view, prior, (item) => item.capacityGap), 'Demand above offered slots when demand exceeds slots.', `${num(view.demand)} demand vs ${num(view.slots)} slots.`, undefined, view.capacityGap > 0 ? 'watch' : 'good'),
-      score('Sessions with scheduling pressure', num(view.sessionsWithPressure), compare(view, prior, (item) => item.sessionsWithPressure), 'Illustrative sessions under scheduling pressure.', `${num(view.sessionsWithPressure)} sessions.`, undefined, 'watch'),
-      score('Next 7-day available capacity', num(view.next7DayAvailable), compare(view, prior, (item) => item.next7DayAvailable), `Illustrative open capacity after ${view.observationDate}.`, `${num(view.next7DayAvailable)} openings sketch.`, undefined, 'neutral'),
+    <Page title="Appointment Access & Capacity" kpis={[
+      score('Median Booking Lead Time', `${num(view.leadMedian, 1)} days`, compare(view, prior, (item) => item.leadMedian), 'Median days from booking/request to scheduled visit. Not clinic waiting after arrival.', `${num(view.leadMedian, 1)} days · ${view.periodLabel}.`, 'value-kpi_appt_lead', view.leadMedian >= 14 ? 'alert' : view.leadMedian >= 10 ? 'watch' : 'good'),
+      score('P90 Booking Lead Time', `${num(view.leadP90, 1)} days`, compare(view, prior, (item) => item.leadP90), '90th-percentile booking lead time for the same measurement window.', `P90 ${num(view.leadP90, 1)} days.`, undefined, view.leadP90 >= 28 ? 'alert' : 'watch'),
+      score('Third Next Available Appointment', `${num(view.thirdNextAvailable)} days`, compare(view, prior, (item) => item.thirdNextAvailable), `Third eligible routine opening from an ordered illustrative opening list. Observation date ${view.observationDate}.`, `Openings: ${view.thirdNextOpenings.join(', ')} days · illustrative schedule.`, undefined, view.thirdNextAvailable >= 18 ? 'alert' : 'watch'),
+      score('Bookable Slots', num(view.slots), compare(view, prior, (item) => item.slots), 'Eligible bookable slots in the selected period.', `${num(view.slots)} slots.`, undefined, 'neutral'),
+      score('Booked Slots', num(view.booked), compare(view, prior, (item) => item.booked), 'Booked slots (equals scheduled appointments).', `${num(view.booked)} booked.`, undefined, 'neutral'),
+      score('Unbooked Slots', num(view.unbookedSlots), compare(view, prior, (item) => item.unbookedSlots), 'Period unbooked capacity = Bookable − Booked. Not a live “available now” queue.', `${num(view.unbookedSlots)} unbooked in period.`, undefined, view.unbookedSlots < view.slots * 0.05 ? 'alert' : 'good'),
+      score('Slot Fill Rate', pct(view.slotFillRate), compare(view, prior, (item) => item.slotFillRate, true), 'Booked Slots ÷ Bookable Slots.', `${num(view.booked)} / ${num(view.slots)}.`, undefined, rateTone(view.slotFillRate, 0.9, 0.82, false)),
+      score('Capacity Shortfall', num(view.capacityShortfall), compare(view, prior, (item) => item.capacityShortfall), 'max(0, Appointment Demand − Bookable Slots). Unmet demand, not unbooked capacity.', `${num(view.demand)} demand vs ${num(view.slots)} slots.`, undefined, view.capacityShortfall > 0 ? 'watch' : 'good'),
+      score('High-Pressure Clinic Sessions', num(view.sessionsWithPressure), compare(view, prior, (item) => item.sessionsWithPressure), 'Illustrative sessions under scheduling pressure.', `${num(view.sessionsWithPressure)} sessions.`, undefined, 'watch'),
+      score('Next 7-Day Open Slots', num(view.next7DayOpenSlots), compare(view, prior, (item) => item.next7DayOpenSlots), `Deterministic illustrative openings for the 7 days after ${view.observationDate}. Not historical vacancies ÷ 365.`, `${num(view.next7DayOpenSlots)} openings in the week sketch.`, undefined, 'neutral'),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Booking lead time trend', view.labels, [{ name: 'Median days', values: view.monthlyLead }], 'days', 'Illustrative monthly median lead time. Distinct from OPD arrival-to-provider.')} />
+          <Slot span={false} figure={fig('line', 'Booking Lead Time Over Time', view.labels, [{ name: 'Median days', values: view.monthlyLead }], 'days', 'Illustrative monthly median lead time. Distinct from OPD arrival-to-provider.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Access days by specialty', view.specialties.map((item) => item.id), [{ name: 'Median lead days', values: view.specialties.map((item) => item.leadMedian) }], 'days', `Specialty lead times around hospital median ${num(view.leadMedian, 1)}. Highest pressure: ${hottest?.id ?? 'n/a'}.`)} />
+          <Slot span={false} figure={fig('bars', 'Booking Lead Time by Specialty', view.specialties.map((item) => item.id), [{ name: 'Median lead days', values: view.specialties.map((item) => item.leadMedian) }], 'days', `Specialty lead times around hospital median ${num(view.leadMedian, 1)}. Highest pressure: ${hottest?.id ?? 'n/a'}.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Third next available by specialty', view.specialties.map((item) => item.id), [{ name: 'Days', values: view.specialties.map((item) => item.thirdNextDays) }], 'days', `Third eligible opening per specialty from ordered future slots. Observation ${view.observationDate}.`)} />
+          <Slot span={false} figure={fig('bars', 'Third Next Available by Specialty', view.specialties.map((item) => item.id), [{ name: 'Days', values: view.specialties.map((item) => item.thirdNextDays) }], 'days', `Third eligible opening per specialty from ordered illustrative openings. Observation ${view.observationDate}.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Available vs booked capacity', ['Booked', 'Available'], [{ name: 'Slots', values: [view.booked, view.availableSlots] }], 'slots', `Booked + available = ${num(view.slots)} eligible slots.`)} />
+          <Slot span={false} figure={fig('bars', 'Booked vs Unbooked Slots', ['Booked', 'Unbooked'], [{ name: 'Share of bookable %', values: [
+            Math.round(view.slotFillRate * 1000) / 10,
+            Math.round((1 - view.slotFillRate) * 1000) / 10,
+          ] }], '%', `Shares of ${num(view.slots)} bookable slots. Booked ${num(view.booked)} · Unbooked ${num(view.unbookedSlots)}.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Demand vs scheduling capacity', ['Demand', 'Slots', 'Booked'], [{ name: 'Appointments', values: [view.demand, view.slots, view.booked] }], 'appointments', 'Demand may exceed slots. Booked never exceeds slots in this scenario.')} />
+          <Slot span={false} figure={fig('bars', 'Appointment Demand vs Capacity', ['Demand', 'Bookable', 'Booked'], [{ name: 'Appointments', values: [view.demand, view.slots, view.booked] }], 'appointments', 'Demand may exceed bookable slots. Booked never exceeds bookable slots in this scenario.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Future open slots by day', view.futureOpenSlots.map((item) => item.name), [{ name: 'Openings', values: view.futureOpenSlots.map((item) => item.count) }], 'slots', `Illustrative next-week openings after ${view.observationDate}. Week sketch totals near ${num(view.next7DayAvailable)}.`)} />
+          <Slot span={false} figure={fig('bars', 'Next 7-Day Open Slots', view.futureOpenSlots.map((item) => item.name), [{ name: 'Openings', values: view.futureOpenSlots.map((item) => item.count) }], 'slots', `Illustrative openings after ${view.observationDate}. Daily counts sum to ${num(view.next7DayOpenSlots)}.`)} />
         </div>
       </div>
-      <Slot span="span-12" figure={fig('bars', 'Specialty access pressure', view.specialties.map((item) => item.id), [{ name: 'Pressure index', values: view.specialties.map((item) => Math.round(item.accessPressure * 100) / 100) }], 'index', 'Constructed index from relative lead time and unfilled share. Not a clinical urgency score.')} />
+      <Slot span="span-12" figure={fig('bars', 'Scheduling Pressure by Specialty', view.specialties.map((item) => item.id), [{ name: 'Pressure index', values: view.specialties.map((item) => Math.round(item.accessPressure * 100) / 100) }], 'index', 'Illustrative index from relative lead time and unfilled share. Not a validated scheduling-risk or clinical-priority score.')} />
       <IndicatorIndex indicators={appointmentIndicatorsFor(view)} domains={['Access & Availability', 'Scheduling Capacity']} />
     </Page>
   );
@@ -389,53 +392,54 @@ export function ApptAccessPage() {
 export function ApptAttendancePage() {
   const view = useView();
   const prior = usePrior();
+  const hottestNoShow = [...view.specialties].sort((a, b) => b.noShowRate - a.noShowRate)[0];
   return (
     <Page title="Attendance & No-show Intelligence" kpis={[
-      score('No-show rate', pct(view.noShowRate), compare(view, prior, (item) => item.noShowRate, true), 'No-shows ÷ booked.', `${num(view.noShow)} / ${num(view.booked)}.`, 'value-kpi_appt_noshow', rateTone(view.noShowRate, 0.05, 0.08)),
-      score('No-show count', num(view.noShow), compare(view, prior, (item) => item.noShow), 'No-show appointments in the booked cohort.', `${num(view.noShow)} no-shows.`, undefined, 'watch'),
-      score('Cancellation rate', pct(view.cancellationRate), compare(view, prior, (item) => item.cancellationRate, true), 'Cancellations ÷ booked.', `${num(view.cancelled)} / ${num(view.booked)}.`, undefined, rateTone(view.cancellationRate, 0.06, 0.1)),
-      score('Late cancellation rate', pct(view.lateCancelRate), compare(view, prior, (item) => item.lateCancelRate, true), 'Late cancellations ÷ booked (late = 25% of cancellations).', `${num(view.lateCancellations)} late cancels.`, undefined, 'watch'),
-      score('Attendance rate', pct(view.attendanceRate), compare(view, prior, (item) => item.attendanceRate, true), 'Attended ÷ booked.', `${pct(view.attendanceRate)}.`, undefined, rateTone(view.attendanceRate, 0.88, 0.82, false)),
-      score('Lost booked slots', num(view.lostBookedSlots), compare(view, prior, (item) => item.lostBookedSlots), 'No-shows + late cancellations.', `${num(view.noShow)} no-shows + ${num(view.lateCancellations)} late cancels.`, undefined, 'alert'),
-      score('Highest specialty no-show share', pct(Math.max(...view.specialties.map((item) => item.noShowRate))), 'Specialty max', 'Highest specialty no-show rate in the period.', `${[...view.specialties].sort((a, b) => b.noShowRate - a.noShowRate)[0]?.id ?? 'n/a'}.`, undefined, 'watch'),
-      score('Reminder coverage', pct(view.reminderCoverage), compare(view, prior, (item) => item.reminderCoverage, true), 'Illustrative reminder coverage of booked appointments.', `${pct(view.reminderCoverage)} covered.`, undefined, 'neutral'),
-      score('Reschedule events', num(view.rescheduled), compare(view, prior, (item) => item.rescheduled), 'Reschedule events — separate from outcome partition.', `${num(view.rescheduled)} events.`, undefined, 'neutral'),
-      score('Waitlist demand', num(view.waitlistDemand), compare(view, prior, (item) => item.waitlistDemand), 'Unbooked demand = demand − booked.', `${num(view.waitlistDemand)} waiting for a slot.`, undefined, view.waitlistDemand > 0 ? 'watch' : 'good'),
+      score('No-show Rate', pct(view.noShowRate), compare(view, prior, (item) => item.noShowRate, true), 'No-shows ÷ Scheduled.', `${num(view.noShow)} / ${num(view.booked)}.`, 'value-kpi_appt_noshow', rateTone(view.noShowRate, 0.05, 0.08)),
+      score('No-show Appointments', num(view.noShow), compare(view, prior, (item) => item.noShow), 'No-show appointments in the booked cohort.', `${num(view.noShow)} no-shows.`, undefined, 'watch'),
+      score('Cancellation Rate', pct(view.cancellationRate), compare(view, prior, (item) => item.cancellationRate, true), 'Cancellations ÷ Scheduled.', `${num(view.cancelled)} / ${num(view.booked)}.`, undefined, rateTone(view.cancellationRate, 0.06, 0.1)),
+      score('Late Cancellation Rate', pct(view.lateCancelRate), compare(view, prior, (item) => item.lateCancelRate, true), 'Same-day / <48h cancellations ÷ Scheduled.', `${num(view.lateCancellations)} late cancels.`, undefined, 'watch'),
+      score('Attendance Rate', pct(view.attendanceRate), compare(view, prior, (item) => item.attendanceRate, true), 'Attended ÷ Scheduled.', `${pct(view.attendanceRate)}.`, undefined, rateTone(view.attendanceRate, 0.88, 0.82, false)),
+      score('Slots Lost to No-shows & Late Cancellations', num(view.lostBookedSlots), compare(view, prior, (item) => item.lostBookedSlots), 'No-shows + late cancellations. Distinguishes unused-at-time capacity from slots released early enough to recover.', `${num(view.noShow)} no-shows + ${num(view.lateCancellations)} late cancels.`, undefined, 'alert'),
+      score('Highest Specialty No-show Rate', pct(hottestNoShow?.noShowRate ?? 0), 'Specialty max', 'Highest specialty no-show rate in the period.', `${hottestNoShow?.id ?? 'n/a'}.`, undefined, 'watch'),
+      score('Appointment Reminder Coverage', pct(view.reminderCoverage), compare(view, prior, (item) => item.reminderCoverage, true), 'Illustrative reminder coverage of booked appointments. Not evidence of causal attendance lift.', `${pct(view.reminderCoverage)} covered.`, undefined, 'neutral'),
+      score('Rescheduling Events', num(view.rescheduled), compare(view, prior, (item) => item.rescheduled), 'Reschedule events — separate from the attended/cancelled/no-show partition.', `${num(view.rescheduled)} events.`, undefined, 'neutral'),
+      score('Unscheduled Appointment Demand', num(view.waitlistDemand), compare(view, prior, (item) => item.waitlistDemand), 'Unbooked demand = Demand − Booked.', `${num(view.waitlistDemand)} waiting for a slot.`, undefined, view.waitlistDemand > 0 ? 'watch' : 'good'),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'No-show trend', view.labels, [{ name: 'No-show %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyNoShow[index] / booked) * 1000) / 10 : 0)) }], '%', 'Monthly no-show rate from monthly counts.')} />
+          <Slot span={false} figure={fig('line', 'No-show Rate Trend', view.labels, [{ name: 'No-show Rate %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyNoShow[index] / booked) * 1000) / 10 : 0)) }], '%', 'Monthly no-show rate from monthly counts.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'No-show by specialty', view.specialties.map((item) => item.id), [{ name: 'No-shows', values: view.specialties.map((item) => item.noShow) }], 'appointments', `Specialty no-shows sum to ${num(view.noShow)}.`)} />
+          <Slot span={false} figure={fig('bars', 'No-show Appointments by Specialty', view.specialties.map((item) => item.id), [{ name: 'No-shows', values: view.specialties.map((item) => item.noShow) }], 'appointments', `Specialty no-shows sum to ${num(view.noShow)}.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Attendance outcomes by day', view.outcomesByDay.map((item) => item.name), [
+          <Slot span={false} figure={fig('bars', 'Attendance & No-shows by Weekday', view.outcomesByDay.map((item) => item.name), [
             { name: 'Attended', values: view.outcomesByDay.map((item) => item.attended) },
             { name: 'No-show', values: view.outcomesByDay.map((item) => item.noShow) },
-          ], 'appointments', 'Weekday attended and no-show counts. Day booked still reconciles to attended + cancelled + no-show.')} />
+          ], 'appointments', 'Weekday attended and no-show counts. Each weekday still reconciles Attended + Cancelled + No-show = Booked.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Cancellation timing distribution', view.cancelTimingCounts.map((item) => item.name), [{ name: 'Cancellations', values: view.cancelTimingCounts.map((item) => item.count) }], 'appointments', `Timing bins sum to ${num(view.cancelled)} cancellations.`)} />
+          <Slot span={false} figure={fig('bars', 'Cancellations by Notice Period', view.cancelTimingCounts.map((item) => item.name), [{ name: 'Cancellations', values: view.cancelTimingCounts.map((item) => item.count) }], 'appointments', `Mutually exclusive notice bins sum to ${num(view.cancelled)} cancellations. Late = Same day / <48h.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Appointment outcome by booking lead time', view.outcomeByLead.map((item) => item.name), [
+          <Slot span={false} figure={fig('bars', 'Attendance & No-shows by Booking Lead Time', view.outcomeByLead.map((item) => item.name), [
             { name: 'Attended', values: view.outcomeByLead.map((item) => item.attended) },
             { name: 'No-show', values: view.outcomeByLead.map((item) => item.noShow) },
-          ], 'appointments', 'Lead-time bands partition booked appointments. Longer lead shows a higher constructed no-show tilt.')} />
+          ], 'appointments', 'Lead-time bands partition booked appointments and reconcile to period totals.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Lost capacity by specialty', view.specialties.map((item) => item.id), [{ name: 'Lost slots', values: view.specialties.map((item) => item.lostSlots) }], 'slots', 'No-shows + late cancellations by specialty. Not a demographic risk score.')} />
+          <Slot span={false} figure={fig('bars', 'Lost Appointment Slots by Specialty', view.specialties.map((item) => item.id), [{ name: 'Lost slots', values: view.specialties.map((item) => item.lostSlots) }], 'slots', 'No-shows + late cancellations by specialty. Not permanent loss if early release + rebooking recovers the slot. Not a demographic risk score.')} />
         </div>
       </div>
-      <Slot span="span-12" figure={fig('line', 'Reminder coverage vs attendance', view.labels, [
-        { name: 'Reminder coverage %', values: view.labels.map(() => Math.round(view.reminderCoverage * 1000) / 10) },
-        { name: 'Attendance %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyAttended[index] / booked) * 1000) / 10 : 0)) },
-      ], '%', 'Illustrative reminder coverage held near the period rate beside monthly attendance. Correlation is not causation.')} />
+      <Slot span="span-12" figure={fig('line', 'Reminder Coverage vs Attendance Rate', view.labels, [
+        { name: 'Reminder Coverage %', values: view.labels.map((_, index) => Math.round((view.reminderCoverage + ((index % 5) - 2) * 0.004) * 1000) / 10) },
+        { name: 'Attendance Rate %', values: view.monthlyBooked.map((booked, index) => (booked ? Math.round((view.monthlyAttended[index] / booked) * 1000) / 10 : 0)) },
+      ], '%', 'Illustrative reminder coverage beside monthly attendance rate. Any relationship is illustrative — not causal evidence.')} />
       <IndicatorIndex indicators={appointmentIndicatorsFor(view)} domains={['Cancellation & No-show', 'Clinical Flow Context']} />
     </Page>
   );
@@ -446,23 +450,23 @@ export function ApptRecoveryPage() {
   const prior = usePrior();
   return (
     <Page title="Slot Recovery & Optimization" kpis={[
-      score('Released appointment slots', num(view.releasedSlots), compare(view, prior, (item) => item.releasedSlots), 'Slots released from cancellations and a share of no-shows.', `${num(view.releasedSlots)} released.`, undefined, 'neutral'),
-      score('Recovered slots', num(view.recoveredSlots), compare(view, prior, (item) => item.recoveredSlots), 'Released slots successfully rebooked. Recovered ≤ released.', `${num(view.recoveredSlots)} recovered.`, undefined, 'good'),
-      score('Slot recovery rate', pct(view.recoveryRate), compare(view, prior, (item) => item.recoveryRate, true), 'Recovered ÷ released.', `${num(view.recoveredSlots)} / ${num(view.releasedSlots)}.`, undefined, rateTone(view.recoveryRate, 0.45, 0.3, false)),
-      score('Waitlist demand', num(view.waitlistDemand), compare(view, prior, (item) => item.waitlistDemand), 'Unbooked demand.', `${num(view.waitlistDemand)} waiting.`, undefined, 'watch'),
-      score('Eligible waitlist candidates', num(view.eligibleWaitlist), compare(view, prior, (item) => item.eligibleWaitlist), 'Waitlist demand capped by available and recoverable openings.', `${num(view.eligibleWaitlist)} eligible.`, undefined, 'neutral'),
-      score('Rebooking opportunities', num(view.rebookingOpportunities), compare(view, prior, (item) => item.rebookingOpportunities), 'Eligible candidates that can fill recoverable or open slots.', `${num(view.rebookingOpportunities)} opportunities.`, undefined, 'watch'),
-      score('Unfilled recoverable slots', num(view.unfilledRecoverable), compare(view, prior, (item) => item.unfilledRecoverable), 'Released − recovered. Not yet recovered.', `${num(view.unfilledRecoverable)} still open.`, undefined, view.unfilledRecoverable > 20 ? 'alert' : 'watch'),
-      score('Estimated recoverable capacity', num(view.estimatedRecoverable), compare(view, prior, (item) => item.estimatedRecoverable), 'Unfilled recoverable capacity still available for outreach.', `${num(view.estimatedRecoverable)} slots.`, undefined, 'watch'),
-      score('Available slots now', num(view.availableSlots), compare(view, prior, (item) => item.availableSlots), 'Unbooked eligible slots (slots − booked).', `${num(view.availableSlots)} available.`, undefined, 'neutral'),
-      score('Slot fill rate', pct(view.slotFillRate), compare(view, prior, (item) => item.slotFillRate, true), 'Booked ÷ eligible slots.', `${pct(view.slotFillRate)}.`, undefined, rateTone(view.slotFillRate, 0.9, 0.82, false)),
+      score('Released Appointment Slots', num(view.releasedSlots), compare(view, prior, (item) => item.releasedSlots), 'Slots released before appointment start from cancellations with advance notice. No-shows do not release early enough to rebook.', `${num(view.releasedSlots)} released · eligible ${num(view.eligibleReleasedSlots)}.`, undefined, 'neutral'),
+      score('Rebooked Released Slots', num(view.recoveredSlots), compare(view, prior, (item) => item.recoveredSlots), 'Released slots with a confirmed replacement booking. Recovered ≤ eligible released.', `${num(view.recoveredSlots)} rebooked.`, undefined, 'good'),
+      score('Slot Recovery Rate', pct(view.recoveryRate), compare(view, prior, (item) => item.recoveryRate, true), 'Rebooked ÷ Eligible Released Slots.', `${num(view.recoveredSlots)} / ${num(view.eligibleReleasedSlots)}.`, undefined, rateTone(view.recoveryRate, 0.45, 0.3, false)),
+      score('Unscheduled Appointment Demand', num(view.waitlistDemand), compare(view, prior, (item) => item.waitlistDemand), 'Unbooked demand = Demand − Booked.', `${num(view.waitlistDemand)} waiting.`, undefined, 'watch'),
+      score('Eligible Waitlist Candidates', num(view.eligibleWaitlist), compare(view, prior, (item) => item.eligibleWaitlist), 'Waitlist patients matching appointment availability (contactable/eligible share of demand).', `${num(view.eligibleWaitlist)} eligible.`, undefined, 'neutral'),
+      score('Potential Rebooking Opportunities', num(view.potentialRebookingOpportunities), compare(view, prior, (item) => item.potentialRebookingOpportunities), 'Feasible candidate–slot matches before openings expire. Capped by eligible candidates and openings.', `${num(view.potentialRebookingOpportunities)} opportunities.`, undefined, 'watch'),
+      score('Unfilled Released Slots', num(view.unfilledReleasedSlots), compare(view, prior, (item) => item.unfilledReleasedSlots), 'Released − Rebooked. Remaining released capacity without a confirmed replacement.', `${num(view.unfilledReleasedSlots)} still open.`, undefined, view.unfilledReleasedSlots > 20 ? 'alert' : 'watch'),
+      score('Estimated Additional Recoveries', num(view.estimatedAdditionalRecoveries), compare(view, prior, (item) => item.estimatedAdditionalRecoveries), 'Illustrative additional confirmed bookings under improved outreach. Not equal to unfilled released unless the scenario says so.', `${num(view.estimatedAdditionalRecoveries)} feasible extras.`, undefined, 'watch'),
+      score('Unbooked Slots', num(view.unbookedSlots), compare(view, prior, (item) => item.unbookedSlots), 'Period unbooked capacity (Bookable − Booked). Distinct from released/recovery lifecycle.', `${num(view.unbookedSlots)} unbooked.`, undefined, 'neutral'),
+      score('Slot Fill Rate', pct(view.slotFillRate), compare(view, prior, (item) => item.slotFillRate, true), 'Booked ÷ Bookable.', `${pct(view.slotFillRate)}.`, undefined, rateTone(view.slotFillRate, 0.9, 0.82, false)),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Released vs recovered slots', view.labels, [
+          <Slot span={false} figure={fig('bars', 'Released vs Rebooked Slots', view.labels, [
             { name: 'Released', values: view.monthlyReleased },
-            { name: 'Recovered', values: view.monthlyRecovered },
-          ], 'slots', 'Monthly released and recovered. Recovered never exceeds released in a month.')} />
+            { name: 'Rebooked', values: view.monthlyRecovered },
+          ], 'slots', 'Monthly released and confirmed rebooked slots. Rebooked never exceeds released in a month.')} />
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel gc-insight">
@@ -470,35 +474,35 @@ export function ApptRecoveryPage() {
             <div className="gc-exception-list">
               <div className="gc-exception gc-tone-watch"><strong>Increase reminder coverage</strong><span>Now {pct(view.reminderCoverage)}</span></div>
               <div className="gc-exception gc-tone-alert"><strong>Activate eligible waitlist outreach</strong><span>{num(view.eligibleWaitlist)} candidates</span></div>
-              <div className="gc-exception gc-tone-watch"><strong>Release unused reserved slots</strong><span>{num(view.unfilledRecoverable)} recoverable</span></div>
+              <div className="gc-exception gc-tone-watch"><strong>Release unused reserved slots</strong><span>{num(view.unfilledReleasedSlots)} unfilled released</span></div>
               <div className="gc-exception gc-tone-neutral"><strong>Review specialty scheduling templates</strong><span>Fill {pct(view.slotFillRate)}</span></div>
               <div className="gc-exception gc-tone-watch"><strong>Offer eligible earlier appointments</strong><span>TNA {num(view.thirdNextAvailable)}d</span></div>
               <div className="gc-exception gc-tone-neutral"><strong>Review cancellation cutoffs</strong><span>Late cancel {pct(view.lateCancelRate)}</span></div>
             </div>
-            <p className="gc-next">A released slot is not recovered until rebooked. AI does not change schedules alone.</p>
+            <p className="gc-next">A released slot is recovered only when rebooked. No-shows do not release early. AI does not change schedules alone.</p>
           </section>
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Recovery rate over time', view.labels, [{ name: 'Recovery %', values: view.monthlyRecovery.map((value) => Math.round(value * 1000) / 10) }], '%', 'Monthly recovered ÷ released.')} />
+          <Slot span={false} figure={fig('line', 'Slot Recovery Rate Trend', view.labels, [{ name: 'Recovery Rate %', values: view.monthlyRecovery.map((value) => Math.round(value * 1000) / 10) }], '%', 'Monthly rebooked ÷ eligible released.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Recoverable capacity by specialty', view.specialties.map((item) => item.id), [{ name: 'Unfilled recoverable', values: view.specialties.map((item) => Math.max(0, item.released - item.recovered)) }], 'slots', `Specialty unfilled recoverable sums to ${num(view.unfilledRecoverable)}.`)} />
+          <Slot span={false} figure={fig('bars', 'Unfilled Released Slots by Specialty', view.specialties.map((item) => item.id), [{ name: 'Unfilled released', values: view.specialties.map((item) => item.unfilledReleased) }], 'slots', `Specialty unfilled released sums to ${num(view.unfilledReleasedSlots)}.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Waitlist demand vs eligible openings', ['Waitlist demand', 'Eligible candidates', 'Available slots'], [{ name: 'Count', values: [view.waitlistDemand, view.eligibleWaitlist, view.availableSlots] }], 'appointments', 'Eligible candidates are capped by openings. Demand is not automatically booked.')} />
+          <Slot span={false} figure={fig('bars', 'Waitlist Demand vs Eligible Openings', ['Unscheduled demand', 'Eligible candidates', 'Unfilled released', 'Unbooked slots'], [{ name: 'Count', values: [view.waitlistDemand, view.eligibleWaitlist, view.unfilledReleasedSlots, view.unbookedSlots] }], 'appointments', 'Eligible candidates are a contactable share of demand. Openings are not automatically booked.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Recovery opportunity by lead time', view.outcomeByLead.map((item) => item.name), [{ name: 'No-show + cancel', values: view.outcomeByLead.map((item) => item.noShow + item.cancelled) }], 'appointments', 'Lost booked volume by lead-time band — outreach opportunity sketch.')} />
+          <Slot span={false} figure={fig('bars', 'Recovery Opportunities by Lead Time', view.outcomeByLead.map((item) => item.name), [{ name: 'Cancelled (release pool)', values: view.outcomeByLead.map((item) => item.cancelled) }], 'appointments', 'Cancellation volume by lead-time band — early notice feeds the release/rebooking pool. No-shows are excluded from early release.')} />
         </div>
       </div>
-      <Slot span="span-12" figure={fig('bars', 'Current vs illustrative improved utilization', ['Current fill', 'Illustrative +10 pts'], [{ name: 'Fill %', values: [
+      <Slot span="span-12" figure={fig('bars', 'Current vs Scenario Slot Fill Rate', ['Current fill', 'Scenario +10 pts'], [{ name: 'Fill %', values: [
         Math.round(view.slotFillRate * 1000) / 10,
-        Math.round(Math.min(0.98, view.slotFillRate + 0.1) * 1000) / 10,
-      ] }], '%', 'Illustrative fill improvement capped at 98%. Not a validated forecast.')} />
+        Math.round(view.scenarioFillRate * 1000) / 10,
+      ] }], '%', `Illustrative fill improvement capped near 99.5%. Current ${pct(view.slotFillRate)} · scenario ${pct(view.scenarioFillRate)}. Not a validated forecast.`)} />
       <IndicatorIndex indicators={appointmentIndicatorsFor(view)} domains={['Recovery & Optimization']} />
       <AiIndex />
     </Page>
