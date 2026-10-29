@@ -2,7 +2,7 @@
 
 **Verification timestamp (UTC):** 2026-10-29T16:41:00Z  
 **Build ID:** `v52-chart-badge-qa`  
-**Pre-deploy HEAD (prior):** `75100cb`  
+**Deployed commit:** `f56f044` (content: `ebe2557`)  
 **Live URL:** https://maaaz123.github.io/datavital-ai-demo/  
 **Refresh:** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
 
@@ -138,7 +138,7 @@ Compared live preview renders of Snapshot / Stay / Outcomes after `v52-chart-bad
 | Deployment URL | https://maaaz123.github.io/datavital-ai-demo/ |
 | Cache wipe | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
 | Local preview verification | `http://127.0.0.1:4173/datavital-ai-demo/` with `?fresh=v52-chart-badge-qa` |
-| Commit | ebe25572d315b20bff03be824dc04eac2015b272* |
+| Commit | `f56f044` (QA content in `ebe2557`) |
 
 ### Live verification checklist
 
