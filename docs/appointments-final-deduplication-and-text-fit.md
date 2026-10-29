@@ -171,13 +171,13 @@ Verified: clicking **3rd Next Available** opens detail titled **Third Next Avail
 
 | Item | Value |
 |---|---|
-| Feature commit | *(recorded after push)* |
+| Feature commit | `aeb46f9` |
 | BUILD_ID | `v61-appointments-dedup` |
 | Bundle | `index-CvBkVSyj.js` |
 | Production | https://maaaz123.github.io/datavital-ai-demo/ |
 | Refresh | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
 
-Production verification status: pending post-push Pages sync (local preview **PASS**).
+Production verification: **PASS** — Pages serves `index-CvBkVSyj.js` / `v61-appointments-dedup`. Live Access shows `3rd Next Available` / `No change` with no clipping after refresh.
 
 ---
 
@@ -203,4 +203,4 @@ Production verification status: pending post-push Pages sync (local preview **PA
 | Vital Assist / alerts / what-if IDs stable | **PASS** |
 | Approved domains untouched | **PASS** |
 | Automated tests (26 appointment/recovery) | **PASS** |
-| Live public build verified | **PENDING** (after push) |
+| Live public build verified | **PASS** (`index-CvBkVSyj.js`, Access KPIs remapped) |
