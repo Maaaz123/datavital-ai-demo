@@ -459,6 +459,7 @@
 .gc-scope-card {
   display: grid;
   gap: 6px;
+  align-content: start;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid #e8eaee;
@@ -470,18 +471,29 @@
 .gc-scope-card.is-constructed { background: linear-gradient(165deg, #fff7ed 0%, #fff 62%); border-color: #f5e2bf; }
 .gc-scope-card.is-blank { background: #f8fafc; border-style: dashed; opacity: 0.92; }
 .gc-scope-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
   justify-self: start;
-  padding: 3px 7px;
+  box-sizing: border-box;
+  height: 22px;
+  min-height: 22px;
+  max-height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
   background: #f1f5f9;
   color: #64748b;
   font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 .gc-scope-card.is-scenario .gc-scope-status { background: #d1fae5; color: #047857; }
 .gc-scope-card.is-constructed .gc-scope-status { background: #ffedd5; color: #c2410c; }
+.gc-scope-card.is-blank .gc-scope-status { background: #e2e8f0; color: #64748b; }
 .gc-scope-card strong {
   font-family: var(--display);
   font-size: 0.82rem;
@@ -570,7 +582,25 @@
 .gc-ed .gc-chart figcaption strong,
 .gc-chart-copy strong { font-family: var(--display); font-size: 0.98rem; letter-spacing: -0.03em; font-weight: 750; }
 .gc-ed .gc-chart figcaption span,
-.gc-chart-copy > span { display: block; margin: 0; color: #6d7584; font-size: 0.76rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gc-chart-copy > span {
+  display: -webkit-box;
+  margin: 0;
+  color: #6d7584;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+.gc-ed .gc-legend {
+  margin: 4px 0 0;
+  gap: 10px;
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+  line-height: 1.2;
+}
 .gc-investigate {
   flex: 0 0 auto;
   margin: 0;
@@ -1069,14 +1099,20 @@ button.gc-assist-alert:hover { transform: translateY(-2px); box-shadow: 0 10px 2
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  height: 22px;
+  min-height: 22px;
+  max-height: 22px;
   min-width: 52px;
   margin-right: 0;
-  padding: 4px 7px;
+  padding: 0 8px;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   letter-spacing: 0.04em;
+  line-height: 1;
   text-transform: uppercase;
   font-weight: 800;
+  white-space: nowrap;
   background: #f1f5f9;
   color: #475569;
 }

@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v51-ipd-split-scales';
+const BUILD_ID = 'v52-chart-badge-qa';
 const BUILD_KEY = 'datavital-build-id';
 
 /**

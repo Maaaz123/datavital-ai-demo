@@ -505,14 +505,18 @@ function tipValue(value: number, digits: number, unit: string, series?: string):
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#9a5b4a'];
 
+const CHART_WIDTH = 720;
+const CHART_PAD_L = 56;
+const CHART_PAD_R = 14;
+
 function BarChart({ figure, pareto = false, compact = false }: { figure: Figure; pareto?: boolean; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat.map((value) => Math.abs(value)));
-  const width = 720;
+  const width = CHART_WIDTH;
   const height = compact ? 148 : 240;
-  const padL = 52;
-  const padR = 12;
+  const padL = CHART_PAD_L;
+  const padR = CHART_PAD_R;
   const padT = compact ? 8 : 16;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
@@ -580,10 +584,10 @@ function StackedChart({ figure, compact = false }: { figure: Figure; compact?: b
   const { categories, series, digits, title, note } = figure;
   const totals = categories.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
   const max = axisMax(totals);
-  const width = 720;
+  const width = CHART_WIDTH;
   const height = compact ? 148 : 240;
-  const padL = 52;
-  const padR = 12;
+  const padL = CHART_PAD_L;
+  const padR = CHART_PAD_R;
   const padT = compact ? 8 : 16;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
@@ -717,7 +721,7 @@ function niceStep(padded: number): number {
   return nice * power;
 }
 
-function axisMax(values: number[]): number {
+export function axisMax(values: number[]): number {
   const peak = Math.max(...values, 0);
   if (peak <= 0) return 1;
   // Nice scale around the actual peak. Do not force 0–100 — that flattens day/hour
@@ -737,29 +741,33 @@ function axisMin(floor: number, peak: number): number {
 }
 
 /** Line/area domain: zoom when the series is flat so it does not sit as a hairline with empty sky/floor. */
-function lineDomain(values: number[]): { min: number; max: number } {
+export function lineDomain(values: number[]): { min: number; max: number } {
   const peak = Math.max(...values, 0);
   const floor = Math.min(...values, peak);
   if (peak <= 0) return { min: 0, max: 1 };
   const dataSpan = peak - floor;
-  // Bars should keep a zero baseline; lines with low relative variance can zoom.
+  // Bars keep a zero baseline elsewhere. Lines with low relative variance can zoom,
+  // but keep at least ~20% of peak as span so flat series are not over-amplified.
   if (dataSpan > 0 && dataSpan < peak * 0.4) {
     const min = axisMin(floor, peak);
-    const max = niceStep(Math.max(peak * 1.06, min + dataSpan * 1.35));
+    const needed = Math.max(dataSpan * 1.35, peak * 0.2);
+    const max = niceStep(Math.max(peak * 1.06, min + needed));
     return { min, max: Math.max(max, min + 1) };
   }
   return { min: 0, max: axisMax(values) };
 }
+
+export const CHART_VIEW = { width: CHART_WIDTH, padL: CHART_PAD_L, padR: CHART_PAD_R, compactHeight: 148 } as const;
 
 function LineChart({ figure, area = false, compact = false }: { figure: Figure; area?: boolean; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
   const { min, max } = lineDomain(flat);
   const span = Math.max(max - min, 1);
-  const width = 720;
+  const width = CHART_WIDTH;
   const height = compact ? 148 : 240;
-  const padL = 52;
-  const padR = 16;
+  const padL = CHART_PAD_L;
+  const padR = CHART_PAD_R;
   const padT = compact ? 10 : 18;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
