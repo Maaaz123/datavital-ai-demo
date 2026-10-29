@@ -5,6 +5,7 @@ import { alertsFor } from '@/core/alerts';
 import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
+import { buildAppointmentView } from '@/core/appointmentView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
@@ -38,6 +39,7 @@ function siteName(code: string, lang: Lang): string {
 export function promptForPath(path: string): string {
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
+  if (/appointments/.test(path)) return 'Which specialties have the highest no-show rates?';
   if (/outpatient/.test(path)) return 'Which clinics have the longest waiting times?';
   if (/inpatient/.test(path)) return 'Why is the median length of stay increasing?';
   if (/bed|command/.test(path)) return ASSISTANT_PROMPTS[1].en;
@@ -62,7 +64,7 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
-  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient') {
+  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
       const result = runWhatIf(department as WhatIfDomain, hospital, year, intent, period);
@@ -84,6 +86,7 @@ export function answerQuestion(
   if (department === 'Beds') return answerBeds(q, hospital, year, name, lang, current, prior);
   if (department === 'Inpatient') return answerInpatient(q, hospital, year, name, lang, period);
   if (department === 'Outpatient') return answerOutpatient(q, hospital, year, name, lang, period);
+  if (department === 'Appointments') return answerAppointments(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -584,6 +587,108 @@ function answerOutpatient(
     action: tx(lang, 'Review Overview demand charts, then Waiting & Patient Flow delays, then Quality follow-up actions.', 'راجع نظرة الطلب ثم تأخير الانتظار ثم إجراءات الجودة.'),
     role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
     benefit: tx(lang, 'A sequenced OPD review keeps waiting, throughput, and follow-up visible without duplicating other domains.', 'مراجعة عيادات متسلسلة تبقي الانتظار والتدفق والمتابعة واضحة.'),
+  });
+}
+
+function answerAppointments(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildAppointmentView(hospital, year, period);
+  const hotNoShow = [...view.specialties].sort((a, b) => b.noShowRate - a.noShowRate)[0];
+  const hotAccess = [...view.specialties].sort((a, b) => b.accessPressure - a.accessPressure)[0];
+  const hotLead = [...view.specialties].sort((a, b) => b.leadMedian - a.leadMedian)[0];
+  const hotRecover = [...view.specialties].sort((a, b) => (b.released - b.recovered) - (a.released - a.recovered))[0];
+
+  if (/\bed\b|emergency|boarding|inpatient los|bed occupancy|arrival-to-provider|clinic wait|documentation completion|pending referral/.test(q)
+    && !/appointment|no-?show|slot|lead time|waitlist|schedul|cancel|recover|book/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Appointments focus', 'خارج تركيز المواعيد'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'ED waiting stays in Emergency. Inpatient LOS stays in Inpatient. Bed occupancy stays in Beds. Clinic arrival-to-provider waiting stays in Outpatient.', 'انتظار الطوارئ في الطوارئ. الإقامة في التنويم. الإشغال في الأسرة. انتظار العيادة في العيادات الخارجية.'),
+      explanation: tx(lang, 'Appointments owns booking demand, attendance outcomes, access openings, and slot recovery — not clinic cycle time after arrival.', 'المواعيد تملك الطلب والحضور والوصول واسترداد الفترات.'),
+      action: tx(lang, 'Stay on Appointments screens for scheduling, no-show, lead time, and recovery questions.', 'ابقَ في شاشات المواعيد لأسئلة الجدولة والغياب ومهلة الحجز والاسترداد.'),
+      role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/no-?show/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `No-show intelligence · ${name} · ${view.periodLabel}`, `ذكاء الغياب · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `No-show rate ${((view.noShowRate) * 100).toFixed(1)}% (${view.noShow.toLocaleString('en-US')} of ${view.booked.toLocaleString('en-US')} booked) · highest specialty ${hotNoShow.id} at ${((hotNoShow.noShowRate) * 100).toFixed(1)}%.`, `معدل الغياب ${((view.noShowRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Attendance ${((view.attendanceRate) * 100).toFixed(1)}% · lost booked slots ${view.lostBookedSlots.toLocaleString('en-US')} (no-shows + late cancels) · reminder coverage ${((view.reminderCoverage) * 100).toFixed(1)}%. Outcomes partition: attended + cancelled + no-show = booked.`, `الحضور ${((view.attendanceRate) * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Potential reasons (not proven): longer booking lead bands show a higher constructed no-show tilt; reminder gaps may leave capacity unprotected. Not demographic risk scoring.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Raise reminder coverage and confirmation pathways for ${hotNoShow.id} before adding clinic sessions.`, `ارفع تغطية التذكير لـ ${hotNoShow.id} قبل إضافة جلسات.`),
+      role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
+      benefit: tx(lang, 'Lower no-shows recover attended visits without claiming new capacity was created.', 'خفض الغياب يسترد زيارات دون ادعاء سعة جديدة.'),
+    });
+  }
+
+  if (/lead time|waiting longer|access|third next|tna|pressure/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Access & scheduling · ${name} · ${view.periodLabel}`, `الوصول والجدولة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median booking lead ${view.leadMedian.toFixed(1)} days · P90 ${view.leadP90.toFixed(1)} · third next available ${view.thirdNextAvailable} days (observation ${view.observationDate}) · highest pressure ${hotAccess.id}.`, `وسيط مهلة الحجز ${view.leadMedian.toFixed(1)} يوماً.`),
+      evidence: tx(lang, `Longest lead specialty ${hotLead.id} at ${hotLead.leadMedian.toFixed(1)} days · slots ${view.slots.toLocaleString('en-US')} · booked ${view.booked.toLocaleString('en-US')} · fill ${((view.slotFillRate) * 100).toFixed(1)}% · capacity gap ${view.capacityGap.toLocaleString('en-US')}. Lead time is not OPD clinic waiting after arrival.`, `أطول مهلة ${hotLead.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): specialty template imbalance and demand above slots stretch openings. Third-next uses ordered future eligible openings, not average wait × 3.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review Access days and Third next available by specialty, starting with ${hotAccess.id}, then redistribute openings under conserved total capacity.`, `راجع أيام الوصول والموعد الثالث المتاح بدءاً من ${hotAccess.id}.`),
+      role: tx(lang, 'Clinic scheduling lead', 'قائد جدولة العيادات'),
+      benefit: tx(lang, 'Shorter access waits protect attendance without inventing clinical causes.', 'وصول أقصر يحمي الحضور دون اختلاق أسباب سريرية.'),
+    });
+  }
+
+  if (/unused|available slot|fill rate|unfilled|waitlist/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Unused scheduling capacity · ${name} · ${view.periodLabel}`, `سعة الجدولة غير المستخدمة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Available slots ${view.availableSlots.toLocaleString('en-US')} of ${view.slots.toLocaleString('en-US')} eligible · fill ${((view.slotFillRate) * 100).toFixed(1)}% · waitlist demand ${view.waitlistDemand.toLocaleString('en-US')} · next-7-day available sketch ${view.next7DayAvailable.toLocaleString('en-US')}.`, `الفترات المتاحة ${view.availableSlots.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Booked ${view.booked.toLocaleString('en-US')} never exceeds slots in this scenario. Eligible waitlist candidates ${view.eligibleWaitlist.toLocaleString('en-US')} are capped by openings.`, `المحجوز ${view.booked.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): template gaps and incomplete waitlist outreach leave openings idle while demand waits.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Activate eligible waitlist outreach for open and released slots before approving new sessions.', 'فعّل تواصل قائمة الانتظار للفترات المفتوحة والمحررة قبل اعتماد جلسات جديدة.'),
+      role: tx(lang, 'Clinic scheduling lead', 'قائد جدولة العيادات'),
+      benefit: tx(lang, 'Filling unused slots converts existing capacity into attended visits.', 'ملء الفترات غير المستخدمة يحوّل السعة الحالية إلى زيارات.'),
+    });
+  }
+
+  if (/recover|cancell|released|rebook/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Slot recovery · ${name} · ${view.periodLabel}`, `استرداد الفترات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Released ${view.releasedSlots.toLocaleString('en-US')} · recovered ${view.recoveredSlots.toLocaleString('en-US')} (${((view.recoveryRate) * 100).toFixed(1)}%) · unfilled recoverable ${view.unfilledRecoverable.toLocaleString('en-US')} · late cancellations ${view.lateCancellations.toLocaleString('en-US')}.`, `المحرر ${view.releasedSlots.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Largest unfilled recovery specialty ${hotRecover.id}. Rebooking opportunities ${view.rebookingOpportunities.toLocaleString('en-US')}. A slot counts as recovered only when rebooked — not when merely released.`, `أكبر فجوة استرداد ${hotRecover.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): late-cancel cutoffs and slow waitlist contact leave released slots empty.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Recover late-cancelled openings in ${hotRecover.id} via eligible waitlist outreach under approved policy.`, `استرد الفترات الملغاة متأخراً في ${hotRecover.id} عبر قائمة الانتظار.`),
+      role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
+      benefit: tx(lang, 'Recovered slots protect fill without adding clinic sessions.', 'الفترات المستردة تحمي الملء دون إضافة جلسات.'),
+    });
+  }
+
+  if (/priorit|action|recommend|schedul/.test(q)) {
+    const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Appointments' && alert.severity !== 'info');
+    const topAlert = hot[0];
+    return pack(lang, {
+      title: tx(lang, `Scheduling priorities · ${name} · ${view.periodLabel}`, `أولويات الجدولة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, topAlert
+        ? `${topAlert.title}: ${topAlert.observed}`
+        : `No-show ${((view.noShowRate) * 100).toFixed(1)}% · fill ${((view.slotFillRate) * 100).toFixed(1)}% · median lead ${view.leadMedian.toFixed(1)} days · unfilled recoverable ${view.unfilledRecoverable.toLocaleString('en-US')}.`, topAlert ? topAlert.title : `الغياب ${((view.noShowRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Focus specialties: no-show ${hotNoShow.id}, access ${hotAccess.id}, recovery ${hotRecover.id}. Alert evidence uses full-year figures when the dashboard period is a quarter.`, `تخصصات التركيز: غياب ${hotNoShow.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): reminder gaps, template imbalance, and incomplete recovery pathways. Drivers are hypotheses.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, topAlert?.action ?? `Prioritize reminder coverage for ${hotNoShow.id}, waitlist fill for open slots, and recovery of late cancels in ${hotRecover.id}.`, topAlert?.action ?? `أعطِ أولوية للتذكير والملء والاسترداد.`),
+      role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
+      benefit: tx(lang, topAlert?.consequence ?? 'Sequenced scheduling actions protect access and attendance without inventing capacity.', 'إجراءات جدولة متسلسلة تحمي الوصول والحضور.'),
+    });
+  }
+
+  return pack(lang, {
+    title: tx(lang, `Appointments & scheduling at ${name} · ${view.periodLabel}`, `المواعيد والجدولة في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, `Booked ${view.booked.toLocaleString('en-US')} · attended ${view.attended.toLocaleString('en-US')} (matches OPD ${view.opdAttended.toLocaleString('en-US')}) · no-show ${((view.noShowRate) * 100).toFixed(1)}% · fill ${((view.slotFillRate) * 100).toFixed(1)}%.`, `المحجوز ${view.booked.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `Attended + cancelled + no-show = booked. ${view.integrationNote}`, `الحضور + الإلغاء + الغياب = المحجوز.`),
+    explanation: tx(lang, 'Potential reasons (not proven): demand, access waits, and attendance loss move together in scheduling operations.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, 'Review Command outcomes, then Access openings, then Attendance losses, then Recovery actions.', 'راجع نتائج القيادة ثم وصول الوصول ثم خسائر الحضور ثم إجراءات الاسترداد.'),
+    role: tx(lang, 'Outpatient access manager', 'مدير وصول العيادات الخارجية'),
+    benefit: tx(lang, 'A sequenced Appointments review keeps booking, access, attendance, and recovery visible without duplicating OPD clinic waiting.', 'مراجعة مواعيد متسلسلة تبقي الحجز والوصول والحضور والاسترداد واضحة.'),
   });
 }
 

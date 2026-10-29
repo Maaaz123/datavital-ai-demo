@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover';
 };
 
 export type NavDomain = {
@@ -143,6 +143,43 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'appointments',
+    label: 'Appointments',
+    mark: 'Appt',
+    match: (path) => path.startsWith('/appointments'),
+    screens: [
+      {
+        to: '/appointments',
+        short: 'Command',
+        title: 'Appointment Command Center',
+        purpose: 'Demand conversion to attended visits',
+        end: true,
+        glyph: 'appt',
+      },
+      {
+        to: '/appointments/access',
+        short: 'Access',
+        title: 'Access & Scheduling Capacity',
+        purpose: 'Lead time, third-next-available, and slot fill',
+        glyph: 'access',
+      },
+      {
+        to: '/appointments/attendance',
+        short: 'Attendance',
+        title: 'Attendance & No-show Intelligence',
+        purpose: 'No-shows, cancellations, and lost slots',
+        glyph: 'attend',
+      },
+      {
+        to: '/appointments/recovery',
+        short: 'Recovery',
+        title: 'Slot Recovery & Optimization',
+        purpose: 'Recoverable capacity and management actions',
+        glyph: 'recover',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -158,9 +195,9 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

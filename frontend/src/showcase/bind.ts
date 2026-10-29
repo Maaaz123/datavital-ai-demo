@@ -347,9 +347,18 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_outpatient_median_wait_minutes') return duration(fact.opWaitMedianMin, 'minutes', 'down', 'Median clinic wait.');
   if (key === 'kpi_outpatient_p90_wait_minutes') return duration(fact.opWaitP90Min, 'minutes', 'down', 'P90 clinic wait.');
   if (key === 'kpi_outpatient_cycle_time_minutes') return duration(fact.opWaitAvgMin + 22, 'minutes', 'down', 'Cycle time is the average wait plus 22 minutes of consultation.');
-  if (key === 'kpi_appointment_avg_lead_time_days' || key === 'kpi_appointment_median_lead_time_days') return duration(key.includes('avg') ? 11.4 : 9.5, 'days', 'down', key.includes('avg') ? 'Average lead time. It is longer than the median because the tail is right-skewed.' : 'Median booking lead time.');
-  if (key === 'kpi_appointment_p90_lead_time_days') return duration(21, 'days', 'down', 'P90 booking lead time.');
-  if (key === 'kpi_appointment_third_next_available_days') return duration(13, 'days', 'down', 'Third-next-available is a fixed 13 days in this story.');
+  if (key === 'kpi_appointment_avg_lead_time_days' || key === 'kpi_appointment_median_lead_time_days' || key === 'kpi_appointment_p90_lead_time_days' || key === 'kpi_appointment_third_next_available_days') {
+    const pressure = Math.min(0.12, Math.max(0, occ - 0.78));
+    const leadMedian = Math.round((9.5 + pressure * 18) * 10) / 10;
+    const leadP90 = Math.round((leadMedian * 2.15 + pressure * 8) * 10) / 10;
+    const leadAvg = Math.round((leadMedian * 1.2) * 10) / 10;
+    const thirdBase = 7 + 0.7 * 8 + pressure * 40;
+    const thirdNext = Math.max(1, Math.round(thirdBase * 1.05) + 2);
+    if (key === 'kpi_appointment_median_lead_time_days') return duration(leadMedian, 'days', 'down', 'Median booking lead time from the appointment scenario (pressure-adjusted).');
+    if (key === 'kpi_appointment_avg_lead_time_days') return duration(leadAvg, 'days', 'down', 'Average lead time. It is longer than the median because the tail is right-skewed.');
+    if (key === 'kpi_appointment_p90_lead_time_days') return duration(leadP90, 'days', 'down', 'P90 booking lead time from the appointment scenario.');
+    return duration(thirdNext, 'days', 'down', 'Third-next-available from ordered future eligible openings (observation at year-end).');
+  }
   if (key === 'kpi_appointment_referral_to_first_days') return duration(16.5, 'days', 'down', 'Referral to first visit is 16.5 days in this story.');
   if (key === 'kpi_surg_median_turnover_minutes') return duration(28 + occ * 12, 'minutes', 'down', 'Median theatre turnover rises with occupancy.');
   if (key === 'kpi_surg_median_procedure_minutes' || key === 'kpi_surgery_avg_case_hours') {

@@ -46,8 +46,9 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('button', { name: 'Beds & Capacity domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Inpatient Care domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Outpatient domain' })).toBeInTheDocument();
-    expect(NAV_DOMAINS).toHaveLength(4);
-    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(12);
+    expect(screen.getByRole('button', { name: 'Appointments domain' })).toBeInTheDocument();
+    expect(NAV_DOMAINS).toHaveLength(5);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(16);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
@@ -96,6 +97,7 @@ describe('emergency and beds domains', () => {
       '/beds/placement', '/beds/capacity',
       '/inpatient', '/inpatient/stay', '/inpatient/outcomes',
       '/outpatient', '/outpatient/flow', '/outpatient/quality',
+      '/appointments', '/appointments/access', '/appointments/attendance', '/appointments/recovery',
     ]) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
