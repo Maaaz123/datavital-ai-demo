@@ -10,7 +10,7 @@ import { Chart, ChartStage, type Figure } from './viz';
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#7c5c7a'];
 const SPECIALTIES = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
 const SOURCES = ['From emergency', 'Elective / direct', 'Transfer in', 'Other'];
-const DESTINATIONS = ['Home', 'Transfer out', 'Rehab / step-down', 'Died', 'Left against medical advice'];
+const DESTINATIONS = ['Home', 'Transfer out', 'Rehab / step-down', 'Left against medical advice'];
 
 type Detail = { name: string; value: string; definition: string; scope: string };
 type Tone = 'good' | 'watch' | 'alert' | 'neutral';
@@ -37,13 +37,16 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   const losMedian = period === 'year' ? fact.ipLosDays : weighted(rows, 'ipLosDays', 'admissions');
   const losP90 = period === 'year' ? fact.ipLosP90Days : weighted(rows, 'ipLosP90Days', 'admissions');
   const losAvg = period === 'year' ? fact.ipLosAvgDays : weighted(rows, 'ipLosAvgDays', 'admissions');
-  const longStayRate = Math.min(0.22, 0.06 + (losP90 - losMedian) * 0.035);
+  // 7-day review line (aligned with catalog kpi_long_stay_gt_7d_rate). Rate rises with P90 above 7 days.
+  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (losP90 - 7) * 0.025));
   const longStayCount = Math.round(discharges * longStayRate);
   const readyNotDischarged = Math.max(1, Math.round(census * 0.08));
   const delayedDischargeRate = census ? readyNotDischarged / census : 0;
   const expectedDischarges = Math.max(1, Math.round(discharges / (period === 'year' ? 365 : 91)));
-  const readmit30 = 0.078 + (hospital === 'H3' ? 0.012 : 0);
-  const readmit7 = readmit30 * 0.42;
+  // Match catalog/alert bind: 30-day = 0.086 + occupancy×0.02; 7-day = 1.8% of discharges.
+  const bedOcc = fact.staffedBeds ? fact.occupiedBeds / fact.staffedBeds : 0;
+  const readmit30 = 0.086 + bedOcc * 0.02;
+  const readmit7 = 0.018;
   const amaRate = 0.018;
   const specialtyWeights = [0.28, 0.22, 0.14, 0.12, 0.14, 0.1];
   const specialtyAdmissions = splitExact(admissions, specialtyWeights);
@@ -62,18 +65,20 @@ function buildView(hospital: string, year: number, period: ReturnType<typeof use
   ];
   const amaCount = Math.round(discharges * amaRate);
   const rehab = Math.round(discharges * 0.07);
-  const destTransfer = Math.min(transfersOut, discharges - deaths - amaCount - rehab);
-  const home = Math.max(0, discharges - deaths - amaCount - rehab - destTransfer);
+  // Discharges exclude deaths in the census identity — destinations partition discharges only.
+  const destTransfer = Math.min(transfersOut, Math.max(0, discharges - amaCount - rehab));
+  const home = Math.max(0, discharges - amaCount - rehab - destTransfer);
   const destinations = [
     { id: DESTINATIONS[0], count: home },
     { id: DESTINATIONS[1], count: destTransfer },
     { id: DESTINATIONS[2], count: rehab },
-    { id: DESTINATIONS[3], count: deaths },
-    { id: DESTINATIONS[4], count: amaCount },
+    { id: DESTINATIONS[3], count: amaCount },
   ];
+  const longStayWeights = specialties.map((item) => Math.max(0.01, item.discharges * (0.8 + item.los / Math.max(losMedian, 1))));
+  const longStayBySpecialty = splitExact(longStayCount, longStayWeights);
   return {
     admissions, discharges, deaths, transfersIn, transfersOut, edAdmitted, directAdmissions, census,
-    losMedian, losP90, losAvg, longStayRate, longStayCount, readyNotDischarged, delayedDischargeRate,
+    losMedian, losP90, losAvg, longStayRate, longStayCount, longStayBySpecialty, readyNotDischarged, delayedDischargeRate,
     expectedDischarges, readmit7, readmit30, amaRate, specialties, sources, destinations,
     labels: rows.map((row) => row.label),
     monthlyAdmissions: rows.map((row) => row.month.admissions),
@@ -378,7 +383,7 @@ export function IpdSnapshotPage() {
   return (
     <Page title="Inpatient Snapshot" kpis={[
       score('Inpatient admissions', num(view.admissions), compare(view, prior, (item) => item.admissions), 'Inpatient admissions in the selected hospital and reporting period. Not ED visits and not bed occupancy.', `${num(view.admissions)} admissions.`, 'value-kpi_ipd_admissions', 'neutral'),
-      score('Inpatient census', num(view.census), compare(view, prior, (item) => item.census), 'Current inpatient census as a patient count at the snapshot. Bed occupancy rate stays in Beds & Capacity.', `${num(view.census)} patients.`, undefined, 'watch'),
+      score('Inpatient census', num(view.census), compare(view, prior, (item) => item.census), 'Inpatient census as a patient count (year focus snapshot, or period-average month-end occupied beds for a quarter). Bed occupancy rate stays in Beds & Capacity.', `${num(view.census)} patients.`, undefined, 'watch'),
       score('Inpatient discharges', num(view.discharges), compare(view, prior, (item) => item.discharges), 'Completed inpatient discharges in the selected period. Bed turnaround stays in Beds & Capacity.', `${num(view.discharges)} discharges.`, undefined, 'good'),
       score('Median length of stay', `${num(view.losMedian, 1)} days`, compare(view, prior, (item) => item.losMedian), 'Median inpatient length of stay for completed stays. Not ED length of stay.', `Median ${num(view.losMedian, 1)} days.`, undefined, losTone(view.losMedian)),
       score('Admissions from ED', num(view.edAdmitted), compare(view, prior, (item) => item.edAdmitted), 'Admissions that began in the emergency department. ED waiting time stays in Emergency.', `${num(view.edAdmitted)} of ${num(view.admissions)} admissions.`, undefined, 'watch'),
@@ -398,14 +403,14 @@ export function IpdSnapshotPage() {
 export function IpdStayPage() {
   const view = useView();
   const prior = usePrior();
-  const horizons = ['Now', '24h', '48h', '72h'];
-  const dischargeOutlook = [view.expectedDischarges, Math.round(view.expectedDischarges * 1.05), Math.round(view.expectedDischarges * 2.1), Math.round(view.expectedDischarges * 3.15)];
+  const horizons = ['24h', '48h', '72h', '96h'];
+  const dischargeOutlook = [view.expectedDischarges, Math.round(view.expectedDischarges * 2), Math.round(view.expectedDischarges * 3), Math.round(view.expectedDischarges * 4)];
   return (
     <Page title="Stay & Discharge" kpis={[
       score('Average length of stay', `${num(view.losAvg, 1)} days`, compare(view, prior, (item) => item.losAvg), 'Average days for completed inpatient stays in the selected period.', `Average ${num(view.losAvg, 1)} days.`, undefined, losTone(view.losAvg)),
       score('Median length of stay', `${num(view.losMedian, 1)} days`, compare(view, prior, (item) => item.losMedian), 'Median days for completed inpatient stays in the selected period.', `Median ${num(view.losMedian, 1)} days.`, 'value-kpi_ipd_los_median', losTone(view.losMedian)),
       score('Length of stay (P90)', `${num(view.losP90, 1)} days`, compare(view, prior, (item) => item.losP90), '90th-percentile inpatient length of stay for completed stays.', `P90 ${num(view.losP90, 1)} days.`, undefined, view.losP90 >= 9 ? 'alert' : view.losP90 >= 7 ? 'watch' : 'good'),
-      score('Long-stay patient count', num(view.longStayCount), compare(view, prior, (item) => item.longStayCount), 'Completed stays beyond the 14-day review line in this scenario.', `${pct(view.longStayRate)} of discharges.`, undefined, rateTone(view.longStayRate, 0.1, 0.15)),
+      score('Long-stay patient count', num(view.longStayCount), compare(view, prior, (item) => item.longStayCount), 'Completed stays beyond the 7-day review line in this scenario.', `${pct(view.longStayRate)} of discharges.`, undefined, rateTone(view.longStayRate, 0.1, 0.15)),
       score('Medically ready, not discharged', num(view.readyNotDischarged), compare(view, prior, (item) => item.readyNotDischarged), 'Census share marked medically ready but not yet discharged. AI does not decide medical readiness.', `${num(view.readyNotDischarged)} patients.`, undefined, view.readyNotDischarged > 5 ? 'alert' : 'watch'),
       score('Delayed discharge rate', pct(view.delayedDischargeRate), compare(view, prior, (item) => item.delayedDischargeRate, true), 'Medically ready, not discharged ÷ census.', `${num(view.readyNotDischarged)} / ${num(view.census)}.`, undefined, rateTone(view.delayedDischargeRate, 0.06, 0.1)),
       score('Expected discharges (next day)', num(view.expectedDischarges), compare(view, prior, (item) => item.expectedDischarges), 'Illustrative next-day discharges from the period rate. Not a validated forecast.', `${num(view.expectedDischarges)} patients.`, undefined, 'good'),
@@ -430,11 +435,11 @@ export function IpdStayPage() {
         </div>
         <p className="gc-next">Observed-to-expected LOS and delay duration clocks are not available in this scenario.</p>
       </section>
-      <Slot figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.specialties.map((item) => Math.round(item.discharges * view.longStayRate * (0.8 + item.los / Math.max(view.losMedian, 1)) * 0.25)) }], 'patients', 'Specialty contribution around the hospital long-stay rate. Severity is not adjusted.')} />
-      <Slot figure={fig('bars', 'Length of stay vs review lines', ['Median', 'Average', 'P90'], [{ name: 'Days', values: [view.losMedian, view.losAvg, view.losP90] }], 'days', 'Scenario review lines: watch near 4.5 days, alert near 6 days for the median.')} />
+      <Slot figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Specialty shares sum to ${num(view.longStayCount)} long-stay discharges (7-day review line). Severity is not adjusted.`)} />
+      <Slot figure={fig('bars', 'Length of stay vs review lines', ['Median', 'Average', 'P90'], [{ name: 'Days', values: [view.losMedian, view.losAvg, view.losP90] }], 'days', 'Scenario review lines: watch near 4.5 days, alert near 6 days for the median. Long-stay review line is 7 days.')} />
       <Slot figure={fig('bars', 'Length of stay by specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.los) }], 'days', 'Specialty medians around the hospital median. Raw gaps are not proof of better or worse care.')} />
-      <Slot figure={fig('bars', 'Discharge destinations', view.destinations.map((item) => item.id), [{ name: 'Discharges', values: view.destinations.map((item) => item.count) }], 'patients', 'Destinations partition discharges and sum to the period discharge total. Died matches inpatient deaths.')} />
-      <Slot span="span-8" figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative 24–72h sketch from the period discharge rate. Not a validated forecast.')} />
+      <Slot figure={fig('bars', 'Discharge destinations', view.destinations.map((item) => item.id), [{ name: 'Discharges', values: view.destinations.map((item) => item.count) }], 'patients', 'Destinations partition completed discharges and sum to the period discharge total. Inpatient deaths are counted separately (not a discharge destination).')} />
+      <Slot span="span-8" figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative cumulative sketch from the period daily discharge rate (24–96h). Not a validated forecast.')} />
       <section className="gc-panel gc-insight span-4">
         <h2>Discharge pipeline</h2>
         <div className="gc-exception-list">

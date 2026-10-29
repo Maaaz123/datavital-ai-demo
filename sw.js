@@ -84,7 +84,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "cdf6aadfe94d0256aa89f6bed17bc893"
+    "revision": "27c1125edb268358ad8aacc2ae6a69e5"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -92,7 +92,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-BNbEQUni.js",
+    "url": "assets/pwa-y_a96BUc.js",
     "revision": null
   }, {
     "url": "assets/manrope-vietnamese-800-normal-bvg7iBCV.woff",
@@ -218,7 +218,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/index-C_2yzYR3.css",
     "revision": null
   }, {
-    "url": "assets/index-BHMj8S3a.js",
+    "url": "assets/index-BjuKeZtl.js",
     "revision": null
   }, {
     "url": "assets/ibm-plex-sans-vietnamese-700-normal-CkEo6LDy.woff2",

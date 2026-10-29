@@ -63,8 +63,21 @@ Corrected hospital-management terminology, fixed misleading chart encodings (sna
 - `frontend/src/core/alerts.test.ts`
 - `npm run build` — pass
 
+## Follow-up (from domain audits)
+
+Closed remaining high-severity items raised by ED / Beds / IPD audits:
+
+- ED LOS ribbon `testId` → `value-kpi_ed_los_median_minutes`
+- Peak-hour share uses % of period arrivals (not % of top three)
+- IPD long-stay uses a **7-day** review line compatible with P90
+- IPD 7/30-day readmission rates aligned with catalog/alert bind
+- Long-stay specialty bars sum to the hospital long-stay count
+- Discharge destinations no longer treat deaths as a discharge destination
+- Triage volume bind uses before-triage leave split
+- Vital Assist IPD default prompt / what-if chip use median LOS
+
 ## Deployment
 
-**Commit:** `686b00d` (`686b00d9a8f1612862da9d4398e2fdc85a743564`)
+**Commit:** `686b00d` (initial audit) · follow-up recorded after publish  
 
 **URL:** https://maaaz123.github.io/datavital-ai-demo/

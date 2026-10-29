@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v34-kpi-chart-audit';
+const BUILD_ID = 'v35-audit-followup';
 const BUILD_KEY = 'datavital-build-id';
 
 /**

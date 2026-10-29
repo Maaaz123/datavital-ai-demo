@@ -313,7 +313,7 @@ export function OverviewPage() {
       score('ED visits', num(view.arrivals), compare(view, prior, (item) => item.arrivals), 'Emergency department visits in the selected hospital and reporting period.', `${num(view.arrivals)} visits in the selected period.`, undefined, 'neutral'),
       score('High-acuity arrivals (ESI-1–2)', num(view.acuity[0] + view.acuity[1]), compare(view, prior, (item) => item.acuity[0] + item.acuity[1]), 'ESI-1 plus ESI-2 arrival volume. This is period arrivals, not a live waiting census.', `${num(view.acuity[0])} ESI-1 and ${num(view.acuity[1])} ESI-2.`, undefined, 'watch'),
       score('Door-to-provider (median)', `${num(view.median, 1)} minutes`, compare(view, prior, (item) => item.median), 'Median minutes from arrival to first provider. Not ED length of stay and not boarding after admit.', `Median ${num(view.median, 1)} minutes for the selected period.`, undefined, waitTone(view.median)),
-      score('ED length of stay (median)', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Median minutes from arrival until the visit leaves the department. Admitted and discharged stays are not separated. Not inpatient length of stay.', `Median ${num(view.losMedian, 0)} minutes for the selected period.`, 'value-kpi_ed_avg_los_hours', view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
+      score('ED length of stay (median)', `${num(view.losMedian, 0)} minutes`, compare(view, prior, (item) => item.losMedian), 'Median minutes from arrival until the visit leaves the department. Admitted and discharged stays are not separated. Not inpatient length of stay.', `Median ${num(view.losMedian, 0)} minutes for the selected period.`, 'value-kpi_ed_los_median_minutes', view.losMedian >= 180 ? 'alert' : view.losMedian >= 140 ? 'watch' : 'good'),
       score('Left without being seen', pct(leftRate), compare(view, prior, (item) => item.arrivals ? item.left / item.arrivals : 0, true), 'Left before triage plus left after triage, divided by ED visits.', `${num(view.left)} of ${num(view.arrivals)} visits.`, undefined, rateTone(leftRate, 0.015, 0.025)),
       score('Boarding beyond 4 hours', pct(boardRate), compare(view, prior, (item) => item.admitted ? item.boarding / item.admitted : 0, true), 'Admitted visits still in the ED more than 4 hours after the admit decision, divided by emergency admissions. Not hospital bed occupancy.', `${num(view.boarding)} of ${num(view.admitted)} emergency admissions.`, undefined, rateTone(boardRate, 0.04, 0.08)),
     ]}>
@@ -333,7 +333,7 @@ export function FlowPage() {
   const prior = usePrior();
   const triageRate = view.arrivals ? view.triageCompleted / view.arrivals : 0;
   const leftRate = view.arrivals ? view.left / view.arrivals : 0;
-  const peakTotal = view.peaks.reduce((sum, item) => sum + item.count, 0) || 1;
+  const arrivalTotal = view.arrivals || 1;
   return (
     <Page title="Waiting & Patient Flow" kpis={[
       score('Triage completion rate', pct(triageRate), compare(view, prior, (item) => item.arrivals ? item.triageCompleted / item.arrivals : 0, true), 'Arrivals minus patients who left before triage, divided by arrivals.', `${num(view.triageCompleted)} triaged · ${num(view.before)} left before triage.`, undefined, rateTone(triageRate, 0.97, 0.95, false)),
@@ -354,7 +354,7 @@ export function FlowPage() {
               <span className="gc-peak-rank">{index + 1}</span>
               <div>
                 <strong>{item.name}</strong>
-                <em>{num(item.count)} arrivals · {pct(item.count / peakTotal)} of the top three</em>
+                <em>{num(item.count)} arrivals · {pct(item.count / arrivalTotal)} of period arrivals</em>
               </div>
             </div>
           ))}

@@ -35,7 +35,8 @@ function siteName(code: string, lang: Lang): string {
 export function promptForPath(path: string): string {
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
-  if (/bed|inpatient|command/.test(path)) return ASSISTANT_PROMPTS[1].en;
+  if (/inpatient/.test(path)) return 'Why is the median length of stay increasing?';
+  if (/bed|command/.test(path)) return ASSISTANT_PROMPTS[1].en;
   if (/emergency|wait/.test(path)) return ASSISTANT_PROMPTS[0].en;
   return ASSISTANT_PROMPTS[0].en;
 }
@@ -378,8 +379,10 @@ function answerInpatient(
   const losNow = current.ipLosDays;
   const losThen = prior.ipLosDays;
   const losDelta = losNow - losThen;
-  const readmit = 0.078 + (hospital === 'H3' ? 0.012 : 0);
-  const longStayRate = Math.min(0.22, 0.06 + (current.ipLosP90Days - losNow) * 0.035);
+  const bedOcc = current.staffedBeds ? current.occupiedBeds / current.staffedBeds : 0;
+  const readmit = 0.086 + bedOcc * 0.02;
+  const readmit7 = 0.018;
+  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (current.ipLosP90Days - 7) * 0.025));
   const specialties = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
   const specialtyLos = specialties.map((id, index) => ({ id, los: Math.round((losNow * (0.85 + index * 0.06)) * 10) / 10 }));
   const longest = [...specialtyLos].sort((a, b) => b.los - a.los)[0];
@@ -389,7 +392,7 @@ function answerInpatient(
     return pack(lang, {
       title: tx(lang, `Prolonged stays at ${name} in ${year}`, `الإقامات الطويلة في ${name} عام ${year}`),
       observation: tx(lang, `Longest specialty median in this story: ${longest.id} at ${longest.los.toFixed(1)} days. Hospital median ${losNow.toFixed(1)} days · P90 ${current.ipLosP90Days.toFixed(1)}.`, `أطول تخصص ${longest.id} عند ${longest.los.toFixed(1)} يوماً.`),
-      evidence: tx(lang, `Long-stay rate about ${(longStayRate * 100).toFixed(1)}% of discharges (14-day review line). Severity is not adjusted.`, `معدل الإقامة الطويلة حوالي ${(longStayRate * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Long-stay rate about ${(longStayRate * 100).toFixed(1)}% of discharges (7-day review line). Severity is not adjusted.`, `معدل الإقامة الطويلة حوالي ${(longStayRate * 100).toFixed(1)}٪.`),
       explanation: tx(lang, 'Hypothesis: specialties with higher medians contribute more long stays. Raw specialty gaps are not proof of better or worse care.', 'فرضية: التخصصات ذات الوسيط الأعلى تساهم أكثر في الإقامات الطويلة.'),
       action: tx(lang, 'Review specialty long-stay lists and pending discharge barriers with the care team.', 'راجع قوائم الإقامة الطويلة حسب التخصص مع الفريق السريري.'),
       role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
@@ -436,7 +439,7 @@ function answerInpatient(
   if (/readmit|return|30.?day|7.?day/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Readmissions at ${name} in ${year}`, `إعادة التنويم في ${name} عام ${year}`),
-      observation: tx(lang, `Unplanned 30-day return share about ${(readmit * 100).toFixed(1)}% of discharges. 7-day share about ${(readmit * 42).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً حوالي ${(readmit * 100).toFixed(1)}٪.`),
+      observation: tx(lang, `Unplanned 30-day return share about ${(readmit * 100).toFixed(1)}% of discharges. 7-day share about ${(readmit7 * 100).toFixed(1)}%.`, `حصة العودة خلال 30 يوماً حوالي ${(readmit * 100).toFixed(1)}٪.`),
       evidence: tx(lang, `Discharges ${current.discharges.toLocaleString('en-US')}. Visits are not linked patient-by-patient in this demo.`, `حالات الخروج ${current.discharges.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Potential reasons (not proven): specialties with longer stays show higher return shares in this story. Severity is not adjusted.', 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, `Review discharge instructions and follow-up plans for ${longest.id} and other high-return specialties.`, 'راجع تعليمات الخروج وخطط المتابعة.'),

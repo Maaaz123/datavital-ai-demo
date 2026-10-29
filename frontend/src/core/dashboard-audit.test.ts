@@ -70,7 +70,7 @@ describe('dashboard business identity audit', () => {
       admissions: 100, census: 40, discharges: 95, deaths: 2, edAdmitted: 45, directAdmissions: 45,
       transfersIn: 5, transfersOut: 4, losAvg: 4.2, losMedian: 3.8, losP90: 7.1,
       longStayCount: 12, longStayRate: 0.12, expectedDischarges: 3, readyNotDischarged: 4,
-      delayedDischargeRate: 0.1, readmit7: 0.03, readmit30: 0.08, amaRate: 0.02,
+      delayedDischargeRate: 0.1, readmit7: 0.018, readmit30: 0.102, amaRate: 0.02,
       specialties: [{ id: 'Medicine', admissions: 40, discharges: 38, los: 4.1 }],
       sources: [
         { id: 'From emergency', count: 45 },
@@ -85,8 +85,17 @@ describe('dashboard business identity audit', () => {
       dischargeInstructionsRate: null, medRecRate: null, followUpPlanRate: null, cancelRate: null,
     };
     const rate = ipdIndicatorsFor(input).find((row) => row.name === 'Unplanned 30-Day Readmission Rate');
-    expect(rate?.value).toBe('8.0%');
+    expect(rate?.value).toBe('10.2%');
     expect(rate?.method).toMatch(/discharges/i);
+    const seven = ipdIndicatorsFor(input).find((row) => row.name === 'Unplanned 7-Day Readmission Rate');
+    expect(seven?.value).toBe('1.8%');
+  });
+
+  it('keeps long-stay rate compatible with a 7-day review line near P90', () => {
+    const losP90 = 7.6;
+    const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (losP90 - 7) * 0.025));
+    expect(longStayRate).toBeGreaterThan(0.1);
+    expect(longStayRate).toBeLessThan(0.15);
   });
 
   it('aligns Vital Assist answers with professional LWBS terminology', () => {

@@ -523,7 +523,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         : ['Which wards have the greatest capacity pressure?', 'How many vacant and blocked beds are available?', ...WHAT_IF_PROMPTS.Beds.slice(0, 1)]
     : ipd
       ? page === 'Stay & Discharge'
-        ? ['Why is the average length of stay increasing?', 'How many patients are medically ready but not discharged?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
+        ? ['Why is the median length of stay increasing?', 'How many patients are medically ready but not discharged?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
         : page === 'Care Progress & Outcomes'
           ? ['What is the unplanned 30-day readmission rate?', 'Which specialties have the highest return share?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]
           : ['Where are inpatient admissions coming from?', 'Which specialties have the longest stays?', ...WHAT_IF_PROMPTS.Inpatient.slice(0, 1)]

@@ -29,7 +29,7 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
   Inpatient: [
     'What would happen if prolonged stays decreased by 10%?',
     'What if delayed discharges fell by 25%?',
-    'What if average length of stay decreased by 0.5 days?',
+    'What if median length of stay decreased by 0.5 days?',
   ],
 };
 
@@ -202,7 +202,7 @@ function inpatientWhatIf(
   intent: { kind: string; amount: number },
 ): WhatIfResult {
   const los = fact.ipLosDays;
-  const longStayRate = Math.min(0.22, 0.06 + (fact.ipLosP90Days - los) * 0.035);
+  const longStayRate = Math.min(0.22, Math.max(0.05, 0.10 + (fact.ipLosP90Days - 7) * 0.025));
   const longStayCount = Math.round(fact.discharges * longStayRate);
   const ready = Math.max(1, Math.round(fact.occupiedBeds * 0.08));
   const specialties = ['Medicine', 'Surgery', 'Cardiology', 'Orthopedics', 'Women', 'Children'];
@@ -249,7 +249,7 @@ function inpatientWhatIf(
     current: `Long-stay share ~${pct(longStayRate)} (${num(longStayCount)} discharges) · median ${num(los, 1)} days · focus specialty ${longest.id}`,
     change: `Illustrative ${pct(intent.amount, 0)} reduction in prolonged-stay share`,
     estimated: `Long-stay share near ${pct(nextRate)} · about ${num(freed)} fewer long-stay discharges in the year story`,
-    assumptions: 'Uses the 14-day review line in this demonstration. Specialty severity is not adjusted.',
+    assumptions: 'Uses the 7-day review line in this demonstration. Specialty severity is not adjusted.',
     implications: `Targeting ${longest.id} long-stay lists first concentrates management attention where stay days accumulate.`,
     followUp: 'Long-stay rate, specialty median stay, and ready-but-not-discharged count',
     owner: 'Inpatient operations lead',

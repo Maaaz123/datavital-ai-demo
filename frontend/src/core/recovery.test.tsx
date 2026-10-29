@@ -68,7 +68,7 @@ describe('emergency and beds domains', () => {
     openFilters();
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H3' } });
     expect(ribbon.textContent).not.toBe(north);
-    expect(screen.getByTestId('value-kpi_ed_avg_los_hours').textContent).not.toMatch(/2\.5 hours/);
+    expect(screen.getByTestId('value-kpi_ed_los_median_minutes').textContent).not.toMatch(/2\.5 hours/);
     fireEvent.change(screen.getByLabelText('Hospital'), { target: { value: 'H1' } });
     fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2024' } });
     expect(screen.queryByText('68,372')).not.toBeInTheDocument();

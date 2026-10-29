@@ -103,15 +103,15 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
     row('Inpatient Length of Stay', 'Average Inpatient Length of Stay', `${num(input.losAvg, 1)} days`, 'scenario', 'Average days for completed inpatient stays. Not emergency length of stay.'),
     row('Inpatient Length of Stay', 'Median Inpatient Length of Stay', `${num(input.losMedian, 1)} days`, 'scenario', 'Median days for completed inpatient stays. Stored separately from the average and P90.'),
     row('Inpatient Length of Stay', 'Inpatient LOS P90', `${num(input.losP90, 1)} days`, 'scenario', '90th-percentile inpatient length of stay for completed stays.'),
-    row('Inpatient Length of Stay', 'Long-Stay Patient Count', num(input.longStayCount), 'constructed', 'Completed stays beyond the 14-day review line in this story.'),
-    row('Inpatient Length of Stay', 'Long-Stay Patient Rate', pct(input.longStayRate), 'constructed', 'Long-stay stays ÷ completed discharges. The 14-day line is a scenario review line.'),
+    row('Inpatient Length of Stay', 'Long-Stay Patient Count', num(input.longStayCount), 'constructed', 'Completed stays beyond the 7-day review line in this story.'),
+    row('Inpatient Length of Stay', 'Long-Stay Patient Rate', pct(input.longStayRate), 'constructed', 'Long-stay stays ÷ completed discharges. The 7-day line is a scenario review line aligned with catalog long-stay >7 days.'),
     row('Inpatient Length of Stay', 'LOS by Clinical Specialty', specialtyLos || 'No specialties', 'constructed', 'Specialty medians built around the hospital median. Severity mix is not adjusted.'),
     input.oeLos == null
       ? blank('Inpatient Length of Stay', 'Observed-to-Expected LOS Ratio', 'No expected-LOS model exists. Specialty medians are not used as an O/E ratio.')
       : row('Inpatient Length of Stay', 'Observed-to-Expected LOS Ratio', num(input.oeLos, 2), 'scenario', 'Observed LOS ÷ expected LOS for the case mix.'),
 
     row('Discharge Management', 'Total Inpatient Discharges', num(input.discharges), 'scenario', 'Inpatient discharges in the period. Bed releases are owned by Beds; this count is the patient episode.'),
-    row('Discharge Management', 'Discharges by Destination', destLine || 'No destinations', 'constructed', 'Home, transfer, rehab, death, and left against advice. Death destination matches inpatient deaths.'),
+    row('Discharge Management', 'Discharges by Destination', destLine || 'No destinations', 'constructed', 'Home, transfer, rehab, and left against medical advice partition completed discharges. Inpatient deaths are counted separately.'),
     row('Discharge Management', 'Expected Discharges', num(input.expectedDischarges), 'constructed', 'Illustrative next-day discharges from the period discharge rate. Not a validated forecast.'),
     input.readinessDocRate == null
       ? blank('Discharge Management', 'Discharge Readiness Documentation Rate', 'Clinically-ready documentation events are not stored. Ready-but-not-discharged is not used as a documentation rate.')
@@ -172,7 +172,7 @@ export function ipdIndicatorsFor(input: IpdScopeInput): Indicator[] {
 
 export const IPD_AI_CASES: AiCase[] = [
   { id: 'IPD-AI-01', name: 'Length of Stay Prediction', level: 'Predictive', inputs: 'Completed stay days, specialty, and severity.', analysis: 'The page shows average, median, and P90 length of stay.', limit: 'Remaining stay is not predicted for a patient who is here now.' },
-  { id: 'IPD-AI-02', name: 'Prolonged Stay Risk Detection', level: 'Rule alert', inputs: 'Current stay days versus an expected specialty line.', analysis: 'Long-stay count and rate use a 14-day review line.', limit: 'Risk is detection on completed stays, not a live patient score.' },
+  { id: 'IPD-AI-02', name: 'Prolonged Stay Risk Detection', level: 'Rule alert', inputs: 'Current stay days versus an expected specialty line.', analysis: 'Long-stay count and rate use a 7-day review line.', limit: 'Risk is detection on completed stays, not a live patient score.' },
   { id: 'IPD-AI-03', name: 'Discharge Readiness Forecasting', level: 'Predictive', inputs: 'Clinical reviews, consults, and ready dates.', analysis: 'Ready-but-not-discharged is a constructed census share.', limit: 'AI does not declare a patient medically ready. That stays a clinician decision.' },
   { id: 'IPD-AI-04', name: 'Delayed Discharge Intelligence', level: 'Pattern review', inputs: 'Ready date, actual discharge, and delay reason.', analysis: 'Delayed discharge rate pairs ready-not-discharged with census.', limit: 'Delay reasons and duration clocks are blank.' },
   { id: 'IPD-AI-05', name: 'Discharge Volume Forecasting', level: 'Predictive', inputs: 'Historical discharges and ready pipeline.', analysis: 'Expected discharges are a next-day sketch from the period rate.', limit: '24–72 hour volume is not a validated forecast.' },

@@ -1,3 +1,4 @@
+import { leaveSplit } from '@/core/derived';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
 
@@ -103,7 +104,10 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_outpatient_encounter_volume') return count(fact.apptAttended, 'neutral', 'Attended appointments. This is the outpatient encounter cohort.');
   if (key === 'kpi_inpatient_encounter_volume') return count(admissions, 'neutral', 'Inpatient encounters are the admission cohort.');
   if (key === 'kpi_emergency_encounter_volume_proxy' || key === 'kpi_ed_visit_volume') return count(arrivals, 'neutral', 'ED arrivals. The same cohort as the emergency workspace.');
-  if (key === 'kpi_ed_triage_volume') return count(arrivals - fact.edLeft, 'neutral', 'Arrivals minus patients who left before triage.');
+  if (key === 'kpi_ed_triage_volume') {
+    const beforeTriage = leaveSplit(fact.edLeft).before;
+    return count(arrivals - beforeTriage, 'neutral', 'Arrivals minus patients who left before triage (62/38 leave split). Patients who left after triage remain in the triaged count.');
+  }
   if (key === 'kpi_admission_volume') return count(admissions, 'neutral', 'Inpatient admissions. The same integer as the inpatient census ledger.');
   if (key === 'kpi_discharge_volume' || key === 'kpi_expected_discharge_volume') return count(discharges, 'neutral', 'Discharges in the census identity.');
   if (key === 'kpi_transfer_volume') return count(fact.transfersIn + fact.transfersOut, 'neutral', 'Transfers in plus transfers out. These are events, not the net census.');
