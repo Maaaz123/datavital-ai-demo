@@ -7,9 +7,9 @@ import { PERIODS, PeriodContext, type ReportPeriod } from './period';
 import './core.css';
 
 const NAV = [
-  { to: '/', label: 'Overview', short: 'Home', end: true },
-  { to: '/emergency/flow', label: 'Patient Flow & Waiting', short: 'Flow', end: false },
-  { to: '/emergency/quality', label: 'ED Quality & Outcomes', short: 'Quality', end: false },
+  { to: '/', label: 'Beds Overview', short: 'Home', end: true },
+  { to: '/beds/placement', label: 'Allocation & Turnover', short: 'Placement', end: false },
+  { to: '/beds/capacity', label: 'Capacity Planning', short: 'Capacity', end: false },
 ];
 
 function Shell() {
@@ -109,7 +109,7 @@ function Shell() {
                   Filters
                 </button>
                 {filtersOpen ? (
-                  <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Emergency filters">
+                  <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Beds filters">
                     <p className="gc-filter-pop-head">
                       <strong>Filters</strong>
                       <span>{hospitalName} · {store.year} · {periodLabel}</span>
@@ -153,8 +153,8 @@ function Shell() {
 }
 
 function NavGlyph({ label }: { label: string }) {
-  const path = label.startsWith('Overview') ? 'M4 10.5 12 4l8 6.5V20H4z'
-    : label.startsWith('Patient') ? 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0'
+  const path = label.startsWith('Beds') ? 'M4 10.5 12 4l8 6.5V20H4z'
+    : label.startsWith('Allocation') ? 'M4 7h16M4 12h10M4 17h14'
     : 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

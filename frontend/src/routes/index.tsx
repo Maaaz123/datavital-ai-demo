@@ -1,16 +1,17 @@
 import { Navigate } from 'react-router-dom';
 import CoreApp from '@/core/CoreApp';
-import { FlowPage, OverviewPage, QualityPage } from '@/core/four';
+import { BedsCapacityPage, BedsOverviewPage, BedsPlacementPage } from '@/core/beds';
 
 const LEGACY = [
-  '/login', '/dashboard', '/command-center', '/demo', '/copilot', '/beds', '/emergency',
+  '/login', '/dashboard', '/command-center', '/demo', '/copilot', '/emergency',
   '/inpatient', '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
   '/appointments', '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
   '/data/catalog', '/data/lineage', '/data/quality', '/data/asset', '/showcase', '/platform',
   '/challenge', '/solution', '/architecture', '/operations', '/experience', '/intelligence',
-  '/kpis', '/library', '/present', '/story/emergency',
+  '/kpis', '/library', '/present', '/story/emergency', '/story/beds',
+  '/emergency/flow', '/emergency/quality', '/emergency/ai', '/emergency/capacity-quality', '/emergency/ai-decisions',
 ];
 
 export const routes = [
@@ -18,12 +19,10 @@ export const routes = [
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <OverviewPage /> },
-      { path: 'emergency/flow', element: <FlowPage /> },
-      { path: 'emergency/quality', element: <QualityPage /> },
-      { path: 'emergency/ai', element: <Navigate to="/" replace /> },
-      { path: 'emergency/capacity-quality', element: <Navigate to="/emergency/quality" replace /> },
-      { path: 'emergency/ai-decisions', element: <Navigate to="/" replace /> },
+      { index: true, element: <BedsOverviewPage /> },
+      { path: 'beds/placement', element: <BedsPlacementPage /> },
+      { path: 'beds/capacity', element: <BedsCapacityPage /> },
+      { path: 'beds', element: <Navigate to="/" replace /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

@@ -51,7 +51,7 @@ export function CopilotState({ children }: { children: ReactNode }) {
       setTab('investigate');
       setOpen(true);
       if ((store.alertStatus[alert.id] ?? 'new') === 'new') store.setAlertStatus(alert.id, 'investigating');
-      if (!options?.stay && alert.screen !== 'emergency') {
+      if (!options?.stay && alert.screen !== 'beds') {
         setTab('investigate');
         setOpen(true);
       }
@@ -79,9 +79,9 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
-function emergencyCount(hospital: string, year: number, statuses: Record<string, AlertStatus>): number {
+function bedsCount(hospital: string, year: number, statuses: Record<string, AlertStatus>): number {
   return alertsFor(hospital, year).filter((alert) => {
-    if (alert.department !== 'Emergency' || alert.severity === 'info') return false;
+    if (alert.department !== 'Beds' || alert.severity === 'info') return false;
     const status = statuses[alert.id] ?? 'new';
     return status !== 'resolved' && status !== 'dismissed';
   }).length;
@@ -90,7 +90,7 @@ function emergencyCount(hospital: string, year: number, statuses: Record<string,
 export function CopilotButton() {
   const store = useShowcase();
   const copilot = useCopilot();
-  const count = emergencyCount(store.hospital, store.year, store.alertStatus);
+  const count = bedsCount(store.hospital, store.year, store.alertStatus);
   return (
     <button
       type="button"
@@ -122,15 +122,15 @@ export function CopilotPanel() {
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const lang = store.lang;
-  const screenId = 'emergency';
-  const page = location.pathname.startsWith('/emergency/flow') ? 'Patient Flow & Waiting'
-    : location.pathname.startsWith('/emergency/quality') ? 'ED Quality & Outcomes'
-    : 'Emergency Overview';
+  const screenId = 'beds';
+  const page = location.pathname.startsWith('/beds/placement') ? 'Allocation & Turnover'
+    : location.pathname.startsWith('/beds/capacity') ? 'Capacity Planning'
+    : 'Beds Overview';
   const { alerts, note } = visibleAlerts(store.hospital, store.year, 'All', screenId);
   const selected = alerts.find((alert) => alert.id === copilot.selectedId) ?? alerts[0] ?? null;
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital);
   const name = hospitalName?.name;
-  const count = emergencyCount(store.hospital, store.year, store.alertStatus);
+  const count = bedsCount(store.hospital, store.year, store.alertStatus);
 
   useEffect(() => {
     if (!copilot.open) return;
@@ -165,7 +165,7 @@ export function CopilotPanel() {
             </svg>
           </span>
           <div>
-            <p className="gc-kicker">Emergency decision support</p>
+            <p className="gc-kicker">Beds & capacity decision support</p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
           </div>
         </div>
@@ -310,7 +310,7 @@ function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' |
   const store = useShowcase();
   const copilot = useCopilot();
   if (!alert) return <section className="gc-assist-card"><p>No recommendation is selected.</p></section>;
-  const key = decisionKey(alert.kpi, store.hospital, store.year, 'Emergency');
+  const key = decisionKey(alert.kpi, store.hospital, store.year, 'Beds');
   const decision = store.approvals[key];
   return (
     <article className="gc-assist-stack">
@@ -320,7 +320,7 @@ function Actions({ alert, mode }: { alert: DemoAlert | null; mode: 'recommend' |
       </section>
       <section className="gc-assist-card gc-tone-neutral">
         <p><strong>{alert.title}</strong> · observed {alert.observed}</p>
-        <p>Expected impact is an estimate. It is not a result that has already occurred.</p>
+        <p>Expected impact is an estimate. It is not a result that has already occurred. AI does not move a patient.</p>
         <p>Owner: {alert.owner}</p>
         <p>Decision: {decision ?? 'waiting for a person'}</p>
       </section>
@@ -337,16 +337,13 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
   const store = useShowcase();
   const [step, setStep] = useState(0);
   const lead = alert;
-  const key = decisionKey(lead?.kpi ?? 'kpi_ed_door_to_provider_median_minutes', store.hospital, store.year, 'Emergency');
+  const key = decisionKey(lead?.kpi ?? 'kpi_bed_occupancy_rate', store.hospital, store.year, 'Beds');
   const decision = store.approvals[key];
-  const medianMatch = lead?.observed.match(/([\d.]+)\s*minutes/i);
-  const median = medianMatch ? Number(medianMatch[1]) : 63.3;
-  const gap = median - 60;
   return (
     <article className="gc-decision gc-assist-stack">
       <section className="gc-assist-card">
         <h3>Decision review</h3>
-        <p>{lead ? `${lead.title} · ${lead.observed}` : 'Door-to-provider wait · selected hospital and year'}</p>
+        <p>{lead ? `${lead.title} · ${lead.observed}` : 'Operational bed occupancy · selected hospital and year'}</p>
       </section>
       <div className="gc-progress-steps" role="tablist" aria-label="Decision stages">
         {STEPS.map((label, index) => (
@@ -357,13 +354,13 @@ function DecisionReview({ alert }: { alert: DemoAlert | null }) {
         ))}
       </div>
       <section className="gc-assist-card">
-        {step === 0 ? <p>Detection: observed median is {median.toFixed(1)} minutes. Review line 60 minutes. Gap {gap > 0 ? '+' : ''}{gap.toFixed(1)} minutes. {lead?.rule ?? 'No open emergency alert.'}</p> : null}
-        {step === 1 ? <p>Investigation: Compare the median with the P90. {lead?.investigation ?? 'Review arrivals and boarding together.'} These are not proven causes.</p> : null}
-        {step === 2 ? <p>Prediction: Not a validated model. Continued demand is not converted into a predicted wait.</p> : null}
-        {step === 3 ? <p>Recommendation: {lead?.action ?? 'Review the peak arrival hours against the door-to-provider median.'} Expected impact is not calculated.</p> : null}
+        {step === 0 ? <p>Detection: {lead?.observed ?? 'occupancy and pending requests'} against vacant capacity. {lead?.rule ?? 'No open bed-capacity alert.'}</p> : null}
+        {step === 1 ? <p>Investigation: {lead?.investigation ?? 'Review blocked beds, pending requests, and expected releases together.'} These are not proven causes.</p> : null}
+        {step === 2 ? <p>Prediction: Not a validated model. Expected releases and demand are a planning sketch, not a 4–48 hour forecast.</p> : null}
+        {step === 3 ? <p>Recommendation: {lead?.action ?? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.'} Expected impact is not calculated. AI does not move a patient.</p> : null}
         {step === 4 ? (
           <div className={`gc-decide-box ${decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch'}`}>
-            <p>Decision for this hospital, year, and emergency signal: {decision ?? 'waiting for a person'}.</p>
+            <p>Decision for this hospital, year, and bed-capacity signal: {decision ?? 'waiting for a person'}.</p>
             <div className="gc-inline">
               <button type="button" className="gc-chip-btn is-good" onClick={() => store.decide(key, 'approved')}>Approve</button>
               <button type="button" className="gc-chip-btn is-alert" onClick={() => store.decide(key, 'rejected')}>Reject</button>
@@ -398,8 +395,8 @@ function Ask({ label }: { label: string }) {
     role: 'assistant',
     title: 'Vital Assist',
     body: [
-      `Scoped to ${label}, ${store.year}, Emergency.`,
-      'Ask about arrivals, waiting time, boarding, or disposition. Answers stay inside this demo scope.',
+      `Scoped to ${label}, ${store.year}, Beds & Capacity.`,
+      'Ask about occupancy, vacant beds, blocked beds, allocation, or shortfall. Answers stay inside this demo scope.',
     ],
   }]);
   const endRef = useRef<HTMLDivElement>(null);
@@ -415,7 +412,7 @@ function Ask({ label }: { label: string }) {
     setDraft('');
     setTyping(true);
     window.setTimeout(() => {
-      const answer = answerQuestion(text, store.hospital, store.year, 'Emergency', store.lang);
+      const answer = answerQuestion(text, store.hospital, store.year, 'Beds', store.lang);
       setMessages((prev) => [...prev, {
         id: `a-${Date.now()}`,
         role: 'assistant',
@@ -458,7 +455,7 @@ function Ask({ label }: { label: string }) {
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Ask about this Emergency view…"
+          placeholder="Ask about this Beds & Capacity view…"
           aria-label="Message Vital Assist"
           disabled={typing}
         />

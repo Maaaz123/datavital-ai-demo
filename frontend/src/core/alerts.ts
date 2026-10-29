@@ -68,17 +68,45 @@ const RULES: Rule[] = [
   },
   {
     kpi: 'kpi_bed_occupancy_rate',
-    department: 'Inpatient',
+    department: 'Beds',
     screen: 'beds',
-    title: 'Staffed bed occupancy',
+    title: 'Operational bed occupancy',
     owner: 'Bed management lead',
-    investigation: 'Check occupied, available, and blocked beds. They must sum to staffed beds.',
-    action: 'Review the two fullest wards before opening extra staffed beds.',
-    rule: 'Critical at 90% or more, high at 85%, medium at 80% of staffed beds.',
+    investigation: 'Check occupied, vacant, and blocked beds. They must sum to operational beds. This is not an emergency wait signal.',
+    action: 'Review the fullest wards and blocked beds before opening extra operational beds.',
+    rule: 'Critical at 90% or more, high at 85%, medium at 80% of operational beds.',
     worse: true,
     critical: 0.9,
     high: 0.85,
     medium: 0.8,
+  },
+  {
+    kpi: 'kpi_bed_blocked_rate',
+    department: 'Beds',
+    screen: 'beds',
+    title: 'Blocked bed share',
+    owner: 'Bed management lead',
+    investigation: 'Separate cleaning from maintenance inside the blocked total. Blocked beds are not vacant.',
+    action: 'Accelerate cleaning turnaround on the blocked share before adding operational beds.',
+    rule: 'Critical at 5% or more, high at 3.5%, medium at 2.5% of operational beds.',
+    worse: true,
+    critical: 0.05,
+    high: 0.035,
+    medium: 0.025,
+  },
+  {
+    kpi: 'kpi_bed_request_to_assignment_median_minutes',
+    department: 'Beds',
+    screen: 'beds',
+    title: 'Bed assignment median',
+    owner: 'Bed management lead',
+    investigation: 'Pair pending requests with vacant and blocked beds. Assignment time is not door-to-provider wait.',
+    action: 'Prioritize unallocated requests against the next expected releases.',
+    rule: 'Critical at 75 minutes or more, high at 55, medium at 45.',
+    worse: true,
+    critical: 75,
+    high: 55,
+    medium: 45,
   },
   {
     kpi: 'kpi_med_order_cancelled_rate',
@@ -183,7 +211,7 @@ const RULES: Rule[] = [
 const SCREEN_DEPARTMENT: Record<string, string> = {
   emergency: 'Emergency',
   stability: 'Emergency',
-  beds: 'Inpatient',
+  beds: 'Beds',
   inpatient: 'Inpatient',
   'ward-transfer': 'Inpatient',
   'assessments-vitals': 'Inpatient',
@@ -275,7 +303,8 @@ export function badgeCount(hospital: string, year: number, department: string, s
 }
 
 export function screenFromPath(path: string): string | null {
-  if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
+  if (path === '/' || path === '' || path.startsWith('/beds')) return 'beds';
+  if (path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];
   const board = path.match(/\/board\/([^/]+)/);

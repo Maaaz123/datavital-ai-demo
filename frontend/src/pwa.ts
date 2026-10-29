@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v26-assist-chips';
+const BUILD_ID = 'v27-beds-domain';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
