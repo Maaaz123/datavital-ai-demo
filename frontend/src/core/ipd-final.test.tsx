@@ -135,7 +135,7 @@ describe('Inpatient final acceptance', () => {
     const snap = renderAt('/inpatient');
     expect(screen.getByRole('heading', { level: 1, name: 'Inpatient Snapshot' })).toBeInTheDocument();
     expect(screen.getByText(/Admission source mix/i)).toBeInTheDocument();
-    expect(screen.getByText(/Do not add census to period flows/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Census stays on the ribbon KPI/i).length).toBeGreaterThan(0);
     snap.unmount();
 
     const stay = renderAt('/inpatient/stay');

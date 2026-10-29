@@ -656,6 +656,17 @@
 }
 .gc-ai-orb svg { width: 16px; height: 16px; }
 .gc-ed .gc-insight { display: flex; flex-direction: column; }
+.gc-ed .gc-insight-compact { gap: 0; }
+.gc-ed .gc-insight-compact h2 { margin-bottom: 6px; }
+.gc-ed .gc-insight-compact .gc-exception { padding: 6px 10px; }
+.gc-ed .gc-insight-compact .gc-exception-list { gap: 5px; }
+.gc-ed .gc-insight-compact p.gc-next {
+  margin-top: 6px;
+  padding-top: 6px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: #6d7584;
+}
 .gc-ed .gc-next { margin-top: 10px; padding-top: 10px; display: grid; gap: 8px; border-top: 1px solid var(--line); }
 .gc-ed .gc-insight .gc-ai-cta,
 .gc-ed .gc-insight .gc-text-btn { justify-self: start; }

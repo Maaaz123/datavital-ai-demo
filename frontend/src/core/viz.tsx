@@ -696,33 +696,65 @@ function BulletChart({ figure }: { figure: Figure }) {
   );
 }
 
-function axisMax(values: number[]): number {
-  const peak = Math.max(...values, 0);
-  if (peak <= 0) return 1;
-  // Nice scale around the actual peak. Do not force 0–100 — that flattens day/hour
-  // charts (LOS ≈ 4–8) into an empty-looking band at the bottom of the plot.
-  // Keep tighter steps under 10 so specialty LOS (~4–6 days) does not jump to 10.
-  const padded = peak * 1.12;
+function niceStep(padded: number): number {
+  if (padded <= 0) return 1;
   const power = 10 ** Math.floor(Math.log10(padded));
   const fraction = padded / power;
   const nice = fraction <= 1 ? 1
+    : fraction <= 1.25 ? 1.25
     : fraction <= 1.5 ? 1.5
     : fraction <= 2 ? 2
     : fraction <= 2.5 ? 2.5
     : fraction <= 3 ? 3
+    : fraction <= 3.5 ? 3.5
     : fraction <= 4 ? 4
     : fraction <= 5 ? 5
     : fraction <= 6 ? 6
+    : fraction <= 7 ? 7
     : fraction <= 8 ? 8
+    : fraction <= 9 ? 9
     : 10;
   return nice * power;
+}
+
+function axisMax(values: number[]): number {
+  const peak = Math.max(...values, 0);
+  if (peak <= 0) return 1;
+  // Nice scale around the actual peak. Do not force 0–100 — that flattens day/hour
+  // charts (LOS ≈ 4–8). Prefer tight headroom so plots fill the panel instead of
+  // leaving an empty band under a jumped-up nice number (e.g. 800 → 1000).
+  return niceStep(peak * 1.06);
+}
+
+function axisMin(floor: number, peak: number): number {
+  if (floor <= 0 || peak <= 0) return 0;
+  // Snap down to a readable tick below the data floor.
+  const pad = Math.max(peak - floor, peak * 0.04);
+  const target = Math.max(0, floor - pad);
+  if (target === 0) return 0;
+  const power = 10 ** Math.floor(Math.log10(target));
+  return Math.floor(target / power) * power;
+}
+
+/** Line/area domain: zoom when the series is flat so it does not sit as a hairline with empty sky/floor. */
+function lineDomain(values: number[]): { min: number; max: number } {
+  const peak = Math.max(...values, 0);
+  const floor = Math.min(...values, peak);
+  if (peak <= 0) return { min: 0, max: 1 };
+  const dataSpan = peak - floor;
+  // Bars should keep a zero baseline; lines with low relative variance can zoom.
+  if (dataSpan > 0 && dataSpan < peak * 0.4) {
+    const min = axisMin(floor, peak);
+    const max = niceStep(Math.max(peak * 1.06, min + dataSpan * 1.35));
+    return { min, max: Math.max(max, min + 1) };
+  }
+  return { min: 0, max: axisMax(values) };
 }
 
 function LineChart({ figure, area = false, compact = false }: { figure: Figure; area?: boolean; compact?: boolean }) {
   const { categories, series, digits, title, note } = figure;
   const flat = series.flatMap((item) => item.values);
-  const max = axisMax(flat);
-  const min = 0;
+  const { min, max } = lineDomain(flat);
   const span = Math.max(max - min, 1);
   const width = 720;
   const height = compact ? 148 : 240;
@@ -754,10 +786,10 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
       ))}
       {series.map((item, seriesIndex) => {
         const points = item.values.map((value, index) => `${padL + index * step},${yOf(value)}`).join(' ');
-        const floor = item.values.map((_, index) => `${padL + index * step},${yOf(0)}`).reverse().join(' ');
+        const baseline = item.values.map((_, index) => `${padL + index * step},${yOf(min)}`).reverse().join(' ');
         return (
           <g key={item.name}>
-            {area ? <polygon className="gc-mark-soft" points={`${points} ${floor}`} fill={`url(#${gradId}-${seriesIndex})`} /> : null}
+            {area ? <polygon className="gc-mark-soft" points={`${points} ${baseline}`} fill={`url(#${gradId}-${seriesIndex})`} /> : null}
             <polyline
               className="gc-mark-line"
               points={points}
