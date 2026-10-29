@@ -333,25 +333,25 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
   );
 }
 
-function AiIndex() {
+function AiIndex({ compact = false }: { compact?: boolean }) {
   return (
-    <section className="gc-panel span-12 gc-scope">
+    <section className={`gc-panel ${compact ? 'span-6' : 'span-12'} gc-scope gc-scope-tight`}>
       <div className="gc-scope-head">
         <div>
           <h2>AI use cases</h2>
-          <p>10 bed-capacity cases · none is a live deployed model on this demo</p>
+          <p>10 cases · illustrative only</p>
         </div>
         <div className="gc-scope-meter" aria-label="10 of 10 AI cases in scope">
           <i style={{ width: '100%' }} />
           <span>10/10</span>
         </div>
       </div>
-      <div className="gc-scope-grid">
+      <div className={`gc-scope-grid ${compact ? 'gc-scope-grid-dense' : ''}`}>
         {BEDS_AI_CASES.map((item, index) => (
-          <article key={item.id} className="gc-scope-card is-constructed" style={{ animationDelay: `${index * 35}ms` }} title={item.limit}>
-            <span className="gc-scope-status">{item.level}</span>
-            <strong>{item.id} · {item.name}</strong>
-            <em>{item.limit}</em>
+          <article key={item.id} className="gc-scope-card is-constructed gc-scope-card-dense" style={{ animationDelay: `${index * 25}ms` }} title={item.limit}>
+            <span className="gc-scope-status">{item.id}</span>
+            <strong>{item.name}</strong>
+            <em>{item.level}</em>
           </article>
         ))}
       </div>
@@ -454,6 +454,11 @@ export function BedsPlacementPage() {
 export function BedsCapacityPage() {
   const view = useView();
   const prior = usePrior();
+  const horizons = ['Now', '4h', '12h', '24h', '48h'];
+  const share = [0, 4 / 24, 12 / 24, 1, 2];
+  const releaseCurve = share.map((part) => Math.max(0, Math.round(view.expectedReleases * part)));
+  const demandCurve = share.map((part) => Math.max(0, Math.round(view.expectedDemand * part)));
+  const projectedCurve = share.map((_, index) => Math.max(0, view.available + releaseCurve[index] - demandCurve[index]));
   return (
     <Page title="Capacity Planning" kpis={[
       score('Expected Releases', num(view.expectedReleases), compare(view, prior, (item) => item.expectedReleases), 'Illustrative next-day releases from the period discharge rate. Not a validated discharge model.', `${num(view.expectedReleases)} beds.`, undefined, 'good'),
@@ -463,7 +468,11 @@ export function BedsCapacityPage() {
       score('ICU Occupancy', pct(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0), compare(view, prior, (item) => item.icuStaffed ? item.icuOccupied / item.icuStaffed : 0, true), 'ICU occupied ÷ ICU operational beds. Emergency bays are not ICU beds.', `${num(view.icuOccupied)} / ${num(view.icuStaffed)}.`, undefined, occTone(view.icuStaffed ? view.icuOccupied / view.icuStaffed : 0)),
       score('General Occupancy', pct(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0), compare(view, prior, (item) => item.bedTypes[0]?.staffed ? item.bedTypes[0].occupied / item.bedTypes[0].staffed : 0, true), 'General occupied ÷ general operational beds.', `${num(view.bedTypes[0]?.occupied ?? 0)} / ${num(view.bedTypes[0]?.staffed ?? 0)}.`, undefined, occTone(view.bedTypes[0]?.staffed ? view.bedTypes[0].occupied / view.bedTypes[0].staffed : 0)),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Capacity outlook sketch', ['Now', '+1 day'], [{ name: 'Vacant now', values: [view.available, view.available] }, { name: 'Projected available', values: [view.available, view.projectedAvailable] }, { name: 'Expected demand', values: [view.expectedDemand, view.expectedDemand] }], 'beds', 'A planning sketch from period rates. Not a 4–48 hour forecast.')} />
+      <Slot span="span-8" figure={fig('line', 'Capacity outlook sketch', horizons, [
+        { name: 'Projected available', values: projectedCurve },
+        { name: 'Expected releases', values: releaseCurve },
+        { name: 'Expected demand', values: demandCurve },
+      ], 'beds', 'Illustrative 4–48h sketch from period rates. Not a validated forecast.')} />
       <section className="gc-panel gc-insight span-4">
         <h2>Planning exceptions</h2>
         <div className="gc-exception-list">
@@ -475,9 +484,13 @@ export function BedsCapacityPage() {
             <strong>Projected available</strong>
             <span>{num(view.projectedAvailable)} after next-day sketch</span>
           </div>
+          <div className={`gc-exception gc-tone-${projectedCurve[4] <= 2 ? 'alert' : 'watch'}`}>
+            <strong>48h projected available</strong>
+            <span>{num(projectedCurve[4])} beds in the sketch</span>
+          </div>
           <div className="gc-exception gc-tone-neutral">
             <strong>Forecast accuracy</strong>
-            <span>Not in scenario · no prior forecast to score</span>
+            <span>Not in scenario</span>
           </div>
         </div>
         <p className="gc-next">What-if opening or closing beds is illustrative only. AI does not move a patient.</p>
@@ -485,8 +498,8 @@ export function BedsCapacityPage() {
       <Slot figure={fig('bars', 'Utilization by bed type', view.bedTypes.map((item) => item.id), [{ name: 'Occupied', values: view.bedTypes.map((item) => item.occupied) }, { name: 'Vacant', values: view.bedTypes.map((item) => item.available) }, { name: 'Blocked', values: view.bedTypes.map((item) => item.blocked) }], 'beds', 'General and ICU capacity from the snapshot.')} />
       <Slot figure={fig('bars', 'Ward occupancy rate', view.wards.map((ward) => ward.id), [{ name: 'Occupancy %', values: view.wards.map((ward) => ward.staffed ? Math.round((ward.occupied / ward.staffed) * 1000) / 10 : 0) }], '%', 'Ward occupancy from occupied ÷ staffed. Monthly averages are not summed.')} />
       <Donut title="Operational bed mix" note="General and ICU operational beds. Emergency bays stay outside Beds & Capacity." parts={view.bedTypes.map((item) => ({ name: item.id, value: item.staffed }))} />
+      <AiIndex compact />
       <IndicatorIndex indicators={bedsIndicatorsFor(scopeInput(view))} domains={['Capacity Planning']} />
-      <AiIndex />
     </Page>
   );
 }

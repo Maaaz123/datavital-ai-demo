@@ -11,7 +11,7 @@
     <script>
       (async function () {
         try {
-          localStorage.setItem('datavital-build-id', 'v27-beds-domain');
+          localStorage.setItem('datavital-build-id', 'v28-both-domains');
           if (window.caches) {
             const keys = await caches.keys();
             await Promise.all(keys.map((key) => caches.delete(key)));
@@ -23,7 +23,7 @@
         } catch (error) {
           console.warn(error);
         }
-        location.replace('/datavital-ai-demo/?fresh=v27-beds-domain');
+        location.replace('/datavital-ai-demo/?fresh=v28-both-domains');
       })();
     </script>
   </body>

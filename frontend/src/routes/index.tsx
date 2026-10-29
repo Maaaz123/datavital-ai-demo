@@ -1,9 +1,10 @@
 import { Navigate } from 'react-router-dom';
 import CoreApp from '@/core/CoreApp';
 import { BedsCapacityPage, BedsOverviewPage, BedsPlacementPage } from '@/core/beds';
+import { FlowPage, OverviewPage, QualityPage } from '@/core/four';
 
 const LEGACY = [
-  '/login', '/dashboard', '/command-center', '/demo', '/copilot', '/emergency',
+  '/login', '/dashboard', '/command-center', '/demo', '/copilot',
   '/inpatient', '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
   '/appointments', '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
@@ -11,7 +12,7 @@ const LEGACY = [
   '/data/catalog', '/data/lineage', '/data/quality', '/data/asset', '/showcase', '/platform',
   '/challenge', '/solution', '/architecture', '/operations', '/experience', '/intelligence',
   '/kpis', '/library', '/present', '/story/emergency', '/story/beds',
-  '/emergency/flow', '/emergency/quality', '/emergency/ai', '/emergency/capacity-quality', '/emergency/ai-decisions',
+  '/emergency/ai', '/emergency/capacity-quality', '/emergency/ai-decisions',
 ];
 
 export const routes = [
@@ -19,10 +20,13 @@ export const routes = [
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <BedsOverviewPage /> },
+      { index: true, element: <OverviewPage /> },
+      { path: 'emergency', element: <Navigate to="/" replace /> },
+      { path: 'emergency/flow', element: <FlowPage /> },
+      { path: 'emergency/quality', element: <QualityPage /> },
+      { path: 'beds', element: <BedsOverviewPage /> },
       { path: 'beds/placement', element: <BedsPlacementPage /> },
       { path: 'beds/capacity', element: <BedsCapacityPage /> },
-      { path: 'beds', element: <Navigate to="/" replace /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

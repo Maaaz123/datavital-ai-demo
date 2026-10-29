@@ -303,8 +303,8 @@ export function badgeCount(hospital: string, year: number, department: string, s
 }
 
 export function screenFromPath(path: string): string | null {
-  if (path === '/' || path === '' || path.startsWith('/beds')) return 'beds';
-  if (path.startsWith('/emergency')) return 'emergency';
+  if (path.startsWith('/beds')) return 'beds';
+  if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];
   const board = path.match(/\/board\/([^/]+)/);

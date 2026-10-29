@@ -92,6 +92,24 @@
 }
 .gc-nav-toggle:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
 .gc-side .gc-nav { display: grid; gap: 4px; align-content: start; }
+.gc-nav-item { display: grid; gap: 4px; }
+.gc-nav-group {
+  margin: 8px 2px 2px;
+  padding: 0 8px;
+  color: #64748b;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gc-nav-item:first-child .gc-nav-group { margin-top: 0; }
+.gc-frame[data-nav="rail"] .gc-nav-group {
+  margin: 6px 0 0;
+  padding: 0;
+  text-align: center;
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+}
 .gc-side .gc-nav a {
   color: #cbd5e1;
   text-align: start;
@@ -338,6 +356,19 @@
 }
 .gc-scope-card.is-blank em { color: #94a3b8; font-size: 0.82rem; font-weight: 650; }
 .gc-scope .gc-text-btn { justify-self: start; }
+.gc-scope-tight { gap: 8px; }
+.gc-scope-grid-dense {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 6px;
+}
+.gc-scope-card-dense {
+  min-height: 0;
+  gap: 4px;
+  padding: 8px 10px;
+}
+.gc-scope-card-dense strong { font-size: 0.76rem; }
+.gc-scope-card-dense em { font-size: 0.72rem; font-weight: 700; color: #64748b; }
+.gc-ed .gc-slot .gc-chart-stage { min-height: 180px; }
 .gc-ed .gc-slot { display: flex; flex-direction: column; }
 .gc-ed .gc-slot .gc-chart { margin: 0; }
 .gc-ed .gc-slot .gc-chart svg { background: transparent; border-radius: 0; }

@@ -78,13 +78,13 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "refresh.html",
-    "revision": "d21e8ba1dbcc9fa4d11ff3d3915e0108"
+    "revision": "14f11723edceea8ff8dd50cc1298eb21"
   }, {
     "url": "manifest.webmanifest",
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "a019df3c1519b79f7bc14d9f3dae5b5f"
+    "revision": "dee45b29e9a8bb912b2744757012374a"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -92,7 +92,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-oKQKIyMG.js",
+    "url": "assets/pwa-COtKZlRO.js",
     "revision": null
   }, {
     "url": "assets/manrope-vietnamese-800-normal-bvg7iBCV.woff",
@@ -215,10 +215,10 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/manrope-cyrillic-500-normal-B1OEZity.woff2",
     "revision": null
   }, {
-    "url": "assets/index-BTFYr-gN.js",
+    "url": "assets/index-BnysmKq-.js",
     "revision": null
   }, {
-    "url": "assets/index-BPvb8fMd.css",
+    "url": "assets/index-BZEGfb5F.css",
     "revision": null
   }, {
     "url": "assets/ibm-plex-sans-vietnamese-700-normal-CkEo6LDy.woff2",
@@ -385,7 +385,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     request,
     url
   }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.NetworkFirst({
-    "cacheName": "static-assets-v27",
+    "cacheName": "static-assets-v28",
     "networkTimeoutSeconds": 3,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 120,

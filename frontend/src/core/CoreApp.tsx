@@ -7,9 +7,12 @@ import { PERIODS, PeriodContext, type ReportPeriod } from './period';
 import './core.css';
 
 const NAV = [
-  { to: '/', label: 'Beds Overview', short: 'Home', end: true },
-  { to: '/beds/placement', label: 'Allocation & Turnover', short: 'Placement', end: false },
-  { to: '/beds/capacity', label: 'Capacity Planning', short: 'Capacity', end: false },
+  { group: 'Emergency', to: '/', label: 'Emergency Overview', short: 'ED', end: true },
+  { group: 'Emergency', to: '/emergency/flow', label: 'Patient Flow & Waiting', short: 'Flow', end: false },
+  { group: 'Emergency', to: '/emergency/quality', label: 'ED Quality & Outcomes', short: 'Quality', end: false },
+  { group: 'Beds', to: '/beds', label: 'Beds Overview', short: 'Beds', end: false },
+  { group: 'Beds', to: '/beds/placement', label: 'Allocation & Turnover', short: 'Placement', end: false },
+  { group: 'Beds', to: '/beds/capacity', label: 'Capacity Planning', short: 'Capacity', end: false },
 ];
 
 function Shell() {
@@ -81,14 +84,19 @@ function Shell() {
               </button>
             </div>
             <nav className="gc-nav" aria-label="Primary">
-              {NAV.map((item) => (
-                <NavLink key={item.to} to={item.to} end={item.end} title={item.label}>
-                  <NavGlyph label={item.label} />
-                  <span className="gc-nav-label">
-                    <strong>{item.short}</strong>
-                    <em>{item.label}</em>
-                  </span>
-                </NavLink>
+              {NAV.map((item, index) => (
+                <span key={item.to} className="gc-nav-item">
+                  {index === 0 || NAV[index - 1].group !== item.group ? (
+                    <span className="gc-nav-group">{item.group}</span>
+                  ) : null}
+                  <NavLink to={item.to} end={item.end} title={item.label}>
+                    <NavGlyph label={item.label} />
+                    <span className="gc-nav-label">
+                      <strong>{item.short}</strong>
+                      <em>{item.label}</em>
+                    </span>
+                  </NavLink>
+                </span>
               ))}
             </nav>
           </aside>
@@ -109,7 +117,7 @@ function Shell() {
                   Filters
                 </button>
                 {filtersOpen ? (
-                  <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Beds filters">
+                  <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Domain filters">
                     <p className="gc-filter-pop-head">
                       <strong>Filters</strong>
                       <span>{hospitalName} · {store.year} · {periodLabel}</span>
@@ -153,7 +161,8 @@ function Shell() {
 }
 
 function NavGlyph({ label }: { label: string }) {
-  const path = label.startsWith('Beds') ? 'M4 10.5 12 4l8 6.5V20H4z'
+  const path = label.startsWith('Emergency') || label.startsWith('Beds Overview') ? 'M4 10.5 12 4l8 6.5V20H4z'
+    : label.startsWith('Patient') ? 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0'
     : label.startsWith('Allocation') ? 'M4 7h16M4 12h10M4 17h14'
     : 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return (
