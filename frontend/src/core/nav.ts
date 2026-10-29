@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow';
 };
 
 export type NavDomain = {
@@ -113,6 +113,36 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'outpatient',
+    label: 'Outpatient',
+    mark: 'OPD',
+    match: (path) => path.startsWith('/outpatient'),
+    screens: [
+      {
+        to: '/outpatient',
+        short: 'Overview',
+        title: 'Outpatient Performance Overview',
+        purpose: 'Clinic visits, specialty mix, and session utilization',
+        end: true,
+        glyph: 'opd',
+      },
+      {
+        to: '/outpatient/flow',
+        short: 'Waiting',
+        title: 'Clinic Waiting & Patient Flow',
+        purpose: 'Arrival-to-provider, cycle time, and clinic delays',
+        glyph: 'clinic',
+      },
+      {
+        to: '/outpatient/quality',
+        short: 'Quality',
+        title: 'Outpatient Quality & Follow-up',
+        purpose: 'Documentation, referrals, and follow-up actions',
+        glyph: 'follow',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -128,9 +158,9 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
   if (kind === 'assign') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'outcome' || kind === 'follow') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

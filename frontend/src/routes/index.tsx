@@ -3,10 +3,11 @@ import CoreApp from '@/core/CoreApp';
 import { BedsCapacityPage, BedsOverviewPage, BedsPlacementPage } from '@/core/beds';
 import { FlowPage, OverviewPage, QualityPage } from '@/core/four';
 import { IpdOutcomesPage, IpdSnapshotPage, IpdStayPage } from '@/core/ipd';
+import { OpdFlowPage, OpdOverviewPage, OpdQualityPage } from '@/core/opd';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
-  '/outpatient', '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
+  '/laboratory', '/radiology', '/pharmacy', '/surgery', '/rcm',
   '/appointments', '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
@@ -31,6 +32,9 @@ export const routes = [
       { path: 'inpatient', element: <IpdSnapshotPage /> },
       { path: 'inpatient/stay', element: <IpdStayPage /> },
       { path: 'inpatient/outcomes', element: <IpdOutcomesPage /> },
+      { path: 'outpatient', element: <OpdOverviewPage /> },
+      { path: 'outpatient/flow', element: <OpdFlowPage /> },
+      { path: 'outpatient/quality', element: <OpdQualityPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

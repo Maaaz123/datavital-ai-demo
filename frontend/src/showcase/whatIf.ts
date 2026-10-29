@@ -1,9 +1,10 @@
 import { scenarioFor, wardRows } from './facts';
 import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
+import { buildOpdView } from '@/core/opdView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient';
 
 export type WhatIfResult = {
   id: string;
@@ -32,6 +33,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What would happen if prolonged stays decreased by 10%?',
     'What if delayed discharges fell by 25%?',
     'What if median length of stay decreased by 0.5 days?',
+  ],
+  Outpatient: [
+    'What could happen if outpatient arrivals increase by 15%?',
+    'What if median waiting time fell by 20%?',
+    'What if consultation duration decreased by 10%?',
+    'What if clinic session utilization improved by 10 percentage points?',
+    'What if incomplete visit documentation decreased by 25%?',
+    'What if pending clinical referrals decreased by 20%?',
   ],
 };
 
@@ -63,9 +72,16 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/prolong|long.?stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/delay.*discharge|ready but|discharge delay/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'ipd-delay-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
   if (/length of stay|los|average stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-los-down', amount: days ? Number(days[1]) : 0.5 };
+  if (/outpatient|clinic/.test(q) && /arriv|demand/.test(q) && /increas/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/outpatient|clinic/.test(q) && /wait/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/consult(ation)? duration/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-consult-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/session utilization|utilization/.test(q) && /(improv|increas)/.test(q)) return { kind: 'opd-util-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/document/.test(q) && /(fell|decreas|reduc|incomplete)/.test(q)) return { kind: 'opd-doc-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/referral/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-referral-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/outpatient|clinic|wait|referral|document/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   return null;
 }
 
@@ -80,12 +96,14 @@ export function runWhatIf(
   const resolved = intent ?? defaultIntent(domain);
   if (domain === 'Emergency') return emergencyWhatIf(hospital, year, fact, resolved);
   if (domain === 'Beds') return bedsWhatIf(fact, resolved);
+  if (domain === 'Outpatient') return outpatientWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
 function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Emergency') return { kind: 'ed-arrivals-up', amount: 0.15 };
   if (domain === 'Beds') return { kind: 'beds-unblock-5', amount: 5 };
+  if (domain === 'Outpatient') return { kind: 'opd-demand-up', amount: 0.15 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -258,6 +276,111 @@ function inpatientWhatIf(
     implications: `Targeting ${longest.id} long-stay lists first concentrates management attention where stay days accumulate.`,
     followUp: 'Long-stay rate, specialty median stay, and ready-but-not-discharged count',
     owner: 'Inpatient operations lead',
+  };
+}
+
+function outpatientWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildOpdView(hospital, year, period);
+  const hot = [...view.specialties].sort((a, b) => b.waitMedian - a.waitMedian)[0];
+
+  if (intent.kind === 'opd-wait-down') {
+    const nextWait = Math.max(8, view.waitMedian * (1 - intent.amount));
+    const nextExceed = Math.max(0, Math.round(view.exceedingWait * (1 - intent.amount * 0.8)));
+    return {
+      id: intent.kind,
+      title: 'Clinic waiting reduction scenario',
+      current: `Median arrival-to-provider ${num(view.waitMedian, 1)} min · P90 ${num(view.waitP90, 1)} · ${num(view.exceedingWait)} visits over threshold (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in median patient waiting time`,
+      estimated: `Median near ${num(nextWait, 1)} minutes · about ${num(view.exceedingWait - nextExceed)} fewer threshold breaches`,
+      assumptions: `Uses ${view.periodLabel} clinic waiting clocks. Consultation duration held constant. Not a validated queueing model.`,
+      implications: `Shorter waits protect completion and on-time starts, especially in ${hot.id}.`,
+      followUp: 'Median and P90 arrival-to-provider; visits exceeding waiting threshold',
+      owner: 'Outpatient operations lead',
+    };
+  }
+
+  if (intent.kind === 'opd-consult-down') {
+    const nextConsult = Math.max(10, view.consultDuration * (1 - intent.amount));
+    const nextCycle = Math.round((view.waitMedian + nextConsult) * 10) / 10;
+    return {
+      id: intent.kind,
+      title: 'Consultation duration scenario',
+      current: `Consultation duration ${num(view.consultDuration, 1)} min · median cycle ${num(view.cycleMedian, 1)} min (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} shorter consultation duration without assuming reduced care quality`,
+      estimated: `Consultation near ${num(nextConsult, 1)} minutes · median cycle near ${num(nextCycle, 1)} minutes`,
+      assumptions: 'Care quality and clinical content are held constant by assumption. Throughput gains are illustrative only.',
+      implications: 'Modest consult-time gains free session capacity when waiting is already controlled.',
+      followUp: 'Consultation duration and median clinic cycle time',
+      owner: 'Outpatient operations lead',
+    };
+  }
+
+  if (intent.kind === 'opd-util-up') {
+    const nextUtil = Math.min(0.98, view.sessionUtilization + intent.amount);
+    const extraVisits = Math.round(view.clinicSessions * view.visitsPerSession * (nextUtil - view.sessionUtilization));
+    return {
+      id: intent.kind,
+      title: 'Session utilization scenario',
+      current: `Clinic session utilization ${pct(view.sessionUtilization)} · ${num(view.visitsPerSession, 1)} visits/session (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} point rise in session utilization, subject to capacity`,
+      estimated: `Utilization near ${pct(nextUtil)} · about ${num(Math.max(0, extraVisits))} additional attended visits in the period sketch`,
+      assumptions: 'Utilization cannot exceed practical clinic capacity. Staffing and room availability are assumed sufficient.',
+      implications: 'Higher utilization absorbs demand without adding sessions, but waiting may rise if starts slip.',
+      followUp: 'Clinic session utilization and median arrival-to-provider',
+      owner: 'Outpatient operations lead',
+    };
+  }
+
+  if (intent.kind === 'opd-doc-down') {
+    const gap = 1 - view.docCompletionRate;
+    const nextGap = gap * (1 - intent.amount);
+    const nextRate = 1 - nextGap;
+    return {
+      id: intent.kind,
+      title: 'Documentation backlog scenario',
+      current: `Documentation completion ${pct(view.docCompletionRate)} · incomplete share ${pct(gap)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in incomplete documentation`,
+      estimated: `Documentation completion near ${pct(nextRate)}`,
+      assumptions: 'Documentation rates are illustrative constructed shares, not extracted chart documents.',
+      implications: 'Closing documentation gaps supports safer follow-up handoffs without inventing clinical findings.',
+      followUp: 'Clinical documentation completion rate and consultation note completion rate',
+      owner: 'Outpatient operations lead',
+    };
+  }
+
+  if (intent.kind === 'opd-referral-down') {
+    const nextPending = Math.max(0, Math.round(view.pendingReferrals * (1 - intent.amount)));
+    return {
+      id: intent.kind,
+      title: 'Pending referral reduction scenario',
+      current: `Pending clinical referrals ${num(view.pendingReferrals)} · referral completion ${pct(view.referralCompletionRate)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in pending clinical referrals`,
+      estimated: `Pending referrals near ${num(nextPending)}`,
+      assumptions: 'Referral pathways are illustrative. Specialty receiving systems are not linked.',
+      implications: 'Clearing open referrals reduces outstanding clinical actions and follow-up coordination risk.',
+      followUp: 'Pending clinical referrals and referral completion rate',
+      owner: 'Outpatient operations lead',
+    };
+  }
+
+  const lift = intent.amount;
+  const extra = Math.round(view.visits * lift);
+  const nextWait = Math.round((view.waitMedian * (1 + lift * 0.35)) * 10) / 10;
+  return {
+    id: 'opd-demand-up',
+    title: 'Outpatient demand increase scenario',
+    current: `Attended visits ${num(view.visits)} · median wait ${num(view.waitMedian, 1)} min · utilization ${pct(view.sessionUtilization)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(lift, 0)} rise in outpatient arrivals/attended demand`,
+    estimated: `About ${num(extra)} additional visits · median wait near ${num(nextWait, 1)} minutes if session capacity is unchanged`,
+    assumptions: `Uses ${view.periodLabel} attended-visit baseline. Booking no-shows stay outside OPD. Not a calibrated forecast.`,
+    implications: `Demand growth pressures ${hot.id} first unless session starts and utilization recover.`,
+    followUp: 'Total outpatient visits, median arrival-to-provider, and clinic session utilization',
+    owner: 'Outpatient operations lead',
   };
 }
 

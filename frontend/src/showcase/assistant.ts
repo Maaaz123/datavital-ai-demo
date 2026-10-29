@@ -4,6 +4,7 @@ import { scenarioFor, wardRows } from './facts';
 import { alertsFor } from '@/core/alerts';
 import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
+import { buildOpdView } from '@/core/opdView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
@@ -37,6 +38,7 @@ function siteName(code: string, lang: Lang): string {
 export function promptForPath(path: string): string {
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
+  if (/outpatient/.test(path)) return 'Which clinics have the longest waiting times?';
   if (/inpatient/.test(path)) return 'Why is the median length of stay increasing?';
   if (/bed|command/.test(path)) return ASSISTANT_PROMPTS[1].en;
   if (/emergency|wait/.test(path)) return ASSISTANT_PROMPTS[0].en;
@@ -60,7 +62,7 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
-  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient') {
+  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
       const result = runWhatIf(department as WhatIfDomain, hospital, year, intent, period);
@@ -81,8 +83,9 @@ export function answerQuestion(
   if (department === 'Emergency') return answerEmergency(q, hospital, year, name, lang, current, prior, waitNow, waitThen);
   if (department === 'Beds') return answerBeds(q, hospital, year, name, lang, current, prior);
   if (department === 'Inpatient') return answerInpatient(q, hospital, year, name, lang, period);
+  if (department === 'Outpatient') return answerOutpatient(q, hospital, year, name, lang, period);
 
-  // Outside the three public domains: keep legacy helpers for unused screens.
+  // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
   if (q.includes('capacity') || q.includes('bed')) {
     const rate = busiest.annual.occupiedBeds / busiest.annual.staffedBeds;
@@ -493,6 +496,82 @@ function answerInpatient(
     action: tx(lang, `Review ${longest.id} long stays on Stay & Discharge, then returns and documentation on Care Progress & Outcomes.`, 'راجع الإقامات الطويلة ثم العودة والتوثيق.'),
     role: tx(lang, 'Inpatient operations lead', 'قائد عمليات التنويم'),
     benefit: tx(lang, 'Coordinated inpatient review improves discharge readiness without AI deciding readiness alone.', 'مراجعة تنويم منسقة تحسّن جاهزية الخروج دون أن يقرر الذكاء الاصطناعي وحده.'),
+  });
+}
+
+function answerOutpatient(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildOpdView(hospital, year, period);
+  const longestWait = [...view.specialties].sort((a, b) => b.waitMedian - a.waitMedian)[0];
+  const highestDemand = [...view.specialties].sort((a, b) => b.visits - a.visits)[0];
+  const mostActions = [...view.specialties].sort((a, b) => b.pendingActions - a.pendingActions)[0];
+
+  if (/ed |emergency|boarding|inpatient|bed occupancy|no-show|slot fill|appointment cancel/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Outpatient focus', 'خارج تركيز العيادات الخارجية'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'ED waiting stays in Emergency. Inpatient LOS stays in Inpatient. Bed occupancy stays in Beds. Booking no-shows stay outside OPD.', 'انتظار الطوارئ في الطوارئ. إقامة التنويم في التنويم. إشغال الأسرة في الأسرة.'),
+      explanation: tx(lang, 'OPD owns clinic operations and care activity for attended visits.', 'العيادات الخارجية تملك تشغيل العيادات ونشاط الرعاية للزيارات المنفذة.'),
+      action: tx(lang, 'Stay on Outpatient screens for clinic waiting, completion, and follow-up questions.', 'ابقَ في شاشات العيادات الخارجية لأسئلة الانتظار والإكمال والمتابعة.'),
+      role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/longest wait|waiting time|wait|delay|late start|on-time|cycle time/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Clinic waiting · ${name} · ${view.periodLabel}`, `انتظار العيادة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median arrival-to-provider ${view.waitMedian.toFixed(1)} min · P90 ${view.waitP90.toFixed(1)} · longest specialty ${longestWait.id} at ${longestWait.waitMedian.toFixed(1)} min · ${view.exceedingWait.toLocaleString('en-US')} visits over the ${view.waitThresholdMin}-minute line.`, `وسيط الوصول-للمقدم ${view.waitMedian.toFixed(1)} دقيقة.`),
+      evidence: tx(lang, `On-time start ${((view.onTimeStartRate) * 100).toFixed(1)}% · delayed sessions ${view.delayedSessions.toLocaleString('en-US')} · cycle median ${view.cycleMedian.toFixed(1)} min (wait + consult ${view.consultDuration.toFixed(1)}).`, `بداية في الوقت ${((view.onTimeStartRate) * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Potential reasons (not proven): morning start slip, uneven specialty demand, and walk-in peaks. Waiting is not consultation duration.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review Waiting time by specialty and Delay contribution by clinic, starting with ${longestWait.id}.`, `راجع انتظار التخصصات ومساهمة التأخير بدءاً من ${longestWait.id}.`),
+      role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+      benefit: tx(lang, 'Shorter waits protect completion and on-time starts without assuming lower care quality.', 'انتظار أقصر يحمي الإكمال والبداية في الوقت.'),
+    });
+  }
+
+  if (/demand|volume|specialt|busiest|visits/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Outpatient demand · ${name} · ${view.periodLabel}`, `طلب العيادات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `${view.visits.toLocaleString('en-US')} attended visits · highest specialty ${highestDemand.id} with ${highestDemand.visits.toLocaleString('en-US')} visits · utilization ${((view.sessionUtilization) * 100).toFixed(1)}%.`, `${view.visits.toLocaleString('en-US')} زيارة.`),
+      evidence: tx(lang, `New ${view.newVisits.toLocaleString('en-US')} · follow-up ${view.followUpVisits.toLocaleString('en-US')} · completion ${((view.completionRate) * 100).toFixed(1)}%. Attended cohort excludes booking no-shows.`, `جديد ${view.newVisits.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): specialty schedule mix and walk-in share shape demand. This is not an appointments fill dashboard.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review Visits by clinical specialty and Clinic session utilization by specialty, focusing on ${highestDemand.id}.`, `راجع زيارات التخصصات واستخدام الجلسات مع التركيز على ${highestDemand.id}.`),
+      role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+      benefit: tx(lang, 'Matching session capacity to specialty demand reduces waiting pressure.', 'مواءمة سعة الجلسات مع الطلب تقلل ضغط الانتظار.'),
+    });
+  }
+
+  if (/complet|incomplete|document|referral|follow-up|action|outstanding|priorit/.test(q)) {
+    const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Outpatient' && alert.severity !== 'info');
+    const topAlert = hot[0];
+    return pack(lang, {
+      title: tx(lang, `OPD Director priorities · ${name} · ${view.periodLabel}`, `أولويات مدير العيادات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, topAlert
+        ? `${topAlert.title}: ${topAlert.observed}`
+        : `Completion ${((view.completionRate) * 100).toFixed(1)}% · documentation ${((view.docCompletionRate) * 100).toFixed(1)}% · pending referrals ${view.pendingReferrals.toLocaleString('en-US')} · outstanding actions ${view.outstandingActions.toLocaleString('en-US')} (most in ${mostActions.id}).`, topAlert ? topAlert.title : `الإكمال ${((view.completionRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Follow-up coordination ${((view.followUpCoordRate) * 100).toFixed(1)}% · unplanned return share ${((view.unplannedReturnRate) * 100).toFixed(1)}% (illustrative, not patient-linked).`, `تنسيق المتابعة ${((view.followUpCoordRate) * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Potential reasons (not proven): documentation backlog and open referrals accumulate after busy clinic days. Drivers are hypotheses.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, topAlert?.action ?? `Clear pending referrals and outstanding actions starting with ${mostActions.id}, then re-check documentation completion.`, topAlert?.action ?? `أغلق الإحالات والإجراءات المفتوحة بدءاً من ${mostActions.id}.`),
+      role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+      benefit: tx(lang, topAlert?.consequence ?? 'Closing follow-up gaps improves coordination without inventing clinical findings.', 'إغلاق فجوات المتابعة يحسّن التنسيق.'),
+    });
+  }
+
+  return pack(lang, {
+    title: tx(lang, `Outpatient care at ${name} · ${view.periodLabel}`, `رعاية العيادات في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, `Visits ${view.visits.toLocaleString('en-US')} · median wait ${view.waitMedian.toFixed(1)} min · completion ${((view.completionRate) * 100).toFixed(1)}% · pending referrals ${view.pendingReferrals.toLocaleString('en-US')}.`, `الزيارات ${view.visits.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `Highest demand ${highestDemand.id}. Longest wait ${longestWait.id}. Consultation duration ${view.consultDuration.toFixed(1)} min is separate from waiting.`, `أعلى طلب ${highestDemand.id}.`),
+    explanation: tx(lang, 'Potential reasons (not proven): demand, waiting, and follow-up backlog move together in clinic operations.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, 'Review Overview demand charts, then Waiting & Patient Flow delays, then Quality follow-up actions.', 'راجع نظرة الطلب ثم تأخير الانتظار ثم إجراءات الجودة.'),
+    role: tx(lang, 'Outpatient operations lead', 'قائد عمليات العيادات الخارجية'),
+    benefit: tx(lang, 'A sequenced OPD review keeps waiting, throughput, and follow-up visible without duplicating other domains.', 'مراجعة عيادات متسلسلة تبقي الانتظار والتدفق والمتابعة واضحة.'),
   });
 }
 
