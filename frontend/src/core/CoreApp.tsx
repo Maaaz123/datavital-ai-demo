@@ -7,9 +7,9 @@ import { PERIODS, PeriodContext, type ReportPeriod } from './period';
 import './core.css';
 
 const NAV = [
-  { to: '/', label: 'Overview', end: true },
-  { to: '/emergency/flow', label: 'Patient Flow & Waiting', end: false },
-  { to: '/emergency/quality', label: 'ED Quality & Outcomes', end: false },
+  { to: '/', label: 'Overview', short: 'Home', end: true },
+  { to: '/emergency/flow', label: 'Patient Flow & Waiting', short: 'Flow', end: false },
+  { to: '/emergency/quality', label: 'ED Quality & Outcomes', short: 'Quality', end: false },
 ];
 
 function Shell() {
@@ -17,6 +17,7 @@ function Shell() {
   const copilot = useCopilot();
   const location = useLocation();
   const [menu, setMenu] = useState(false);
+  const [navWide, setNavWide] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [period, setPeriod] = useState<ReportPeriod>('year');
   const filterRef = useRef<HTMLDivElement>(null);
@@ -58,19 +59,35 @@ function Shell() {
   return (
     <PeriodContext.Provider value={{ period, setPeriod }}>
       <div className="gc-shell" dir="ltr">
-        <div className="gc-frame" data-nav="open" data-copilot={copilot.open ? 'open' : 'closed'}>
+        <div className="gc-frame" data-nav={navWide ? 'open' : 'rail'} data-copilot={copilot.open ? 'open' : 'closed'}>
           <aside className={`gc-side ${menu ? 'open' : ''}`}>
             <div className="gc-side-brand">
-              <Link to="/">
-                <span>DataVital</span>
-                <strong>AI</strong>
+              <Link to="/" title="DataVital AI">
+                <span className="gc-side-mark" aria-hidden="true">DV</span>
+                <span className="gc-side-copy">
+                  <span>DataVital</span>
+                  <strong>AI</strong>
+                </span>
               </Link>
+              <button
+                type="button"
+                className="gc-nav-toggle"
+                aria-pressed={navWide}
+                aria-label={navWide ? 'Collapse navigation' : 'Expand navigation'}
+                title={navWide ? 'Collapse' : 'Expand'}
+                onClick={() => setNavWide((value) => !value)}
+              >
+                {navWide ? '‹' : '›'}
+              </button>
             </div>
             <nav className="gc-nav" aria-label="Primary">
               {NAV.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} title={item.label}>
                   <NavGlyph label={item.label} />
-                  <span>{item.label}</span>
+                  <span className="gc-nav-label">
+                    <strong>{item.short}</strong>
+                    <em>{item.label}</em>
+                  </span>
                 </NavLink>
               ))}
             </nav>
@@ -89,8 +106,11 @@ function Shell() {
                   onClick={() => setFiltersOpen((value) => !value)}
                 >
                   <span className="gc-filter-label">Filters</span>
-                  <strong>{hospitalName}</strong>
-                  <em>{store.year} · {periodLabel}</em>
+                  <span className="gc-filter-summary">
+                    <strong>{hospitalName}</strong>
+                    <em>{store.year} · {periodLabel}</em>
+                  </span>
+                  <span className="gc-filter-caret" aria-hidden="true">▾</span>
                 </button>
                 {filtersOpen ? (
                   <div className="gc-filter-pop" id={filterTitle} role="dialog" aria-label="Emergency filters">
@@ -116,7 +136,7 @@ function Shell() {
                   </div>
                 ) : null}
               </div>
-              <div className="gc-inline">
+              <div className="gc-top-actions">
                 <CopilotButton />
               </div>
             </header>
@@ -138,7 +158,7 @@ function NavGlyph({ label }: { label: string }) {
     : 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 }

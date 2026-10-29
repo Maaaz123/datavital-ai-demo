@@ -33,8 +33,9 @@ describe('three emergency pages', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Emergency Overview' })).toBeInTheDocument();
     expect(screen.getByRole('status').textContent).toMatch(/Illustrative hospital data/i);
     expect(screen.getAllByText('68,372').length).toBeGreaterThan(0);
-    const labels = [...document.querySelectorAll('.gc-nav a')].map((item) => item.textContent);
-    expect(labels).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes']);
+    const links = [...document.querySelectorAll('.gc-nav a')];
+    expect(links.map((item) => item.getAttribute('title'))).toEqual(['Overview', 'Patient Flow & Waiting', 'ED Quality & Outcomes']);
+    expect(links).toHaveLength(3);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
