@@ -494,7 +494,7 @@ function Donut({ title, note, parts, wide = false }: { title: string; note: stri
               offset += length;
               return node;
             })}
-            <text x="60" y="64" textAnchor="middle">{num(total)}</text>
+            <text className="gc-donut-total" x="60" y="64" textAnchor="middle">{num(total)}</text>
           </svg>
           <ul className="gc-donut-legend">
             {parts.map((part, index) => (

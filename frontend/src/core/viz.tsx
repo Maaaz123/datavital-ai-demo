@@ -510,11 +510,11 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
   const flat = series.flatMap((item) => item.values);
   const max = axisMax(flat.map((value) => Math.abs(value)));
   const width = 720;
-  const height = compact ? 168 : 240;
+  const height = compact ? 148 : 240;
   const padL = 52;
   const padR = 12;
-  const padT = compact ? 10 : 16;
-  const padB = compact ? 28 : 36;
+  const padT = compact ? 8 : 16;
+  const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const groupW = innerW / Math.max(categories.length, 1);
@@ -556,7 +556,7 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
       )}
       {pareto ? <ParetoLine figure={figure} padL={padL} padT={padT} innerH={innerH} groupW={groupW} /> : null}
       {categories.map((category, index) => (
-        <text key={category} x={padL + index * groupW + groupW / 2} y={height - 12} textAnchor="middle">
+        <text key={category} x={padL + index * groupW + groupW / 2} y={height - 10} textAnchor="middle">
           {category.length > 16 ? `${category.slice(0, 14)}…` : category}
         </text>
       ))}
@@ -581,11 +581,11 @@ function StackedChart({ figure, compact = false }: { figure: Figure; compact?: b
   const totals = categories.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
   const max = axisMax(totals);
   const width = 720;
-  const height = compact ? 168 : 240;
+  const height = compact ? 148 : 240;
   const padL = 52;
   const padR = 12;
-  const padT = compact ? 10 : 16;
-  const padB = compact ? 28 : 36;
+  const padT = compact ? 8 : 16;
+  const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const groupW = innerW / Math.max(categories.length, 1);
@@ -714,11 +714,11 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
   const min = 0;
   const span = Math.max(max - min, 1);
   const width = 720;
-  const height = compact ? 168 : 240;
+  const height = compact ? 148 : 240;
   const padL = 52;
   const padR = 16;
-  const padT = compact ? 12 : 18;
-  const padB = compact ? 28 : 36;
+  const padT = compact ? 10 : 18;
+  const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
   const step = innerW / Math.max(categories.length - 1, 1);

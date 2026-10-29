@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v39-filters-type';
+const BUILD_ID = 'v40-card-density';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
