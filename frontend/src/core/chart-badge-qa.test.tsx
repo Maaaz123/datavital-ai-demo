@@ -160,3 +160,55 @@ describe('Inpatient chart SVG contract on all three screens', () => {
     });
   }
 });
+
+describe('Outpatient chart SVG contract on all three screens', () => {
+  const screens = [
+    { path: '/outpatient', title: 'Outpatient Performance Overview', charts: [
+      'Outpatient visits over time',
+      'Visits by clinical specialty',
+      'Clinic activity by day',
+      'Completed vs incomplete visits',
+      'Clinic session utilization by specialty',
+    ] },
+    { path: '/outpatient/flow', title: 'Clinic Waiting & Patient Flow', charts: [
+      'Waiting time trend',
+      'Waiting time by specialty',
+      'Arrival demand by hour',
+      'Consultation starts by hour',
+      'Waiting time distribution',
+      'Clinic cycle time by specialty',
+      'Patient flow stage volumes',
+      'Delay contribution by clinic',
+    ] },
+    { path: '/outpatient/quality', title: 'Outpatient Quality & Follow-up', charts: [
+      'Documentation completion trend',
+      'Follow-up recommendations by specialty',
+      'Referral status breakdown',
+      'Pending clinical actions by specialty',
+      'Consultation outcomes',
+      'Follow-up coordination trend',
+    ] },
+  ] as const;
+
+  for (const screenDef of screens) {
+    it(`renders ${screenDef.title} chart SVGs inside valid viewBoxes`, () => {
+      renderAt(screenDef.path);
+      expect(screen.getByRole('heading', { level: 1, name: screenDef.title })).toBeInTheDocument();
+      for (const name of screenDef.charts) {
+        const title = [...document.querySelectorAll('.gc-chart-copy strong')].find((node) => node.textContent?.trim() === name);
+        expect(title, name).toBeTruthy();
+        const figure = title!.closest('figure') ?? title!.closest('.gc-chart');
+        expect(figure, name).toBeTruthy();
+        const svg = figure!.querySelector('svg');
+        expect(svg, name).toBeTruthy();
+        const viewBox = svg!.getAttribute('viewBox') ?? '';
+        const parts = viewBox.split(/\s+/).map(Number);
+        expect(parts.length).toBe(4);
+        expect(parts[0]).toBe(0);
+        expect(parts[1]).toBe(0);
+        expect(parts[2]).toBe(CHART_VIEW.width);
+        expect(parts[3]).toBeGreaterThan(100);
+      }
+    });
+  }
+});

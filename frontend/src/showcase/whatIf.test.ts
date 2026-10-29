@@ -8,6 +8,8 @@ describe('illustrative what-if scenarios', () => {
     expect(parseWhatIfIntent('What could happen if patient arrivals increase by 15%')?.kind).toBe('ed-arrivals-up');
     expect(parseWhatIfIntent('What happens if five blocked beds become available')?.kind).toBe('beds-unblock-5');
     expect(parseWhatIfIntent('What would happen if prolonged stays decreased by 10%')?.kind).toBe('ipd-longstay-down');
+    expect(parseWhatIfIntent('What could happen if outpatient arrivals increase by 15%')?.kind).toBe('opd-demand-up');
+    expect(parseWhatIfIntent('What if median waiting time fell by 20% for outpatient clinics')?.kind).toBe('opd-wait-down');
     expect(parseWhatIfIntent('Why is emergency waiting time increasing')).toBeNull();
   });
 
@@ -32,11 +34,22 @@ describe('illustrative what-if scenarios', () => {
 
     const ipd = answerQuestion('What would happen if prolonged stays decreased by 10%?', 'H1', 2026, 'Inpatient');
     expect(ipd.action).toMatch(/Management implication|long-stay|specialty/i);
+
+    const opd = answerQuestion('What could happen if outpatient arrivals increase by 15%?', 'H1', 2026, 'Outpatient');
+    expect(opd.title).toMatch(/Outpatient demand|15%/i);
+    expect(opd.outcome).toMatch(/Illustrative|Not a validated forecast/i);
+    expect(opd.role).toMatch(/Outpatient operations/i);
   });
 
   it('does not mix Beds answers into Emergency', () => {
     const answer = answerQuestion('Which wards have the greatest capacity pressure?', 'H1', 2026, 'Emergency');
     expect(answer.title).toMatch(/Outside Emergency|Emergency/i);
     expect(answer.observation + answer.evidence).not.toMatch(/Operational occupancy/i);
+  });
+
+  it('keeps Emergency boarding outside Outpatient answers', () => {
+    const answer = answerQuestion('How many visits are boarding beyond 4 hours?', 'H1', 2026, 'Outpatient');
+    expect(answer.title).toMatch(/Outside Outpatient|Outpatient/i);
+    expect(answer.observation + answer.evidence).not.toMatch(/boarding beyond 4 hours/i);
   });
 });

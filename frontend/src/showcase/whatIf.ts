@@ -62,6 +62,13 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
 
+  // Outpatient intents before ED arrival/demand so "outpatient arrivals" is not classified as ED.
+  if (/outpatient|clinic/.test(q) && /arriv|demand/.test(q) && /increas/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/outpatient|clinic/.test(q) && /wait/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/consult(ation)? duration/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-consult-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/session utilization|utilization/.test(q) && /(improv|increas)/.test(q)) return { kind: 'opd-util-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/document/.test(q) && /(fell|decreas|reduc|incomplete)/.test(q)) return { kind: 'opd-doc-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/referral/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-referral-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/arriv|demand|patient/.test(q) && /increas/.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/board/.test(q) && /(fell|decreas|reduc|improv)/.test(q)) return { kind: 'ed-boarding-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/greatest.*impact|priorit/.test(q) && /emergency|ed |waiting|board|arrival/.test(q)) return { kind: 'ed-priority-impact', amount: 0.15 };
@@ -72,12 +79,6 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/prolong|long.?stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/delay.*discharge|ready but|discharge delay/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'ipd-delay-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
   if (/length of stay|los|average stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-los-down', amount: days ? Number(days[1]) : 0.5 };
-  if (/outpatient|clinic/.test(q) && /arriv|demand/.test(q) && /increas/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
-  if (/outpatient|clinic/.test(q) && /wait/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
-  if (/consult(ation)? duration/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-consult-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
-  if (/session utilization|utilization/.test(q) && /(improv|increas)/.test(q)) return { kind: 'opd-util-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
-  if (/document/.test(q) && /(fell|decreas|reduc|incomplete)/.test(q)) return { kind: 'opd-doc-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
-  if (/referral/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'opd-referral-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
