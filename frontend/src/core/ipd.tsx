@@ -76,10 +76,10 @@ function Page({ title, kpis, children }: { title: string; kpis: { name: string; 
   );
 }
 
-function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string }) {
+function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | false }) {
   const copilot = useCopilot();
   return (
-    <section className={`gc-panel gc-slot ${span}`}>
+    <section className={`gc-panel gc-slot${span ? ` ${span}` : ''}`}>
       <Chart
         figure={figure}
         compact
@@ -97,14 +97,14 @@ function fig(type: Figure['type'], title: string, categories: string[], series: 
   return { type, title, categories, series, unit, digits: type === 'bullet' || unit === 'days' ? 1 : 0, note, domain: 'inpatient', subjects: [title], ...extra };
 }
 
-function Alerts() {
+function Alerts({ packed = false }: { packed?: boolean } = {}) {
   const store = useShowcase();
   const copilot = useCopilot();
   const view = useView();
   const { period } = usePeriod();
   const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Inpatient' && alert.severity !== 'info');
   return (
-    <section className="gc-panel gc-insight span-4">
+    <section className={`gc-panel gc-insight${packed ? '' : ' span-4'}`}>
       <h2>Priority signals</h2>
       <ul className="gc-alert-list">
         {alerts.length ? alerts.map((alert) => (
@@ -295,10 +295,16 @@ export function IpdSnapshotPage() {
       score('Admissions from ED', num(view.edAdmitted), compare(view, prior, (item) => item.edAdmitted), 'Admissions that began in the emergency department. ED waiting time stays in Emergency.', `${num(view.edAdmitted)} of ${num(view.admissions)} admissions.`, undefined, 'watch'),
       score('Elective / direct admissions', num(view.directAdmissions), compare(view, prior, (item) => item.directAdmissions), 'Elective and direct admissions that did not start in emergency and are not counted in the transfer-in source share.', `${num(view.directAdmissions)} of ${num(view.admissions)} admissions.`, undefined, 'neutral'),
     ]}>
-      <Slot span="span-8" figure={fig('area', 'Inpatient admissions over time', view.labels, [{ name: 'Admissions', values: view.monthlyAdmissions }], 'patients', 'Monthly admissions sum to the selected period total.')} />
-      <Alerts />
-      <Slot figure={fig('bars', 'Inpatient volume context', ['Census (snapshot)', 'Admissions (period)', 'Transfers in', 'Discharges', 'Transfers out', 'Deaths'], [{ name: 'Patients', values: [view.census, view.admissions, view.transfersIn, view.discharges, view.transfersOut, view.deaths] }], 'patients', 'Census is a point-in-time patient count. The other series are period totals. Do not add census to period flows. Bed status ownership stays in Beds & Capacity.')} />
-      <Donut title="Admission source mix" note="From emergency, elective/direct, transfer in, and other partition admissions and sum to the period admission total." parts={view.sources.map((item) => ({ name: item.id, value: item.count }))} />
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('area', 'Inpatient admissions over time', view.labels, [{ name: 'Admissions', values: view.monthlyAdmissions }], 'patients', 'Monthly admissions sum to the selected period total.')} />
+          <Slot span={false} figure={fig('bars', 'Inpatient volume context', ['Census (snapshot)', 'Admissions (period)', 'Transfers in', 'Discharges', 'Transfers out', 'Deaths'], [{ name: 'Patients', values: [view.census, view.admissions, view.transfersIn, view.discharges, view.transfersOut, view.deaths] }], 'patients', 'Census is a point-in-time patient count. The other series are period totals. Do not add census to period flows. Bed status ownership stays in Beds & Capacity.')} />
+        </div>
+        <div className="gc-ed-pack-col">
+          <Alerts packed />
+          <Donut packed title="Admission source mix" note="From emergency, elective/direct, transfer in, and other partition admissions and sum to the period admission total." parts={view.sources.map((item) => ({ name: item.id, value: item.count }))} />
+        </div>
+      </div>
       <Slot figure={fig('stacked', 'Admissions by specialty', view.labels, view.specialties.map((specialty) => ({ name: specialty.id, values: splitExact(specialty.admissions, view.monthlyAdmissions.map((value) => value || 0.0001)) })), 'patients', 'Specialty stacks still sum to monthly admissions.')} />
       <Slot figure={fig('bars', 'Episode volume summary', ['Admissions', 'Census snapshot', 'Discharges', 'Deaths'], [{ name: 'Patients', values: [view.admissions, view.census, view.discharges, view.deaths] }], 'patients', 'Period admissions, discharges, and deaths beside the census snapshot. Census is not a period total.')} />
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Admissions & Inpatient Activity']} />
@@ -322,27 +328,33 @@ export function IpdStayPage() {
       score('Expected discharges (next day)', num(view.expectedDischarges), compare(view, prior, (item) => item.expectedDischarges), 'Illustrative next-day discharges from the period rate. Not a validated forecast.', `${num(view.expectedDischarges)} patients.`, undefined, 'good'),
       score('Inpatient discharges', num(view.discharges), compare(view, prior, (item) => item.discharges), 'Completed inpatient discharges in the selected period.', `${num(view.discharges)} discharges.`, undefined, 'neutral'),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Median length of stay over time', view.labels, [{ name: 'Median days', values: view.monthlyLos }], 'days', 'Monthly median inpatient length of stay. Not a bed occupancy series.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Stay watch list</h2>
-        <div className="gc-exception-list">
-          <div className={`gc-exception gc-tone-${losTone(view.losMedian)}`}>
-            <strong>Median length of stay</strong>
-            <span>{num(view.losMedian, 1)} days · average {num(view.losAvg, 1)}</span>
-          </div>
-          <div className={`gc-exception gc-tone-${rateTone(view.longStayRate, 0.1, 0.15)}`}>
-            <strong>Long-stay rate</strong>
-            <span>{pct(view.longStayRate)} · {num(view.longStayCount)} patients</span>
-          </div>
-          <div className={`gc-exception gc-tone-${view.readyNotDischarged > 5 ? 'alert' : 'watch'}`}>
-            <strong>Medically ready, not discharged</strong>
-            <span>{num(view.readyNotDischarged)} · clinician decision required</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('line', 'Median length of stay over time', view.labels, [{ name: 'Median days', values: view.monthlyLos }], 'days', 'Monthly median inpatient length of stay. Not a bed occupancy series.')} />
+          <Slot span={false} figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Specialty shares sum to ${num(view.longStayCount)} long-stay discharges (7-day review line). Severity is not adjusted.`)} />
         </div>
-        <p className="gc-next">Observed-to-expected LOS and delay duration clocks are not available in this scenario.</p>
-      </section>
-      <Slot figure={fig('pareto', 'Long-stay contribution by specialty', view.specialties.map((item) => item.id), [{ name: 'Long-stay patients', values: view.longStayBySpecialty }], 'patients', `Specialty shares sum to ${num(view.longStayCount)} long-stay discharges (7-day review line). Severity is not adjusted.`)} />
-      <Slot figure={fig('bars', 'Length of stay vs review lines', ['Median', 'Average', 'P90'], [{ name: 'Days', values: [view.losMedian, view.losAvg, view.losP90] }], 'days', 'Scenario review lines: watch near 4.5 days, alert near 6 days for the median. Long-stay review line is 7 days.')} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Stay watch list</h2>
+            <div className="gc-exception-list">
+              <div className={`gc-exception gc-tone-${losTone(view.losMedian)}`}>
+                <strong>Median length of stay</strong>
+                <span>{num(view.losMedian, 1)} days · average {num(view.losAvg, 1)}</span>
+              </div>
+              <div className={`gc-exception gc-tone-${rateTone(view.longStayRate, 0.1, 0.15)}`}>
+                <strong>Long-stay rate</strong>
+                <span>{pct(view.longStayRate)} · {num(view.longStayCount)} patients</span>
+              </div>
+              <div className={`gc-exception gc-tone-${view.readyNotDischarged > 5 ? 'alert' : 'watch'}`}>
+                <strong>Medically ready, not discharged</strong>
+                <span>{num(view.readyNotDischarged)} · clinician decision required</span>
+              </div>
+            </div>
+            <p className="gc-next">Observed-to-expected LOS and delay duration clocks are not available in this scenario.</p>
+          </section>
+          <Slot span={false} figure={fig('bars', 'Length of stay vs review lines', ['Median', 'Average', 'P90'], [{ name: 'Days', values: [view.losMedian, view.losAvg, view.losP90] }], 'days', 'Scenario review lines: watch near 4.5 days, alert near 6 days for the median. Long-stay review line is 7 days.')} />
+        </div>
+      </div>
       <Slot figure={fig('bars', 'Length of stay by specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.los) }], 'days', 'Specialty medians around the hospital median. Raw gaps are not proof of better or worse care.')} />
       <Slot figure={fig('bars', 'Discharge destinations', view.destinations.map((item) => item.id), [{ name: 'Discharges', values: view.destinations.map((item) => item.count) }], 'patients', 'Destinations partition completed discharges and sum to the period discharge total. Inpatient deaths are counted separately (not a discharge destination).')} />
       <Slot span="span-8" figure={fig('area', 'Expected discharge outlook', horizons, [{ name: 'Expected discharges', values: dischargeOutlook }], 'patients', 'Illustrative cumulative sketch from the period daily discharge rate (24–96h). Not a validated forecast.')} />
@@ -383,33 +395,39 @@ export function IpdOutcomesPage() {
       score('Discharge against medical advice', pct(view.amaRate), 'Scenario share', 'Fixed scenario share of discharges labelled left against medical advice. Not a linked chart-review cohort.', `${pct(view.amaRate)} of discharges.`, undefined, rateTone(view.amaRate, 0.02, 0.03)),
       score('Discharge-to-admission flow ratio', pct(completion), compare(view, prior, (item) => item.discharges / Math.max(item.admissions + item.transfersIn, 1), true), 'Discharges ÷ (admissions + transfers in). A period flow-identity check only — not a measure of completed clinical episodes or care quality.', `${num(view.discharges)} discharges / ${num(view.admissions + view.transfersIn)} admissions and transfers in.`, undefined, 'neutral'),
     ]}>
-      <Slot span="span-8" figure={fig('line', 'Readmissions and mortality over time', view.labels, [
-        { name: 'Est. 30-day readmissions', values: view.monthlyDischarges.map((value) => Math.round(value * view.readmit30)) },
-        { name: 'Inpatient deaths', values: view.monthlyDeaths },
-      ], 'patients', 'Readmissions are a scenario share of discharges. Deaths sum to the period total. Series are not mixed into one rate.')} />
-      <section className="gc-panel gc-insight span-4">
-        <h2>Outcome watch list</h2>
-        <div className="gc-exception-list">
-          <div className={`gc-exception gc-tone-${rateTone(view.readmit30, 0.08, 0.11)}`}>
-            <strong>30-day readmission rate</strong>
-            <span>{pct(view.readmit30)} of discharges</span>
-          </div>
-          <div className={`gc-exception gc-tone-${mortality > 0 ? 'alert' : 'good'}`}>
-            <strong>Inpatient mortality</strong>
-            <span>{pct(mortality)} · {num(view.deaths)} / {num(view.admissions)}</span>
-          </div>
-          <div className={`gc-exception gc-tone-${view.consultResponseHours >= 12 ? 'watch' : 'good'}`}>
-            <strong>Median consultation response</strong>
-            <span>{num(view.consultResponseHours, 1)} hours · {num(view.pendingConsults)} pending (illustrative)</span>
-          </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('line', 'Readmissions and mortality over time', view.labels, [
+            { name: 'Est. 30-day readmissions', values: view.monthlyDischarges.map((value) => Math.round(value * view.readmit30)) },
+            { name: 'Inpatient deaths', values: view.monthlyDeaths },
+          ], 'patients', 'Readmissions are a scenario share of discharges. Deaths sum to the period total. Series are not mixed into one rate.')} />
+          <Slot span={false} figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * specialtyReadmitShare(view.readmit30, item.los, view.losMedian))) }], 'patients', `Specialty shares around the ${view.periodLabel} hospital 30-day rate (same constructed tilt as the indicator catalog). Severity is not adjusted.`)} />
         </div>
-        <p className="gc-next">Documentation rates below are illustrative scenario shares. AI does not decide that a patient is medically ready to leave.</p>
-      </section>
-      <Slot figure={fig('bars', '30-day readmissions by specialty', view.specialties.map((item) => item.id), [{ name: 'Readmissions', values: view.specialties.map((item) => Math.round(item.discharges * specialtyReadmitShare(view.readmit30, item.los, view.losMedian))) }], 'patients', `Specialty shares around the ${view.periodLabel} hospital 30-day rate (same constructed tilt as the indicator catalog). Severity is not adjusted.`)} />
-      <Slot figure={fig('line', 'Census vs discharges over time', view.labels, [
-        { name: 'Inpatient census', values: view.monthlyCensus },
-        { name: 'Discharges', values: view.monthlyDischarges },
-      ], 'patients', 'Census is a month-end patient count. Discharges are period totals. They are shown together for context, not stacked as one identity. Bed occupancy rate stays in Beds & Capacity.')} />
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Outcome watch list</h2>
+            <div className="gc-exception-list">
+              <div className={`gc-exception gc-tone-${rateTone(view.readmit30, 0.08, 0.11)}`}>
+                <strong>30-day readmission rate</strong>
+                <span>{pct(view.readmit30)} of discharges</span>
+              </div>
+              <div className={`gc-exception gc-tone-${mortality > 0 ? 'alert' : 'good'}`}>
+                <strong>Inpatient mortality</strong>
+                <span>{pct(mortality)} · {num(view.deaths)} / {num(view.admissions)}</span>
+              </div>
+              <div className={`gc-exception gc-tone-${view.consultResponseHours >= 12 ? 'watch' : 'good'}`}>
+                <strong>Median consultation response</strong>
+                <span>{num(view.consultResponseHours, 1)} hours · {num(view.pendingConsults)} pending (illustrative)</span>
+              </div>
+            </div>
+            <p className="gc-next">Documentation rates below are illustrative scenario shares. AI does not decide medical readiness.</p>
+          </section>
+          <Slot span={false} figure={fig('line', 'Census vs discharges over time', view.labels, [
+            { name: 'Inpatient census', values: view.monthlyCensus },
+            { name: 'Discharges', values: view.monthlyDischarges },
+          ], 'patients', 'Census is a month-end patient count. Discharges are period totals. They are shown together for context, not stacked as one identity. Bed occupancy rate stays in Beds & Capacity.')} />
+        </div>
+      </div>
       <JourneyStrip view={view} />
       <DocProgressStrip view={view} />
       <IndicatorIndex indicators={ipdIndicatorsFor(scopeInput(view))} domains={['Inpatient Care Coordination', 'Inpatient Outcomes', 'Inpatient Documentation & Continuity']} />
@@ -476,14 +494,14 @@ function DocProgressStrip({ view }: { view: View }) {
   );
 }
 
-function Donut({ title, note, parts }: { title: string; note: string; parts: { name: string; value: number }[] }) {
+function Donut({ title, note, parts, packed = false }: { title: string; note: string; parts: { name: string; value: number }[]; packed?: boolean }) {
   const copilot = useCopilot();
   const total = parts.reduce((sum, part) => sum + part.value, 0) || 1;
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
   return (
-    <section className="gc-panel gc-slot span-6">
+    <section className={`gc-panel gc-slot${packed ? '' : ' span-6'}`}>
       <figure className="gc-chart" data-chart-state="ok">
         <figcaption className="gc-chart-head">
           <div className="gc-chart-copy">
