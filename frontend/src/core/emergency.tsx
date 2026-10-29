@@ -175,8 +175,15 @@ export function EmergencyBoard({ tab }: { tab: string }) {
 function ChartSlot({ figure, span, onInvestigate }: { figure: Figure; span: string; onInvestigate: (title: string) => void }) {
   return (
     <div className={span}>
-      <Chart figure={figure} compact />
-      <button type="button" className="gc-text-btn" onClick={() => onInvestigate(figure.title)}>Investigate {figure.title}</button>
+      <Chart
+        figure={figure}
+        compact
+        action={(
+          <button type="button" className="gc-investigate" aria-label={`Investigate ${figure.title}`} onClick={() => onInvestigate(figure.title)}>
+            Investigate
+          </button>
+        )}
+      />
     </div>
   );
 }

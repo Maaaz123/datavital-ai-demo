@@ -143,8 +143,15 @@ export function DomainBoard() {
       <div className="gc-dense">
         {figures.map((figure, index) => (
           <div key={figure.title} className={index === 0 ? 'span-8' : 'span-6'}>
-            <Chart figure={figure} compact />
-            <button type="button" className="gc-text-btn" onClick={() => copilot.focusChart(figure.title)}>Investigate {figure.title}</button>
+            <Chart
+              figure={figure}
+              compact
+              action={(
+                <button type="button" className="gc-investigate" aria-label={`Investigate ${figure.title}`} onClick={() => copilot.focusChart(figure.title)}>
+                  Investigate
+                </button>
+              )}
+            />
           </div>
         ))}
         <section className="gc-panel span-6">

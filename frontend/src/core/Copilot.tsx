@@ -102,9 +102,11 @@ export function CopilotButton() {
         copilot.setOpen(!copilot.open);
       }}
     >
+      <span className="gc-copilot-ring" aria-hidden="true" />
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 3l1.8 4.7L18 9.5l-4.2 1.8L12 16l-1.8-4.7L6 9.5l4.2-1.8z" fill="none" stroke="currentColor" strokeWidth="1.7" />
-        <circle cx="12" cy="19" r="1.2" fill="currentColor" />
+        <path d="M4.2 19.8l7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M13.1 4.8l1.5 3.6 3.6 1.5-3.6 1.5-1.5 3.6-1.5-3.6-3.6-1.5 3.6-1.5z" fill="currentColor" />
+        <path d="M19.2 3.6l.75 1.8 1.8.75-1.8.75-.75 1.8-.75-1.8-1.8-.75 1.8-.75z" fill="currentColor" />
       </svg>
       <span>{count}</span>
     </button>

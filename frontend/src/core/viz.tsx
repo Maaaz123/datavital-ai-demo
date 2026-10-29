@@ -1,3 +1,4 @@
+import { useState, type MouseEvent, type ReactNode } from 'react';
 import { MONTHS, type Lang } from '@/showcase/copy';
 import { findKpi } from '@/showcase/engine';
 import { scenarioFor, type AnnualFact, type Scenario } from '@/showcase/facts';
@@ -433,32 +434,72 @@ function formatTick(value: number, digits: number): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: digits });
 }
 
-export function Chart({ figure, compact = false }: { figure: Figure; compact?: boolean }) {
+export function Chart({ figure, compact = false, action }: { figure: Figure; compact?: boolean; action?: ReactNode }) {
   const flat = figure.series.flatMap((item) => item.values);
   const allZero = flat.length > 0 && flat.every((value) => value === 0);
   return (
     <figure className={`gc-chart is-${figure.type}`} data-chart-state={allZero ? 'zero' : 'ok'} data-chart-domain={figure.domain}>
-      <figcaption>
-        <strong>{figure.title}</strong>
-        <span>{figure.note}</span>
-        {figure.series.length > 1 && figure.type !== 'heatmap' ? (
-          <ul className="gc-legend">
-            {figure.series.map((item, index) => (
-              <li key={item.name}><i style={{ background: PALETTE[index % PALETTE.length] }} />{item.name}</li>
-            ))}
-          </ul>
-        ) : null}
+      <figcaption className="gc-chart-head">
+        <div className="gc-chart-copy">
+          <strong>{figure.title}</strong>
+          <span>{figure.note}</span>
+          {figure.series.length > 1 && figure.type !== 'heatmap' ? (
+            <ul className="gc-legend">
+              {figure.series.map((item, index) => (
+                <li key={item.name}><i style={{ background: PALETTE[index % PALETTE.length] }} />{item.name}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+        {action}
       </figcaption>
-      {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} compact={compact} /> : null}
-      {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} compact={compact} /> : null}
-      {figure.type === 'waterfall' ? <WaterfallChart figure={figure} /> : null}
-      {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} compact={compact} /> : null}
-      {figure.type === 'stacked' ? <StackedChart figure={figure} compact={compact} /> : null}
-      {figure.type === 'heatmap' ? <HeatmapChart figure={figure} /> : null}
-      {figure.type === 'bullet' ? <BulletChart figure={figure} /> : null}
+      <ChartStage>
+        {figure.type === 'line' || figure.type === 'area' ? <LineChart figure={figure} area={figure.type === 'area'} compact={compact} /> : null}
+        {figure.type === 'funnel' || figure.type === 'flow' ? <StageChart figure={figure} compact={compact} /> : null}
+        {figure.type === 'waterfall' ? <WaterfallChart figure={figure} /> : null}
+        {figure.type === 'bars' || figure.type === 'pareto' ? <BarChart figure={figure} pareto={figure.type === 'pareto'} compact={compact} /> : null}
+        {figure.type === 'stacked' ? <StackedChart figure={figure} compact={compact} /> : null}
+        {figure.type === 'heatmap' ? <HeatmapChart figure={figure} /> : null}
+        {figure.type === 'bullet' ? <BulletChart figure={figure} /> : null}
+      </ChartStage>
       {compact ? null : <ValueTable figure={figure} />}
     </figure>
   );
+}
+
+export function ChartStage({ children }: { children: ReactNode }) {
+  const [tip, setTip] = useState<{ x: number; y: number; title: string; value: string } | null>(null);
+  const onMove = (event: MouseEvent<HTMLDivElement>) => {
+    const target = (event.target as Element | null)?.closest?.('[data-tip-title]') as HTMLElement | null;
+    if (!target) {
+      setTip(null);
+      return;
+    }
+    const box = event.currentTarget.getBoundingClientRect();
+    setTip({
+      x: Math.min(Math.max(event.clientX - box.left, 12), box.width - 12),
+      y: Math.max(event.clientY - box.top - 12, 8),
+      title: target.getAttribute('data-tip-title') || '',
+      value: target.getAttribute('data-tip-value') || '',
+    });
+  };
+  return (
+    <div className="gc-chart-stage" onMouseMove={onMove} onMouseLeave={() => setTip(null)}>
+      {children}
+      {tip ? (
+        <div className="gc-tip" style={{ left: tip.x, top: tip.y }} role="tooltip">
+          <strong>{tip.title}</strong>
+          <span>{tip.value}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function tipValue(value: number, digits: number, unit: string, series?: string): string {
+  const amount = value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits > 0 && Math.abs(value) < 10 ? digits : 0 });
+  const label = series ? `${series}: ${amount}` : amount;
+  return unit ? `${label} ${unit}` : label;
 }
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74', '#9a5b4a'];
@@ -496,7 +537,20 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
           const h = (Math.abs(value) / max) * innerH;
           const x = padL + categoryIndex * groupW + (groupW - series.length * barW) / 2 + seriesIndex * barW;
           const y = padT + innerH - h;
-          return <rect key={`${category}-${item.name}`} x={x} y={y} width={Math.max(barW - 3, 2)} height={Math.max(h, value === 0 ? 0 : 1.5)} rx="3" fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${category} ${item.name}: ${value}`}</title></rect>;
+          return (
+            <rect
+              key={`${category}-${item.name}`}
+              className="gc-mark"
+              x={x}
+              y={y}
+              width={Math.max(barW - 3, 2)}
+              height={Math.max(h, value === 0 ? 0 : 1.5)}
+              rx="3"
+              fill={PALETTE[seriesIndex % PALETTE.length]}
+              data-tip-title={category}
+              data-tip-value={tipValue(value, digits, figure.unit, item.name)}
+            />
+          );
         }),
       )}
       {pareto ? <ParetoLine figure={figure} padL={padL} padT={padT} innerH={innerH} groupW={groupW} /> : null}
@@ -550,7 +604,19 @@ function StackedChart({ figure, compact = false }: { figure: Figure; compact?: b
           const y = padT + innerH - stack - h;
           stack += h;
           const x = padL + categoryIndex * groupW + (groupW - barW) / 2;
-          return <rect key={`${category}-${item.name}`} x={x} y={y} width={barW} height={Math.max(h, 0)} fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${category} ${item.name}: ${value}`}</title></rect>;
+          return (
+            <rect
+              key={`${category}-${item.name}`}
+              className="gc-mark"
+              x={x}
+              y={y}
+              width={barW}
+              height={Math.max(h, 0)}
+              fill={PALETTE[seriesIndex % PALETTE.length]}
+              data-tip-title={category}
+              data-tip-value={tipValue(value, digits, figure.unit, item.name)}
+            />
+          );
         });
       })}
       {categories.map((category, index) => (
@@ -582,9 +648,18 @@ function HeatmapChart({ figure }: { figure: Figure }) {
           {(matrix[row] ?? []).map((value, column) => {
             const tone = 0.15 + 0.85 * (value / peak);
             return (
-              <rect key={`${day}-${figure.categories[column]}`} x={padL + column * cellW} y={20 + row * cellH} width={cellW - 4} height={cellH - 4} rx="3" fill={`rgba(15,110,106,${tone.toFixed(2)})`}>
-                <title>{`${day} ${figure.categories[column]}:00: ${value.toLocaleString('en-US')} arrivals`}</title>
-              </rect>
+              <rect
+                key={`${day}-${figure.categories[column]}`}
+                className="gc-mark"
+                x={padL + column * cellW}
+                y={20 + row * cellH}
+                width={cellW - 4}
+                height={cellH - 4}
+                rx="3"
+                fill={`rgba(15,110,106,${tone.toFixed(2)})`}
+                data-tip-title={`${day} · ${figure.categories[column]}:00`}
+                data-tip-value={tipValue(value, 0, figure.unit)}
+              />
             );
           })}
         </g>
@@ -661,9 +736,20 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
         const floor = item.values.map((_, index) => `${padL + index * step},${yOf(0)}`).reverse().join(' ');
         return (
           <g key={item.name}>
-            {area ? <polygon points={`${points} ${floor}`} fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'} opacity="0.18" /> : null}
-            <polyline points={points} fill="none" stroke={PALETTE[seriesIndex % PALETTE.length]} strokeWidth="2.5" />
-            {item.values.map((value, index) => <circle key={`${item.name}-${categories[index]}`} cx={padL + index * step} cy={yOf(value)} r="3.2" fill={PALETTE[seriesIndex % PALETTE.length]}><title>{`${categories[index]} ${item.name}: ${value}`}</title></circle>)}
+            {area ? <polygon className="gc-mark-soft" points={`${points} ${floor}`} fill={seriesIndex === 0 ? '#0f6e6a' : '#8c6a3d'} opacity="0.18" /> : null}
+            <polyline className="gc-mark-line" points={points} fill="none" stroke={PALETTE[seriesIndex % PALETTE.length]} strokeWidth="2.5" />
+            {item.values.map((value, index) => (
+              <circle
+                key={`${item.name}-${categories[index]}`}
+                className="gc-mark"
+                cx={padL + index * step}
+                cy={yOf(value)}
+                r="4"
+                fill={PALETTE[seriesIndex % PALETTE.length]}
+                data-tip-title={categories[index]}
+                data-tip-value={tipValue(value, digits, figure.unit, item.name)}
+              />
+            ))}
           </g>
         );
       })}
@@ -691,7 +777,17 @@ function StageChart({ figure, compact = false }: { figure: Figure; compact?: boo
         return (
           <g key={category}>
             <text x="8" y={y + barH} fontSize={compact ? 12 : 13}>{category}</text>
-            <rect x={compact ? 156 : 210} y={y + 2} width={bar} height={barH} rx="7" fill={index === 0 ? '#0f6e6a' : '#1e3a5f'} />
+            <rect
+              className="gc-mark"
+              x={compact ? 156 : 210}
+              y={y + 2}
+              width={bar}
+              height={barH}
+              rx="7"
+              fill={index === 0 ? '#0f6e6a' : '#1e3a5f'}
+              data-tip-title={category}
+              data-tip-value={tipValue(value, figure.digits, figure.unit)}
+            />
             <text x={(compact ? 164 : 220) + bar} y={y + barH} fontSize={compact ? 12 : 13}>{value.toLocaleString('en-US', { maximumFractionDigits: figure.digits })}</text>
           </g>
         );
@@ -737,7 +833,17 @@ function WaterfallChart({ figure }: { figure: Figure }) {
         const h = Math.max(yOf(bottom) - y, 1.5);
         return (
           <g key={figure.categories[index] ?? index}>
-            <rect x={x} y={y} width={barW} height={h} rx="3" fill={index === 1 ? '#8c6a3d' : '#0f6e6a'} />
+            <rect
+              className="gc-mark"
+              x={x}
+              y={y}
+              width={barW}
+              height={h}
+              rx="3"
+              fill={index === 1 ? '#8c6a3d' : '#0f6e6a'}
+              data-tip-title={figure.categories[index] ?? String(index)}
+              data-tip-value={tipValue(value, 0, figure.unit)}
+            />
             <text x={x + barW / 2} y={height - 12} textAnchor="middle">{figure.categories[index]}</text>
           </g>
         );

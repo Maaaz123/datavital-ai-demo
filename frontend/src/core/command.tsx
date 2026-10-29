@@ -93,8 +93,15 @@ export function CommandCenter() {
 function ChartSlot({ item, onInvestigate }: { item: { figure: Figure; span: string }; onInvestigate: (title: string) => void }) {
   return (
     <div className={item.span}>
-      <Chart figure={item.figure} compact />
-      <button type="button" className="gc-text-btn" onClick={() => onInvestigate(item.figure.title)}>Investigate {item.figure.title}</button>
+      <Chart
+        figure={item.figure}
+        compact
+        action={(
+          <button type="button" className="gc-investigate" aria-label={`Investigate ${item.figure.title}`} onClick={() => onInvestigate(item.figure.title)}>
+            Investigate
+          </button>
+        )}
+      />
     </div>
   );
 }

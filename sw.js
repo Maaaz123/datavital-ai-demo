@@ -78,13 +78,13 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "refresh.html",
-    "revision": "c15f0e0199e94f90b859c4f88d534a25"
+    "revision": "af2a50c86a2464a0f04c6753560346c1"
   }, {
     "url": "manifest.webmanifest",
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "a9e83b1114e19ef231b67e2c02832bfb"
+    "revision": "50bb072f1910400e9cd6df53d8c6448c"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -92,133 +92,277 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-B7SGBLpo.js",
+    "url": "assets/pwa-CKObohXO.js",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-700-normal-CV6qDkkj.woff2",
+    "url": "assets/manrope-vietnamese-800-normal-bvg7iBCV.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-700-normal-BCh_uG_5.woff",
+    "url": "assets/manrope-vietnamese-800-normal-ClPWri-A.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-600-normal-Y4VTTRme.woff2",
+    "url": "assets/manrope-vietnamese-700-normal-pt65Fn2Z.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-600-normal-5YsyKbU1.woff",
+    "url": "assets/manrope-vietnamese-700-normal-CUqMx5-1.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-500-normal-DiU8zqi-.woff2",
+    "url": "assets/manrope-vietnamese-600-normal-lA7a_7Ok.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-500-normal-CvE5C8T-.woff",
+    "url": "assets/manrope-vietnamese-600-normal-C1J5PCl_.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-400-normal-Cg2kxhWu.woff2",
+    "url": "assets/manrope-vietnamese-500-normal-DaZ8i3XM.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-vietnamese-400-normal-B8TCSmUq.woff",
+    "url": "assets/manrope-vietnamese-500-normal-DCXiE_xi.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-700-normal-BajbvANd.woff2",
+    "url": "assets/manrope-latin-ext-800-normal-DdFx7KEb.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-700-normal-8-d-IyIQ.woff",
+    "url": "assets/manrope-latin-ext-800-normal-BQAQsuQc.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-600-normal-DQgPU_Cg.woff2",
+    "url": "assets/manrope-latin-ext-700-normal-eVCcYqtJ.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-600-normal-B0WRRYJ1.woff",
+    "url": "assets/manrope-latin-ext-700-normal-DYOwVNan.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-500-normal-CqEEAICU.woff",
+    "url": "assets/manrope-latin-ext-600-normal-u5Pl7hTU.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-500-normal-9VZagAe1.woff2",
+    "url": "assets/manrope-latin-ext-600-normal-_gBojHdJ.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-400-normal-D127hM_v.woff2",
+    "url": "assets/manrope-latin-ext-500-normal-dm74KBQw.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-ext-400-normal-2ppkqaOR.woff",
+    "url": "assets/manrope-latin-ext-500-normal-EtoS1VaI.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-700-normal-DqEcQeE5.woff",
+    "url": "assets/manrope-latin-800-normal-uHUdIJgA.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-700-normal-CfpNZvy6.woff2",
+    "url": "assets/manrope-latin-800-normal-BfWYOv1c.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-600-normal-DLTa1BUW.woff2",
+    "url": "assets/manrope-latin-700-normal-DGRFkw-m.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-600-normal-BR_Ojra4.woff",
+    "url": "assets/manrope-latin-700-normal-BZp_XxE4.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-500-normal-DYtqi0QS.woff",
+    "url": "assets/manrope-latin-600-normal-BqgrALkZ.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-500-normal-Bf-nb4oT.woff2",
+    "url": "assets/manrope-latin-600-normal-4f0koTD-.woff2",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-400-normal-Dhut76fR.woff2",
+    "url": "assets/manrope-latin-500-normal-DMZssgOp.woff",
     "revision": null
   }, {
-    "url": "assets/plus-jakarta-sans-latin-400-normal-BDKaGhyp.woff",
+    "url": "assets/manrope-latin-500-normal-BYYD-dBL.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-800-normal-DyhPHUt-.woff",
+    "url": "assets/manrope-greek-800-normal-CDvU698_.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-800-normal-DRv2ic_2.woff2",
+    "url": "assets/manrope-greek-800-normal-Bw-67qu9.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-700-normal-fjS8-Gm7.woff",
+    "url": "assets/manrope-greek-700-normal-DyfsrCpP.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-700-normal-CI4iH74K.woff2",
+    "url": "assets/manrope-greek-700-normal-CHUG9PD8.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-600-normal-CWJcPgd7.woff",
+    "url": "assets/manrope-greek-600-normal-CF2i9ZRY.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-600-normal-B85nYjL1.woff2",
+    "url": "assets/manrope-greek-600-normal-BoRV6lzK.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-500-normal-zeox_O30.woff2",
+    "url": "assets/manrope-greek-500-normal-GeMIHyWm.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-ext-500-normal-DrCvqoFD.woff",
+    "url": "assets/manrope-greek-500-normal-DyxYGEtJ.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-800-normal-CQna6-G7.woff2",
+    "url": "assets/manrope-cyrillic-800-normal-BuEMjQU-.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-800-normal-BRHLSPcU.woff",
+    "url": "assets/manrope-cyrillic-800-normal-AvdZ5mAV.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-700-normal-D4itBLBr.woff",
+    "url": "assets/manrope-cyrillic-700-normal-Dw_fZAg2.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-700-normal-Cu9v6i1X.woff2",
+    "url": "assets/manrope-cyrillic-700-normal-7JNVKxyl.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-600-normal-BEfTtDA7.woff",
+    "url": "assets/manrope-cyrillic-600-normal-It4mZcQk.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-600-normal-B7SfZ07L.woff2",
+    "url": "assets/manrope-cyrillic-600-normal-DvRl3Mj-.woff2",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-500-normal-DKnIMDSk.woff2",
+    "url": "assets/manrope-cyrillic-500-normal-CNwnNrRC.woff",
     "revision": null
   }, {
-    "url": "assets/outfit-latin-500-normal-ClnHRwRh.woff",
+    "url": "assets/manrope-cyrillic-500-normal-B1OEZity.woff2",
     "revision": null
   }, {
-    "url": "assets/index-fG1X-46Y.css",
+    "url": "assets/index-DKl0fNre.css",
     "revision": null
   }, {
-    "url": "assets/index-CpcIbcjK.js",
+    "url": "assets/index-CIXAuAsc.js",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-700-normal-CkEo6LDy.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-700-normal-BV5B8Are.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-600-normal-DpPYBSTl.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-600-normal-DgdngZtN.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-500-normal-e4dixQRQ.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-500-normal-BEb3_waV.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-400-normal-fK1oJ5dG.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-vietnamese-400-normal-DG4YqDda.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-700-normal-aMgXseD4.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-700-normal-DZH6Xh-4.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-600-normal-DOrvGEcy.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-600-normal-DIrixKbi.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-500-normal-DakdToA3.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-500-normal-D0aIdm-b.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-400-normal-RBey6euL.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-ext-400-normal-C5H60-Va.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-700-normal-Bxkt5Cjx.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-700-normal-Bth3BMcD.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-600-normal-CuJfVYMP.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-600-normal-Cu4Hd6ag.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-500-normal-BgVn5rGT.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-500-normal-6ng42L7E.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-400-normal-CYLoc0-x.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-latin-400-normal-CDDApCn2.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-700-normal-wyJ6jzdA.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-700-normal-CkZN0sRy.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-600-normal-DzTrcv_p.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-600-normal-D-CqTdkO.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-500-normal-JMMifIXV.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-500-normal-CuWXN6rf.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-400-normal-_efipK4i.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-greek-400-normal-D9ESIMu3.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-700-normal-DCQwxkRk.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-700-normal-BmRLXWpJ.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-600-normal-DUMzJB7m.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-600-normal-Bz0x94Yp.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-500-normal-DB5PtV2g.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-500-normal-Cs5J6C77.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-400-normal-g30qAdWV.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-ext-400-normal-Dsrv2Tcn.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-700-normal-RFb1v-CK.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-700-normal-D_uavGvn.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-600-normal-BGq0mW3O.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-600-normal-71GNu3SW.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-500-normal-CocWQlwt.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-500-normal-ByOcLdNv.woff",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-400-normal-DZqxrq2p.woff2",
+    "revision": null
+  }, {
+    "url": "assets/ibm-plex-sans-cyrillic-400-normal-BTotfTJu.woff",
     "revision": null
   }, {
     "url": "favicon.svg",
@@ -241,7 +385,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     request,
     url
   }) => request.destination === "style" || request.destination === "script" || request.destination === "font" || /\.(?:js|css|woff2?|ttf|eot)$/i.test(url.pathname), new workbox.NetworkFirst({
-    "cacheName": "static-assets-v18",
+    "cacheName": "static-assets-v19",
     "networkTimeoutSeconds": 3,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 120,

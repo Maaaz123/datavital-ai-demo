@@ -16,7 +16,7 @@ import {
 } from './derived';
 import { sumKey, usePeriod, weighted } from './period';
 import { indicatorsFor, type Indicator, type ScopeInput } from './scope';
-import { Chart, type Figure } from './viz';
+import { Chart, ChartStage, type Figure } from './viz';
 
 const PALETTE = ['#0f6e6a', '#1e3a5f', '#8c6a3d', '#4d6b8a', '#6e8b74'];
 
@@ -158,8 +158,15 @@ function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string }) {
   const copilot = useCopilot();
   return (
     <section className={`gc-panel gc-slot ${span}`}>
-      <Chart figure={figure} compact />
-      <button type="button" className="gc-text-btn" aria-label={`Investigate ${figure.title}`} onClick={() => copilot.focusChart(figure.title)}>Investigate</button>
+      <Chart
+        figure={figure}
+        compact
+        action={(
+          <button type="button" className="gc-investigate" aria-label={`Investigate ${figure.title}`} onClick={() => copilot.focusChart(figure.title)}>
+            Investigate
+          </button>
+        )}
+      />
     </section>
   );
 }
@@ -193,7 +200,20 @@ function Alerts() {
       <div className="gc-next">
         <h2>Management action</h2>
         <p>Review the peak arrival hours while door-to-provider median is {num(view.median, 1)} minutes.</p>
-        <button type="button" className="gc-btn primary" onClick={() => { if (alerts[0]) copilot.openAlert(alerts[0], { stay: true }); else copilot.setOpen(true); }}>Review in AI</button>
+        <button
+          type="button"
+          className="gc-ai-cta"
+          onClick={() => { if (alerts[0]) copilot.openAlert(alerts[0], { stay: true }); else copilot.setOpen(true); }}
+        >
+          <span className="gc-ai-orb" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 20l7.2-7.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M12.8 5.2l1.4 3.4 3.4 1.4-3.4 1.4-1.4 3.4-1.4-3.4-3.4-1.4 3.4-1.4z" fill="currentColor" />
+              <path d="M19 4l.7 1.7L21.4 6.4 19.7 7.1 19 8.8l-.7-1.7L16.6 6.4l1.7-.7z" fill="currentColor" />
+            </svg>
+          </span>
+          Review in AI
+        </button>
         {alerts[0] ? (
           <button type="button" className="gc-text-btn" onClick={() => { copilot.openAlert(alerts[0], { stay: true }); copilot.setTab('approvals'); }}>
             Open the decision review
@@ -444,31 +464,53 @@ function Donut({ title, note, parts, wide = false }: { title: string; note: stri
   let offset = 0;
   return (
     <figure className={`gc-chart ${wide ? 'gc-donut-wide' : ''}`} data-chart-state="ok">
-      <figcaption><strong>{title}</strong><span>{note}</span></figcaption>
-      <div className="gc-donut-body">
-        <svg viewBox="0 0 140 120" role="img" aria-label={`${title}. ${note}`}>
-          {parts.map((part, index) => {
-            const length = (part.value / total) * circumference;
-            const node = (
-              <circle key={part.name} className="gc-donut-seg" cx="60" cy="60" r={radius} fill="none" stroke={PALETTE[index % PALETTE.length]} strokeWidth="14" strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} transform="rotate(-90 60 60)" style={{ animationDelay: `${index * 80}ms` }} />
-            );
-            offset += length;
-            return node;
-          })}
-          <text x="60" y="64" textAnchor="middle">{num(total)}</text>
-        </svg>
-        <ul className="gc-donut-legend">
-          {parts.map((part, index) => (
-            <li key={part.name} style={{ animationDelay: `${120 + index * 60}ms` }}>
-              <i style={{ background: PALETTE[index % PALETTE.length] }} />
-              <strong>{part.name}</strong>
-              <span>{num(part.value)}</span>
-              <em>{pct(part.value / total)}</em>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <button type="button" className="gc-text-btn" aria-label={`Investigate ${title}`} onClick={() => copilot.focusChart(title)}>Investigate</button>
+      <figcaption className="gc-chart-head">
+        <div className="gc-chart-copy">
+          <strong>{title}</strong>
+          <span>{note}</span>
+        </div>
+        <button type="button" className="gc-investigate" aria-label={`Investigate ${title}`} onClick={() => copilot.focusChart(title)}>Investigate</button>
+      </figcaption>
+      <ChartStage>
+        <div className="gc-donut-body">
+          <svg viewBox="0 0 140 120" role="img" aria-label={`${title}. ${note}`}>
+            {parts.map((part, index) => {
+              const length = (part.value / total) * circumference;
+              const node = (
+                <circle
+                  key={part.name}
+                  className="gc-donut-seg"
+                  cx="60"
+                  cy="60"
+                  r={radius}
+                  fill="none"
+                  stroke={PALETTE[index % PALETTE.length]}
+                  strokeWidth="14"
+                  strokeDasharray={`${length} ${circumference - length}`}
+                  strokeDashoffset={-offset}
+                  transform="rotate(-90 60 60)"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                  data-tip-title={part.name}
+                  data-tip-value={`${num(part.value)} · ${pct(part.value / total)}`}
+                />
+              );
+              offset += length;
+              return node;
+            })}
+            <text x="60" y="64" textAnchor="middle">{num(total)}</text>
+          </svg>
+          <ul className="gc-donut-legend">
+            {parts.map((part, index) => (
+              <li key={part.name} style={{ animationDelay: `${120 + index * 60}ms` }} data-tip-title={part.name} data-tip-value={`${num(part.value)} · ${pct(part.value / total)}`}>
+                <i style={{ background: PALETTE[index % PALETTE.length] }} />
+                <strong>{part.name}</strong>
+                <span>{num(part.value)}</span>
+                <em>{pct(part.value / total)}</em>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </ChartStage>
     </figure>
   );
 }
