@@ -1,11 +1,22 @@
 # ICU & Critical Care — Data Dictionary
 
 **Domain:** Domain 10 — ICU & Critical Care Intelligence  
-**Status:** Implementation-ready canonical model for the synthetic demo  
+**Release:** `v71-icu` (post-audit remediation)  
+**Status:** Demo Available — not Production Source Verified  
 **Scope:** Expected source-system fields → DataVital canonical columns  
 **Privacy:** Demo uses synthetic, deterministic, non-identifiable records only  
 
 Canonical names below are **proposed DataVital columns**, not verified customer HIS/EHR schema names.
+
+## Data readiness legend
+
+| State | Meaning |
+|---|---|
+| Demo Available | Present in `buildIcuView` synthetic ledger |
+| Production Source Verified | Confirmed mapped to a real hospital feed (none yet) |
+| Partially Mapped | Expected pattern known; integration incomplete |
+| Missing | Required for production KPI; not available |
+| Scenario Only | Explicitly synthetic assumption (e.g. readiness flags) |
 
 ---
 

@@ -6,7 +6,7 @@ Each primary KPI has exactly one owning screen (`icuOwnership.ts`). Transformati
 |---|---|---|---|---|---|---|---|
 | kpi_icu_admissions | ICU Admissions | command | /icu | icu_arrived_at, hospital_id, icu_unit_id, departure exclusion of internal transfers | Count arrivals from outside ICU in period | Admissions | Available |
 | kpi_icu_discharges | ICU Discharges | command | /icu | icu_departed_at, departure_disposition≠death | Count non-death ICU exits | Discharges | Available |
-| kpi_icu_patient_days | Patient Days | command | /icu | opening/closing census by day | Midnight census Σ patient-days | Patient-days | Available |
+| kpi_icu_patient_days | Patient Days | command | /icu | daily midnight occupancy | Σ daily midnight closing census counts (not monthly mid-point average) | Patient-days | Demo Available |
 | kpi_icu_avg_census | Avg Census | command | /icu | patient_days, calendar_period_id | patient_days ÷ days in period | Patients | Available |
 | kpi_icu_demand_pressure | Demand Pressure | command | /icu | pending transfers, available staffed | pending ÷ max(1, available staffed) | Index | Available |
 | kpi_icu_pending_transfers | Pending Transfers | command | /icu | open transfer_request | Count open requests at observation | Requests | Available |
@@ -22,9 +22,9 @@ Each primary KPI has exactly one owning screen (`icuOwnership.ts`). Transformati
 | kpi_icu_staffing_gap_hours | Staffing Gap | capacity | /icu/capacity | shift coverage ledger | required − staffed hours | Hours | Available |
 | kpi_icu_pt_nurse_ratio | Pt:Nurse Ratio | capacity | /icu/capacity | occupied, nurses on duty | occupied ÷ nurses (descriptive) | Ratio | Available |
 | kpi_icu_vent_patient_days | Vent Patient Days | equipment | /icu/equipment | device_assignment_*, equipment_type | Patient-days with assigned vent | Patient-days | Available |
-| kpi_icu_vent_utilization | Vent Utilization | equipment | /icu/equipment | assignment hours, eligible serviceable hours | assigned ÷ eligible | Rate | Available |
-| kpi_icu_available_vents | Available Vents | equipment | /icu/equipment | equipment_state=available | Count unassigned serviceable | Devices | Available |
-| kpi_icu_equipment_downtime | Equip Downtime | equipment | /icu/equipment | maintenance_* | Maintenance + prep hours | Hours | Available |
+| kpi_icu_vent_utilization | Vent Utilization | equipment | /icu/equipment | device-state intervals | Assigned (In Use) ÷ Serviceable (In Use + Available); maintenance/prep excluded from denominator | Rate | Demo Available |
+| kpi_icu_available_vents | Available Vents | equipment | /icu/equipment | equipment_state=available | Count unassigned serviceable | Devices | Demo Available |
+| kpi_icu_equipment_downtime | Equip Downtime | equipment | /icu/equipment | non-overlapping maintenance/prep intervals | Σ clipped unavailable interval hours in period | Hours | Demo Available |
 | kpi_icu_equipment_readiness | Equip Readiness | equipment | /icu/equipment | equipment_state snapshot | (in_use + available) ÷ inventory | Rate | Available |
 | kpi_icu_readmission_rate | Readmission Rate | quality | /icu/quality | icu_stay pairs within 48h, discharges | readmits ÷ discharges | Rate | Available |
 | kpi_icu_unplanned_transfer_rate | Unplanned Transfer | quality | /icu/quality | unplanned returns, step-down exits | returns ÷ step-downs | Rate | Available |

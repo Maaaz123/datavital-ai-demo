@@ -142,10 +142,10 @@ function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | fal
 
 /** Axis-safe short labels so charts do not ellipsize ICU categories. */
 const ICU_AXIS: Record<string, string> = {
-  'Medical ICU': 'Medical',
-  'Surgical ICU': 'Surgical',
-  'Cardiac ICU': 'Cardiac',
-  'Neuro ICU': 'Neuro',
+  'Medical ICU': 'MICU',
+  'Surgical ICU': 'SICU',
+  'Cardiac ICU': 'CICU',
+  'Neuro ICU': 'NICU',
   Emergency: 'Emergency',
   'Operating theatre': 'Theatre',
   'Ward escalation': 'Ward esc.',
@@ -174,6 +174,19 @@ const ICU_AXIS: Record<string, string> = {
   'Unstaffed physical': 'Unstaffed',
   'Blocked staffed': 'Blocked',
   'Equipment downtime': 'Equip down',
+  'Downtime hrs÷10': 'Down÷10',
+  'Transfer delay hrs': 'Xfer delay',
+  'Avoidable hrs': 'Avoidable',
+  'Recoverable transfer': 'Recover xfer',
+  'Available staffed': 'Avail staffed',
+  'Feasible extra': 'Feasible',
+  'Pending demand': 'Pending',
+  'Gap hrs÷10': 'Gap÷10',
+  'Staffed beds': 'Staffed',
+  Inventory: 'Inventory',
+  'In use': 'In use',
+  Available: 'Available',
+  Unstaffed: 'Unstaffed',
   Day: 'Day',
   Evening: 'Evening',
   Night: 'Night',
@@ -186,7 +199,14 @@ const ICU_AXIS: Record<string, string> = {
 };
 
 function axis(labels: string[]): string[] {
-  return labels.map((label) => ICU_AXIS[label] ?? (label.length > 14 ? label.slice(0, 13) : label));
+  return labels.map((label) => {
+    if (ICU_AXIS[label]) return ICU_AXIS[label];
+    // Prefer whole-word aliases over mechanical character slices that produce "Downtime hrs/" / "Transfer dela".
+    if (label.length <= 12) return label;
+    const words = label.split(/\s+/);
+    if (words.length >= 2) return words.map((word) => word.slice(0, 6)).join(' ').slice(0, 14);
+    return label.slice(0, 12);
+  });
 }
 
 function fig(type: Figure['type'], title: string, categories: string[], series: Figure['series'], unit: string, note: string, extra?: Partial<Figure>): Figure {
@@ -322,7 +342,7 @@ export function IcuCommandPage() {
         score('Patient Days', num(view.patientDays), compare(view, prior, (item) => item.patientDays), 'ICU Patient Days',
           'Midnight census patient-days. Distinct from admissions.',
           `${num(view.patientDays)} patient-days · avg census ${num(view.avgCensus, 1)}.`,
-          { formula: 'Σ ((opening + closing) ÷ 2 × days)', testId: 'value-kpi_icu_patient_days' }),
+          { formula: 'Σ daily midnight occupancy', testId: 'value-kpi_icu_patient_days' }),
         score('Avg Census', num(view.avgCensus, 1), compare(view, prior, (item) => item.avgCensus), 'ICU Average Census',
           'Patient-days ÷ days in period — not an average of monthly averages.',
           `Closing census ${num(view.closingCensus)} · opening ${num(view.openingCensus)}.`,
@@ -529,7 +549,7 @@ export function IcuEquipmentPage() {
       <div className="gc-ed-pack">
         <div className="gc-ed-main gc-ed-split">
           <Slot span={false} figure={fig('bars', 'Equipment Readiness by Category', view.unitRows.map((item) => item.name), [{ name: 'Readiness %', values: view.unitRows.map((item) => Math.round(item.readiness * 1000) / 10) }], '%', `Hospital readiness ${pct(view.equipmentReadiness)}. No ventilator-setting advice.`)} />
-          <Slot span={false} figure={fig('bars', 'Equipment Capacity Constraints', ['Inventory', 'In use', 'Available', 'Downtime hrs/10'], [{ name: 'Value', values: [view.ventInventory, view.ventInUse, view.ventAvailable, Math.round(view.downtimeHours / 10)] }], 'index', 'Inventory and state snapshot versus scaled downtime. Illustrative constraint view.')} />
+          <Slot span={false} figure={fig('bars', 'Equipment Capacity Constraints', ['Inventory', 'In use', 'Available', 'Downtime hrs÷10'], [{ name: 'Value', values: [view.ventInventory, view.ventInUse, view.ventAvailable, Math.round(view.downtimeHours / 10)] }], 'index', 'Full labels: Inventory, In use, Available, Downtime hours ÷ 10. Snapshot versus scaled downtime — illustrative constraint view.')} />
         </div>
       </div>
       <IndicatorIndex indicators={icuIndicatorsFor(view)} domains={['ICU Equipment']} />
@@ -630,14 +650,14 @@ export function IcuOptimizationPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-main gc-ed-split">
-          <Slot span={false} figure={fig('bars', 'Current vs Scenario Capacity', ['Available staffed', 'Feasible extra', 'Pending demand'], [{ name: 'Admissions / beds', values: [view.availableStaffed, view.feasibleAdditionalCapacity, view.eligibleDemand] }], 'count', 'Scenario extras are capped and illustrative — not measured improvement.')} />
-          <Slot span={false} figure={fig('bars', 'Flow Improvement Opportunities', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Same exclusive recoverable drivers — shown for management prioritization.')} />
+          <Slot span={false} figure={fig('bars', 'Current vs Scenario Capacity', ['Available staffed', 'Feasible extra', 'Pending demand'], [{ name: 'Admissions / beds', values: [view.availableStaffed, view.feasibleAdditionalCapacity, view.eligibleDemand] }], 'count', 'Full labels: Available staffed, Feasible extra, Pending demand. Unit-capped scenario extras — illustrative only.')} />
+          <Slot span={false} figure={fig('bars', 'Flow Improvement Opportunities', view.unitOpportunityHours.map((item) => item.name), [{ name: 'Hours', values: view.unitOpportunityHours.map((item) => item.hours) }], 'hours', `Unit-level recoverable hours (non-interchangeable). Sum ${num(view.recoverableBedHours)} h — distinct from driver mix.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-main gc-ed-split">
-          <Slot span={false} figure={fig('bars', 'Staffed Capacity Constraints', ['Staffed beds', 'Available', 'Gap hours/10', 'Unstaffed'], [{ name: 'Value', values: [view.staffedBeds, view.availableStaffed, Math.round(view.staffingGapHours / 10), view.unstaffedPhysical] }], 'index', 'Staffing and physical constraints that cap feasible extras. Bed occupancy stays in Beds.')} />
-          <Slot span={false} figure={fig('bars', 'Transfer Delay Reduction', ['Transfer delay h', 'Avoidable h', 'Recoverable transfer'], [{ name: 'Hours', values: [Math.round(view.medianTransferDelayHours * view.transfersOut), view.avoidableTransferDelayHours, view.delayDriverHours[0]?.hours ?? 0] }], 'hours', 'Avoidable delay is a subset — not double-counted on top of recoverable transfer hours.')} />
+          <Slot span={false} figure={fig('bars', 'Staffed Capacity Constraints', ['Staffed beds', 'Available', 'Gap hrs÷10', 'Unstaffed'], [{ name: 'Value', values: [view.staffedBeds, view.availableStaffed, Math.round(view.staffingGapHours / 10), view.unstaffedPhysical] }], 'index', 'Full labels: Staffed beds, Available, Gap hours ÷ 10, Unstaffed. Caps feasible extras. Bed occupancy stays in Beds.')} />
+          <Slot span={false} figure={fig('bars', 'Transfer Delay Reduction', ['Transfer delay hrs', 'Avoidable hrs', 'Recoverable transfer'], [{ name: 'Hours', values: [Math.round(view.medianTransferDelayHours * view.transfersOut), view.avoidableTransferDelayHours, view.delayDriverHours[0]?.hours ?? 0] }], 'hours', 'Full labels preserved in tooltips. Avoidable delay is a subset — not double-counted on recoverable transfer hours.')} />
         </div>
       </div>
       <IndicatorIndex indicators={icuIndicatorsFor(view)} domains={['ICU Optimization', 'Cross-domain context']} />

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { alertsFor } from './alerts';
 import { assertUniqueIcuOwnership, ICU_CROSS_DOMAIN_FORBIDDEN, ICU_KPI_OWNERS, ownersForIcuScreen } from './icuOwnership';
-import { buildIcuView } from './icuView';
+import { buildIcuView, clearIcuViewCache, ICU_UNITS } from './icuView';
 import { answerQuestion } from '@/showcase/assistant';
 import { bindKpi } from '@/showcase/bind';
 import { findKpi } from '@/showcase/engine';
@@ -28,24 +28,36 @@ describe('ICU KPI ownership', () => {
   });
 });
 
-describe('ICU census and flow identity', () => {
-  it('reconciles opening + admits + transfers-in − discharges − transfers-out − deaths = closing', () => {
+describe('ICU daily census ledger', () => {
+  it('reconciles daily unit identity, roll-forward, and hospital identity', () => {
+    clearIcuViewCache();
     for (const hospital of ['H1', 'H2', 'H3'] as const) {
       const view = buildIcuView(hospital, 2026, 'year');
       expect(view.censusIdentity).toBe(view.closingCensus);
       expect(view.openingCensus + view.admissions + view.transfersIn - view.discharges - view.transfersOut - view.deaths).toBe(view.closingCensus);
+      expect(view.dailyInternalBalanced).toBe(true);
+      expect(view.internalTransfers).toBeGreaterThanOrEqual(0);
+      expect(view.patientDays).toBe(view.yearPatientDaysFromMonths);
+      expect(view.avgCensus).toBeCloseTo(view.patientDays / view.days, 1);
+      expect(view.days).toBe(365); // 2026 is not a leap year
+
+      for (let u = 0; u < ICU_UNITS.length; u += 1) {
+        const days = view.unitDays[u];
+        expect(days.length).toBe(view.days);
+        for (let d = 0; d < days.length; d += 1) {
+          const day = days[d];
+          expect(day.closing).toBeGreaterThanOrEqual(0);
+          expect(
+            day.opening + day.externalAdmissions + day.externalTransfersIn + day.internalIn
+            - day.internalOut - day.discharges - day.deaths,
+          ).toBe(day.closing);
+          if (d > 0) expect(day.opening).toBe(days[d - 1].closing);
+        }
+      }
+
       for (let i = 0; i < view.monthlyOpening.length; i += 1) {
-        expect(
-          view.monthlyOpening[i]
-          + view.monthlyAdmissions[i]
-          + view.monthlyTransfersIn[i]
-          - view.monthlyDischarges[i]
-          - view.monthlyTransfersOut[i]
-          - view.monthlyDeaths[i],
-        ).toBe(view.monthlyClosing[i]);
         if (i > 0) expect(view.monthlyOpening[i]).toBe(view.monthlyClosing[i - 1]);
       }
-      expect(view.avgCensus).toBeCloseTo(view.patientDays / view.days, 1);
     }
   });
 
@@ -54,42 +66,77 @@ describe('ICU census and flow identity', () => {
     expect(view.admissions).not.toBe(view.patientDays);
     expect(view.completedStays).toBe(view.discharges + view.transfersOut + view.deaths);
     expect(view.patientDays).toBeGreaterThan(view.admissions);
+    expect(view.methodology.census).toMatch(/midnight/i);
+    expect(view.methodology.census).not.toMatch(/\(opening\+closing\)\/2/i);
+  });
+
+  it('aggregates quarters from the same daily source as full year', () => {
+    clearIcuViewCache();
+    const yearView = buildIcuView('H1', 2026, 'year');
+    const quarters = (['Q1', 'Q2', 'Q3', 'Q4'] as const).map((period) => buildIcuView('H1', 2026, period));
+    expect(sum(quarters.map((item) => item.patientDays))).toBe(yearView.patientDays);
+    expect(sum(quarters.map((item) => item.admissions))).toBe(yearView.admissions);
+    expect(sum(quarters.map((item) => item.days))).toBe(yearView.days);
   });
 });
 
-describe('ICU LOS and capacity', () => {
-  it('uses completed-stay LOS with median ≤ P90 and excludes inventing negative waits', () => {
+describe('ICU bed and staffing reconciliation', () => {
+  it('reconciles unit-to-hospital bed inventory and exclusive staffed states', () => {
     const view = buildIcuView('H1', 2026, 'year');
-    expect(view.medianLosHours).toBeLessThanOrEqual(view.p90LosHours);
-    expect(view.medianAdmissionWaitMin).toBeGreaterThan(0);
-    expect(view.p90AdmissionWaitMin).toBeGreaterThanOrEqual(view.medianAdmissionWaitMin);
-    expect(view.delayedAdmissions).toBeLessThanOrEqual(view.admissions);
-  });
-
-  it('keeps physical ≥ staffed and staffed = occupied + available + blocked', () => {
-    const view = buildIcuView('H1', 2026, 'year');
+    expect(sum(view.unitRows.map((item) => item.physicalBeds))).toBe(view.physicalBeds);
+    expect(sum(view.unitRows.map((item) => item.staffedBeds))).toBe(view.staffedBeds);
+    expect(sum(view.unitRows.map((item) => item.occupied))).toBe(view.avgOccupied);
+    expect(sum(view.unitRows.map((item) => item.available))).toBe(view.availableStaffed);
     expect(view.physicalBeds).toBeGreaterThanOrEqual(view.staffedBeds);
     expect(view.staffedBeds).toBe(view.avgOccupied + view.availableStaffed + view.blockedStaffed);
     expect(view.unstaffedPhysical).toBe(view.physicalBeds - view.staffedBeds);
+    for (const row of view.unitRows) {
+      expect(row.staffedBeds).toBe(row.occupied + row.available + row.blocked);
+      expect(row.physicalBeds).toBe(row.staffedBeds + row.unstaffed);
+      expect(row.occupied).toBeLessThanOrEqual(row.staffedBeds - row.blocked);
+    }
   });
 
-  it('reconciles ventilator snapshot inventory', () => {
+  it('keeps shift staffing coverage consistent with hospital totals', () => {
     const view = buildIcuView('H1', 2026, 'year');
-    expect(view.ventSnapshotSum).toBe(view.ventInventory);
-    expect(view.ventInUse + view.ventAvailable + view.ventMaintenance + view.ventPrep).toBe(view.ventInventory);
-    expect(view.ventUtilization).toBeGreaterThanOrEqual(0);
-    expect(view.ventUtilization).toBeLessThanOrEqual(1);
+    expect(sum(view.shiftRows.map((item) => item.requiredHours))).toBe(view.requiredNurseHours);
+    expect(sum(view.shiftRows.map((item) => item.staffedHours))).toBe(view.staffedNurseHours);
+    expect(view.staffingGapHours).toBe(Math.max(0, view.requiredNurseHours - view.staffedNurseHours));
+    expect(view.nurseCoverage).toBeCloseTo(view.staffedNurseHours / view.requiredNurseHours, 3);
+    expect(view.patientNurseRatio).toBeCloseTo(view.avgOccupied / view.nursesOnDuty, 1);
   });
 });
 
-describe('ICU quality and optimization', () => {
-  it('keeps surveillance completeness illustrative and recoverable drivers exclusive', () => {
+describe('ICU ventilator device ledger', () => {
+  it('reconciles snapshot inventory, serviceable utilization, and downtime intervals', () => {
+    const view = buildIcuView('H1', 2026, 'year');
+    expect(view.ventSnapshotSum).toBe(view.ventInventory);
+    expect(view.ventInUse + view.ventAvailable + view.ventMaintenance + view.ventPrep).toBe(view.ventInventory);
+    expect(view.eligibleVentHours).toBe(view.serviceableVentHours);
+    expect(view.serviceableVentHours).toBeLessThanOrEqual(view.installedVentHours);
+    expect(view.assignedVentHours).toBeLessThanOrEqual(view.serviceableVentHours);
+    expect(view.ventUtilization).toBeCloseTo(view.assignedVentHours / view.serviceableVentHours, 3);
+    expect(view.downtimeHours).toBe(sum(view.downtimeByCause.map((item) => item.hours)));
+    expect(view.ventPatientDays).toBeLessThanOrEqual(view.patientDays);
+    expect(view.methodology.equipment).toMatch(/serviceable/i);
+    expect(sum(view.unitRows.map((item) => item.ventInUse))).toBe(view.ventInUse);
+    expect(sum(view.unitRows.map((item) => item.ventInventory))).toBe(view.ventInventory);
+  });
+});
+
+describe('ICU quality and unit-constrained optimization', () => {
+  it('keeps surveillance illustrative and recoverable drivers exclusive', () => {
     const view = buildIcuView('H1', 2026, 'year');
     expect(view.surveillanceCompleteness).toBeLessThanOrEqual(1);
     expect(view.methodology.quality).toMatch(/not a validated/i);
     const driverSum = view.delayDriverHours.reduce((total, item) => total + item.hours, 0);
     expect(driverSum).toBe(view.recoverableBedHours);
+    expect(sum(view.unitOpportunityHours.map((item) => item.hours))).toBe(view.recoverableBedHours);
+    expect(view.feasibleAdditionalCapacity).toBe(sum(view.unitRows.map((item) => item.feasibleAdditional)));
     expect(view.feasibleAdditionalCapacity).toBeLessThanOrEqual(view.eligibleDemand);
+    for (const row of view.unitRows) {
+      expect(row.feasibleAdditional).toBeLessThanOrEqual(row.eligibleDemand);
+    }
   });
 });
 
@@ -158,6 +205,7 @@ describe('ICU Assist and what-if', () => {
 
 describe('ICU filter matrix', () => {
   it('builds finite reconciled views for every hospital × year × period', () => {
+    clearIcuViewCache();
     const hospitals = ['H1', 'H2', 'H3', 'H4', 'H5'] as const;
     const years = [2024, 2025, 2026] as const;
     const periods: ReportPeriod[] = ['year', 'Q1', 'Q2', 'Q3', 'Q4'];
@@ -169,8 +217,14 @@ describe('ICU filter matrix', () => {
           expect(view.censusIdentity).toBe(view.closingCensus);
           expect(view.ventSnapshotSum).toBe(view.ventInventory);
           expect(view.staffedBeds).toBe(view.avgOccupied + view.availableStaffed + view.blockedStaffed);
+          expect(view.patientDays).toBe(sum(view.monthlyPatientDays));
+          expect(view.feasibleAdditionalCapacity).toBe(sum(view.unitRows.map((item) => item.feasibleAdditional)));
         }
       }
     }
   });
 });
+
+function sum(values: number[]): number {
+  return values.reduce((total, value) => total + value, 0);
+}

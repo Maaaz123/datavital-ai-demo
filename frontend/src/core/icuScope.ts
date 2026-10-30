@@ -47,7 +47,7 @@ export function icuIndicatorsFor(view: IcuView): Indicator[] {
       limitations: 'Deaths departing ICU are a separate exit category.', method: 'Non-death discharges from ICU.',
     }),
     row('ICU Activity', 'ICU Patient Days', {
-      unit: 'patient-days', formula: 'Σ ((opening + closing) ÷ 2 × days in month)', cohort: 'Midnight census',
+      unit: 'patient-days', formula: 'Σ daily midnight occupancy counts', cohort: 'Midnight census',
       aggregation: 'Sum', scope: view.periodLabel, classification: 'constructed',
       limitations: m.census, method: m.census,
     }),

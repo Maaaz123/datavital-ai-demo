@@ -1,7 +1,8 @@
 # ICU Source-to-Target Mapping
 
-**Target:** DataVital AI ICU canonical model (`buildIcuView`)  
-**Note:** Source table/column names are **expected patterns**, not verified customer schemas.
+**Target:** DataVital AI ICU canonical model (`buildIcuView`) — `v71-icu`  
+**Note:** Source table/column names are **expected patterns**, not verified customer schemas.  
+**Model change:** Full-year daily census ledger is simulated once; quarters slice the same day and device-hour facts. Patient-days = Σ midnight closing occupancy. Ventilator utilization uses serviceable hours (In Use + Available). Downtime sums non-overlapping maintenance/prep intervals.
 
 | Source system | Expected object | Expected column (illustrative) | Target canonical | Transform | Load rule |
 |---|---|---|---|---|---|
