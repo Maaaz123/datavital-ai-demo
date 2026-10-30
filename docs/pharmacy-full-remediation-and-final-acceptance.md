@@ -3,7 +3,7 @@
 **Domain:** Pharmacy & Medication Operations Intelligence  
 **Baseline release remediated:** `v68-pharmacy` / `assets/index-v90Mr-rx.js`  
 **Remediation release:** `v69b-pharmacy` / `assets/index-OfVQBgNJ.js` / `assets/pwa-92U1Sx4x.js`  
-**Production commit:** filled after final push (supersedes interim `ac5cc0b` Pages assets)  
+**Production commit:** `2e594fd` (Pages `v69b-pharmacy`; follows remediation commit `ac5cc0b`)  
 **Production:** https://maaaz123.github.io/datavital-ai-demo/pharmacy  
 **Cache clear:** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
 
@@ -373,7 +373,7 @@ Touched files are Pharmacy model/UI/ownership/scope/tests, Pharmacy Assist assum
 | BUILD_ID | `v69b-pharmacy` | PASS |
 | Bundle | `assets/index-OfVQBgNJ.js` | PASS |
 | PWA | `assets/pwa-92U1Sx4x.js` | PASS |
-| Production commit | git `main` tip after final push | PASS |
+| Production commit | `2e594fd` | PASS |
 | Live Pages verified | Six Pharmacy routes + six What-ifs + Assist Forecast | PASS |
 | `localStorage` BUILD_ID after refresh | `v69b-pharmacy` | PASS |
 
