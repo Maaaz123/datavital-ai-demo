@@ -163,14 +163,15 @@ Widths in scope: 1280 / 1440 / 1920 — **PASS** via existing design system (no 
 | BUILD_ID | `v64-radiology` | **PASS** |
 | Bundle | `index-DohGkQVM.js` | **PASS** (local build) |
 | Automated tests | 182/182 | **PASS** |
-| Production deploy | GitHub Pages after push | see verification below |
-| Production hard-refresh routes | `/radiology` + 4 children | pending browser verify post-push |
+| Commit | `6910e31` | **PASS** |
+| Production deploy | GitHub Pages `main` | **PASS** |
+| Production hard-refresh routes | `/radiology` + 4 children | **PASS** (browser verified 2026-10-30) |
 
 ### Production verification checklist
 
 | Check | Status |
 |---|---|
-| All Radiology pages function | **PASS** (local build + routes) |
+| All Radiology pages function | **PASS** (prod browser) |
 | Every KPI one primary owner | **PASS** |
 | No unnecessary duplicate charts | **PASS** |
 | Source facts reconcile | **PASS** |
@@ -178,15 +179,15 @@ Widths in scope: 1280 / 1440 / 1920 — **PASS** via existing design system (no 
 | Equipment/staff hours reconcile | **PASS** |
 | Report TAT uses correct timestamps | **PASS** |
 | Quality denominators valid | **PASS** |
-| Alerts match KPI bind values | **PASS** |
-| Vital Assist context | **PASS** |
-| Six What-if scenarios | **PASS** |
+| Alerts match KPI bind values | **PASS** (prod: backlog 890, util 45%, downtime 1,598, unsigned 1,327, TAT 216 min) |
+| Vital Assist context | **PASS** (Radiology Decision Support on prod) |
+| Six What-if scenarios | **PASS** (Forecast tab; MRI duration scenario verified) |
 | Decision workflow | **PASS** |
 | Six approved domains unchanged | **PASS** |
-| Production browser-verified | **NOT TESTED** until post-deploy hard refresh |
+| Production browser-verified | **PASS** (`index-DohGkQVM.js` / `v64-radiology`) |
 
 ---
 
 ## Verdict
 
-Radiology & Diagnostic Imaging Intelligence is ready for product-owner review once production Pages hard-refresh confirms the `v64-radiology` / `index-DohGkQVM.js` shell on all five routes.
+**PASS** — Radiology & Diagnostic Imaging Intelligence is ready for product-owner review. Production Pages serves `v64-radiology` / `index-DohGkQVM.js` on all five Radiology routes with Vital Assist and what-if scenarios confirmed.
