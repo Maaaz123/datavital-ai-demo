@@ -358,32 +358,52 @@ export function IcuCommandPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('area', 'ICU Admissions & Discharges Trend', view.labels, [
             { name: 'Admissions', values: view.monthlyAdmissions },
             { name: 'Exits', values: view.monthlyDischarges.map((d, i) => d + view.monthlyTransfersOut[i] + view.monthlyDeaths[i]) },
           ], 'stays', `Monthly admissions and exits. Census identity: opening + admits + transfers-in − discharges − transfers-out − deaths = closing (${num(view.closingCensus)}).`)} />
         </div>
-        <Alerts />
+        <div className="gc-ed-pack-col">
+          <Alerts packed />
+        </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('line', 'ICU Patient Census Trend', view.labels, [{ name: 'Closing census', values: view.monthlyCensus }], 'patients', `Month-end closing census rolls forward. Period average census ${num(view.avgCensus, 1)}.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'ICU Activity by Unit', view.unitRows.map((item) => item.name), [{ name: 'Admissions', values: view.unitRows.map((item) => item.admissions) }], 'admissions', 'Unit admissions sum to hospital admissions. Bed occupancy headlines stay in Beds.')} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Admission Sources', view.sourceMix.map((item) => item.name), [{ name: 'Admissions', values: view.sourceMix.map((item) => item.count) }], 'admissions', `Sources sum to ${num(view.admissions)} admissions.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Discharge Destinations', view.destMix.map((item) => item.name), [{ name: 'Exits', values: view.destMix.map((item) => item.count) }], 'exits', `Destinations partition completed exits including ${num(view.deaths)} deaths.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'ICU Demand Pattern', view.unitRows.map((item) => item.name), [
             { name: 'Pending', values: view.unitRows.map((item) => item.pendingTransfers) },
             { name: 'Available staffed', values: view.unitRows.map((item) => item.available) },
           ], 'count', `Demand pressure ${num(view.demandPressure, 1)}. Pending transfers versus available staffed beds by unit.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Unit demand focus</h2>
+            <div className="gc-exception-list">
+              {[...view.unitRows].sort((a, b) => b.pendingTransfers - a.pendingTransfers).slice(0, 3).map((item) => (
+                <div key={item.name} className={`gc-exception ${item.available <= 1 ? 'gc-tone-alert' : item.pendingTransfers >= 3 ? 'gc-tone-watch' : 'gc-tone-neutral'}`}>
+                  <strong>{item.name}</strong>
+                  <span>{num(item.pendingTransfers)} pending · {num(item.available)} available staffed</span>
+                </div>
+              ))}
+            </div>
+            <p className="gc-next">Demand pressure {num(view.demandPressure, 1)} · pending ÷ available staffed. Not hospital-wide bed occupancy.</p>
+          </section>
         </div>
       </div>
       <IndicatorIndex indicators={icuIndicatorsFor(view)} domains={['ICU Activity']} />
@@ -425,20 +445,26 @@ export function IcuFlowPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('line', 'Admission Wait Trend', view.labels, [{ name: 'Median minutes', values: view.monthlyWait }], 'min', `Monthly median request-to-arrival. Period median ${num(view.medianAdmissionWaitMin)} min.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Admission Delays by Source', view.sourceMix.map((item) => item.name), [{ name: 'Delayed', values: view.sourceMix.map((item) => Math.round(item.count * (view.delayedAdmissions / Math.max(1, view.admissions)))) }], 'admissions', `Delayed admissions scaled by source mix · total ${num(view.delayedAdmissions)}.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'ICU LOS Distribution', view.losBands.map((item) => item.name), [{ name: 'Completed stays', values: view.losBands.map((item) => item.count) }], 'stays', `Bands sum to ${num(view.completedStays)} completed stays. Open stays excluded from LOS.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Transfer Delay Reasons', view.delayReasons.map((item) => item.name), [{ name: 'Delayed admissions', values: view.delayReasons.map((item) => item.count) }], 'admissions', `Reason partition of ${num(view.delayedAdmissions)} delayed admissions.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Discharge Readiness vs Actual Exit', ['Ready delay', 'Transfer delay'], [{ name: 'Median hours', values: [view.medianDischargeReadyDelayHours, view.medianTransferDelayHours] }], 'hours', 'Operational clocks after clinical readiness flags. AI does not discharge patients.')} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'ICU Flow Bottlenecks', view.unitRows.map((item) => item.name), [{ name: 'Pending transfers', values: view.unitRows.map((item) => item.pendingTransfers) }], 'requests', `Unit pending transfers sum to ${num(view.pendingTransfers)}.`)} />
         </div>
       </div>
@@ -477,26 +503,32 @@ export function IcuCapacityPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Staffed vs Physical Beds', view.unitRows.map((item) => item.name), [
             { name: 'Physical', values: view.unitRows.map((item) => item.physicalBeds) },
             { name: 'Staffed', values: view.unitRows.map((item) => item.staffedBeds) },
           ], 'beds', `Hospital physical ${num(view.physicalBeds)} · staffed ${num(view.staffedBeds)}. Hospital-wide occupancy stays in Beds.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Coverage by Shift', view.shiftRows.map((item) => item.name), [{ name: 'Coverage %', values: view.shiftRows.map((item) => Math.round(item.coverage * 1000) / 10) }], '%', `Shift coverage hours reconcile to ${pct(view.nurseCoverage)} overall.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Nursing Workload Trend', view.shiftRows.map((item) => item.name), [
             { name: 'Required', values: view.shiftRows.map((item) => item.requiredHours) },
             { name: 'Staffed', values: view.shiftRows.map((item) => item.staffedHours) },
           ], 'hours', `Required ${num(view.requiredNurseHours)} · staffed ${num(view.staffedNurseHours)} · gap ${num(view.staffingGapHours)}.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Capacity Loss by Driver', view.capacityLoss.map((item) => item.name), [{ name: 'Hours', values: view.capacityLoss.map((item) => item.hours) }], 'hours', 'Mutually exclusive operational loss drivers — not clinical acuity scores.')} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Bed Availability by ICU Unit', view.unitRows.map((item) => item.name), [{ name: 'Available staffed', values: view.unitRows.map((item) => item.available) }], 'beds', `Unit available staffed beds sum toward hospital available ${num(view.availableStaffed)}.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Staffing Gaps by Shift', view.shiftRows.map((item) => item.name), [{ name: 'Gap hours', values: view.shiftRows.map((item) => item.gapHours) }], 'hours', `Shift gaps sum to ${num(view.staffingGapHours)} h.`)} />
         </div>
       </div>
@@ -535,20 +567,26 @@ export function IcuEquipmentPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('line', 'Ventilator Demand Trend', view.labels, [{ name: 'Vent patient-days', values: view.monthlyVentDemand }], 'days', `Monthly ventilated demand. Period total ${num(view.ventPatientDays)} patient-days.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Ventilator Availability', ['In use', 'Available', 'Maintenance', 'Prep'], [{ name: 'Devices', values: [view.ventInUse, view.ventAvailable, view.ventMaintenance, view.ventPrep] }], 'devices', `States sum to ${num(view.ventSnapshotSum)} = inventory ${num(view.ventInventory)}. One vent → one patient.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Equipment Downtime by Cause', view.downtimeByCause.map((item) => item.name), [{ name: 'Hours', values: view.downtimeByCause.map((item) => item.hours) }], 'hours', `Causes sum to ${num(view.downtimeHours)} downtime hours.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Device Utilization by ICU Unit', view.unitRows.map((item) => item.name), [{ name: 'Vents in use', values: view.unitRows.map((item) => item.ventInUse) }], 'devices', `Unit assignments sum to ${num(view.ventInUse)} in-use ventilators.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Equipment Readiness by Category', view.unitRows.map((item) => item.name), [{ name: 'Readiness %', values: view.unitRows.map((item) => Math.round(item.readiness * 1000) / 10) }], '%', `Hospital readiness ${pct(view.equipmentReadiness)}. No ventilator-setting advice.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Equipment Capacity Constraints', ['Inventory', 'In use', 'Available', 'Downtime hrs÷10'], [{ name: 'Value', values: [view.ventInventory, view.ventInUse, view.ventAvailable, Math.round(view.downtimeHours / 10)] }], 'index', 'Full labels: Inventory, In use, Available, Downtime hours ÷ 10. Snapshot versus scaled downtime — illustrative constraint view.')} />
         </div>
       </div>
@@ -587,20 +625,26 @@ export function IcuQualityPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('line', 'ICU Readmission Trend', view.labels, [{ name: 'Readmits (scaled)', values: view.labels.map((_, i) => Math.max(0, Math.round(view.readmissions48h / view.labels.length * (0.85 + 0.2 * Math.sin(i))))) }], 'events', `Monthly shape of ${num(view.readmissions48h)} 48-hour ICU readmissions. Not mortality risk.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Safety Event Categories', view.safetyByCategory.map((item) => item.name), [{ name: 'Events', values: view.safetyByCategory.map((item) => item.count) }], 'events', `Categories sum to ${num(view.safetyEvents)} process events — not certified harm.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Review Backlog Aging', view.reviewAging.map((item) => item.name), [{ name: 'Open reviews', values: view.reviewAging.map((item) => item.count) }], 'reviews', `Aging bands sum to ${num(view.unresolvedReviews)} unresolved reviews.`)} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Device-Day Documentation Coverage', view.unitRows.map((item) => item.name), [{ name: 'Completeness %', values: view.unitRows.map((item) => Math.round((view.surveillanceCompleteness + (item.readiness - 0.85) * 0.2) * 1000) / 10) }], '%', `Hospital completeness ${pct(view.surveillanceCompleteness)}. Not a validated infection rate.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'ICU Infection Surveillance Trend', view.labels, [{ name: 'Documented device-days', values: view.labels.map((_, i) => Math.round(view.documentedDeviceDays / view.labels.length * (0.9 + 0.1 * Math.sin(i)))) }], 'days', 'Illustrative documentation volume — not CLABSI/CAUTI/VAE incidence.')} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Quality Indicators by ICU Unit', view.unitRows.map((item) => item.name), [{ name: 'Pending reviews (share)', values: view.unitRows.map((item) => item.pendingTransfers) }], 'count', 'Unit operational quality attention proxy using pending transfer pressure. Validated infection rates are unavailable without surveillance classification.')} />
         </div>
       </div>
@@ -635,28 +679,34 @@ export function IcuOptimizationPage() {
       ]}
     >
       <div className="gc-ed-pack">
-        <div className="gc-ed-main">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Recoverable Capacity by Driver', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', `Exclusive drivers sum to ${num(view.recoverableBedHours)} recoverable bed hours.`)} />
         </div>
-        <section className="gc-panel gc-insight span-4">
-          <h2>Management decisions</h2>
-          <div className="gc-exception-list">
-            <div className="gc-exception gc-tone-neutral"><strong>Reduce transfer delays</strong><span>{num(view.avoidableTransferDelayHours)} h avoidable</span></div>
-            <div className="gc-exception gc-tone-neutral"><strong>Improve discharge coordination</strong><span>{num(view.medianDischargeReadyDelayHours, 1)} h ready delay</span></div>
-            <div className="gc-exception gc-tone-neutral"><strong>Extend staffed coverage</strong><span>{num(view.staffConstrainedHours)} h constrained</span></div>
-          </div>
-          <p className="gc-next">Estimates are illustrative. AI does not discharge or transfer patients and does not change clinical readiness decisions.</p>
-        </section>
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel gc-insight">
+            <h2>Management decisions</h2>
+            <div className="gc-exception-list">
+              <div className="gc-exception gc-tone-neutral"><strong>Reduce transfer delays</strong><span>{num(view.avoidableTransferDelayHours)} h avoidable</span></div>
+              <div className="gc-exception gc-tone-neutral"><strong>Improve discharge coordination</strong><span>{num(view.medianDischargeReadyDelayHours, 1)} h ready delay</span></div>
+              <div className="gc-exception gc-tone-neutral"><strong>Extend staffed coverage</strong><span>{num(view.staffConstrainedHours)} h constrained</span></div>
+            </div>
+            <p className="gc-next">Estimates are illustrative. AI does not discharge or transfer patients and does not change clinical readiness decisions.</p>
+          </section>
+        </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Current vs Scenario Capacity', ['Available staffed', 'Feasible extra', 'Pending demand'], [{ name: 'Admissions / beds', values: [view.availableStaffed, view.feasibleAdditionalCapacity, view.eligibleDemand] }], 'count', 'Full labels: Available staffed, Feasible extra, Pending demand. Unit-capped scenario extras — illustrative only.')} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Flow Improvement Opportunities', view.unitOpportunityHours.map((item) => item.name), [{ name: 'Hours', values: view.unitOpportunityHours.map((item) => item.hours) }], 'hours', `Unit-level recoverable hours (non-interchangeable). Sum ${num(view.recoverableBedHours)} h — distinct from driver mix.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-main gc-ed-split">
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Staffed Capacity Constraints', ['Staffed beds', 'Available', 'Gap hrs÷10', 'Unstaffed'], [{ name: 'Value', values: [view.staffedBeds, view.availableStaffed, Math.round(view.staffingGapHours / 10), view.unstaffedPhysical] }], 'index', 'Full labels: Staffed beds, Available, Gap hours ÷ 10, Unstaffed. Caps feasible extras. Bed occupancy stays in Beds.')} />
+        </div>
+        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Transfer Delay Reduction', ['Transfer delay hrs', 'Avoidable hrs', 'Recoverable transfer'], [{ name: 'Hours', values: [Math.round(view.medianTransferDelayHours * view.transfersOut), view.avoidableTransferDelayHours, view.delayDriverHours[0]?.hours ?? 0] }], 'hours', 'Full labels preserved in tooltips. Avoidable delay is a subset — not double-counted on recoverable transfer hours.')} />
         </div>
       </div>
