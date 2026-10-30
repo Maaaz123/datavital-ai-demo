@@ -1,6 +1,7 @@
 import { leaveSplit } from '@/core/derived';
 import { longStayRateFromP90 } from '@/core/ipdScope';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
@@ -126,8 +127,52 @@ function pharmacyMapped(key: string, hospital: string, year: number): Raw | null
   }
 }
 
+/** ICU & Critical Care KPIs bound to the shared ICU view. */
+function icuMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildIcuView(hospital, year, 'year');
+  switch (key) {
+    case 'kpi_icu_admissions': return count(v.admissions, 'neutral', 'ICU admissions from outside the ICU from the ICU Command view.', GRAIN, 'admissions');
+    case 'kpi_icu_discharges': return count(v.discharges, 'neutral', 'ICU discharges (deaths counted separately) from the ICU Command view.', GRAIN, 'discharges');
+    case 'kpi_icu_patient_days': return count(v.patientDays, 'neutral', 'Midnight census patient-days from the ICU Command view.', GRAIN, 'patient-days');
+    case 'kpi_icu_avg_census': return count(v.avgCensus, 'neutral', 'Patient-days ÷ days from the ICU Command view.', GRAIN, 'patients');
+    case 'kpi_icu_demand_pressure': return { value: v.demandPressure, kind: 'index', unit: 'index', numerator: v.pendingTransfers, denominator: Math.max(1, v.availableStaffed), grain: RATE_GRAIN, better: 'down', note: 'Pending transfers ÷ available staffed beds from the ICU Command view.' };
+    case 'kpi_icu_pending_transfers': return count(v.pendingTransfers, 'down', 'Open ICU transfer requests from the ICU Command view.', GRAIN, 'requests');
+    case 'kpi_icu_admission_wait': return duration(v.medianAdmissionWaitMin, 'minutes', 'down', 'Median request-to-arrival wait from the ICU Flow view.');
+    case 'kpi_icu_delayed_admissions': return count(v.delayedAdmissions, 'down', 'Admissions over the wait target from the ICU Flow view.', GRAIN, 'admissions');
+    case 'kpi_icu_transfer_delay': return duration(v.medianTransferDelayHours, 'hours', 'down', 'Median transfer-ready to exit delay from the ICU Flow view.');
+    case 'kpi_icu_median_los': return duration(v.medianLosHours, 'hours', 'neutral', 'Median completed-stay LOS from the ICU Flow view.');
+    case 'kpi_icu_discharge_ready_delay': return duration(v.medianDischargeReadyDelayHours, 'hours', 'down', 'Median discharge-ready to departure delay from the ICU Flow view.');
+    case 'kpi_icu_boarding_hours': return count(v.boardingHours, 'down', 'Aggregate ICU boarding hours from the ICU Flow view.', GRAIN, 'hours');
+    case 'kpi_icu_staffed_beds': return count(v.staffedBeds, 'neutral', 'Staffed ICU beds from the ICU Capacity view.', GRAIN, 'beds');
+    case 'kpi_icu_available_staffed': return count(v.availableStaffed, 'up', 'Available staffed ICU beds from the ICU Capacity view.', GRAIN, 'beds');
+    case 'kpi_icu_nurse_coverage': return exactRate(v.staffedNurseHours, v.requiredNurseHours, 'up', 'Staffed ÷ required nursing hours from the ICU Capacity view.');
+    case 'kpi_icu_staffing_gap_hours': return count(v.staffingGapHours, 'down', 'Unfilled nursing coverage hours from the ICU Capacity view.', GRAIN, 'hours');
+    case 'kpi_icu_pt_nurse_ratio': return { value: v.patientNurseRatio, kind: 'index', unit: 'ratio', numerator: v.avgOccupied, denominator: v.nursesOnDuty, grain: RATE_GRAIN, better: 'neutral', note: 'Occupied ÷ nurses on duty (descriptive) from the ICU Capacity view.' };
+    case 'kpi_icu_vent_patient_days': return count(v.ventPatientDays, 'neutral', 'Ventilated patient-days from the ICU Equipment view.', GRAIN, 'patient-days');
+    case 'kpi_icu_vent_utilization': return exactRate(v.assignedVentHours, v.eligibleVentHours, 'neutral', 'Assigned ÷ eligible ventilator hours from the ICU Equipment view.');
+    case 'kpi_icu_available_vents': return count(v.ventAvailable, 'up', 'Unassigned serviceable ventilators from the ICU Equipment view.', GRAIN, 'devices');
+    case 'kpi_icu_equipment_downtime': return count(v.downtimeHours, 'down', 'Maintenance and preparation hours from the ICU Equipment view.', GRAIN, 'hours');
+    case 'kpi_icu_equipment_readiness': return exactRate(v.ventInUse + v.ventAvailable, v.ventInventory, 'up', '(In use + Available) ÷ inventory from the ICU Equipment view.');
+    case 'kpi_icu_readmission_rate': return exactRate(v.readmissions48h, v.discharges, 'down', '48h ICU readmissions ÷ discharges from the ICU Quality view.');
+    case 'kpi_icu_unplanned_transfer_rate': {
+      const stepDown = v.unplannedTransferRate > 0 ? Math.max(1, Math.round(v.unplannedReturns / v.unplannedTransferRate)) : 1;
+      return exactRate(v.unplannedReturns, stepDown, 'down', 'Unplanned returns ÷ step-down exits from the ICU Quality view.');
+    }
+    case 'kpi_icu_safety_review_backlog': return count(v.unresolvedReviews, 'down', 'Open safety reviews from the ICU Quality view.', GRAIN, 'reviews');
+    case 'kpi_icu_surveillance_completeness': return exactRate(v.documentedDeviceDays, v.deviceDays, 'up', 'Illustrative surveillance documentation completeness from the ICU Quality view.');
+    case 'kpi_icu_review_timeliness': return { value: v.reviewTimeliness, kind: 'rate', unit: '%', numerator: Math.round(v.reviewTimeliness * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Timely closed reviews ÷ closed reviews from the ICU Quality view.' };
+    case 'kpi_icu_recoverable_bed_hours': return count(v.recoverableBedHours, 'up', 'Exclusive recoverable bed hours from ICU Optimization.', GRAIN, 'hours');
+    case 'kpi_icu_feasible_capacity': return count(v.feasibleAdditionalCapacity, 'up', 'Feasible additional admissions from ICU Optimization.', GRAIN, 'admissions');
+    case 'kpi_icu_avoidable_transfer_delay': return count(v.avoidableTransferDelayHours, 'down', 'Avoidable transfer delay hours from ICU Optimization.', GRAIN, 'hours');
+    case 'kpi_icu_staff_constrained': return count(v.staffConstrainedHours, 'down', 'Staff-constrained physical bed hours from ICU Optimization.', GRAIN, 'hours');
+    case 'kpi_icu_transfer_rate': return exactRate(v.transfersIn, Math.max(1, v.admissions), 'neutral', 'ICU transfers-in ÷ external admissions. Aggregate operational share — not an individual deterioration prediction.');
+    default: return null;
+  }
+}
+
 function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): Raw | null {
   const key = kpi.key;
+  if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);
   const admissions = fact.admissions;
   const discharges = fact.discharges;

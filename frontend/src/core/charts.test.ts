@@ -6,7 +6,7 @@ import { AREAS } from './stories';
 describe('screen chart contracts', () => {
   it('configures a primary and secondary chart for every screen', () => {
     const required = requiredScreenIds();
-    expect(required).toHaveLength(53);
+    expect(required).toHaveLength(54);
     expect(configuredScreenIds().sort()).toEqual([...required].sort());
     const placed = AREAS.flatMap((area) => area.screens);
     expect(placed.sort()).toEqual([...required].sort());

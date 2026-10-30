@@ -24,6 +24,7 @@ const FEATURED: Record<string, string[]> = {
   laboratory: ['kpi_lab_order_volume', 'kpi_lab_tat_avg_minutes', 'kpi_lab_tat_median_minutes', 'kpi_lab_order_completed_rate'],
   radiology: ['kpi_radiology_order_volume', 'kpi_rad_median_report_tat_minutes', 'kpi_rad_no_show_rate', 'kpi_rad_exam_completion_rate'],
   pharmacy: ['kpi_med_order_volume', 'kpi_med_dispense_volume', 'kpi_med_admin_volume', 'kpi_med_order_cancelled_rate'],
+  icu: ['kpi_icu_admissions', 'kpi_icu_pending_transfers', 'kpi_icu_available_staffed', 'kpi_icu_median_los'],
   experience: ['demo_satisfaction_index', 'demo_survey_response_rate', 'demo_complaint_open_count', 'demo_service_recovery_closure_rate'],
   registry: ['kpi_patient_active_count', 'kpi_patient_new_count', 'kpi_patient_encounters_per_patient', 'kpi_encounter_volume'],
   diagnoses: ['kpi_dx_documentation_rate', 'kpi_dx_avg_diagnoses_per_encounter', 'kpi_dx_in_hospital_mortality_rate', 'kpi_dx_30d_readmission_rate'],
@@ -129,7 +130,7 @@ export const AREAS: { id: AreaId; title: string; titleAr: string; lede: string; 
     title: 'Clinical Operations',
     titleAr: 'العمليات السريرية',
     lede: 'Emergency, beds, stays, theatres, laboratory, imaging, and pharmacy each keep their own picture.',
-    screens: ['emergency', 'beds', 'inpatient', 'outpatient', 'appointments', 'dialysis', 'mortality', 'surgery', 'laboratory', 'radiology', 'pharmacy', 'diagnoses', 'ward-transfer', 'assessments-vitals', 'maternal-neonatal', 'morgue'],
+    screens: ['emergency', 'beds', 'inpatient', 'outpatient', 'appointments', 'dialysis', 'mortality', 'surgery', 'laboratory', 'radiology', 'pharmacy', 'icu', 'diagnoses', 'ward-transfer', 'assessments-vitals', 'maternal-neonatal', 'morgue'],
   },
   {
     id: 'financial',

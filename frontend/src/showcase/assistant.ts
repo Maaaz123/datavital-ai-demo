@@ -7,6 +7,7 @@ import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
@@ -69,6 +70,28 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
+  if (department === 'ICU') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('icu-')) {
+      const result = runWhatIf('ICU', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not discharge or transfer patients.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يخرج أو ينقل المرضى.'),
+      };
+    }
+  }
+
   if (department === 'Pharmacy') {
     const intent = parseWhatIfIntent(q);
     if (intent?.kind.startsWith('rx-')) {
@@ -114,6 +137,7 @@ export function answerQuestion(
   if (department === 'Radiology') return answerRadiology(q, hospital, year, name, lang, period);
   if (department === 'Laboratory') return answerLaboratory(q, hospital, year, name, lang, period);
   if (department === 'Pharmacy') return answerPharmacy(q, hospital, year, name, lang, period);
+  if (department === 'ICU') return answerIcu(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1124,6 +1148,121 @@ function answerPharmacy(
     action: tx(lang, topAlert?.action ?? `Review Command demand, Dispensing flow (${slowest.name}), Inventory cover (${lowCover.name}), then Capacity Optimization.`, topAlert?.action ?? 'راجع الطلب والصرف والمخزون.'),
     role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
     benefit: tx(lang, 'A sequenced Pharmacy review keeps orders, dispensing, stock, safety, cost, and capacity distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerIcu(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildIcuView(hospital, year, period);
+  const n = (value: number) => value.toLocaleString('en-US');
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const hotUnit = [...view.unitRows].sort((a, b) => b.pendingTransfers - a.pendingTransfers)[0];
+  const lowAvail = [...view.unitRows].sort((a, b) => a.available - b.available)[0];
+  const night = view.shiftRows.find((item) => item.name === 'Night') ?? view.shiftRows[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|appointment no-?show|slot fill|or util|scanner util|analyzer util|medication order|stockout sku/.test(q)
+    && !/icu|critical.?care|ventilat|staffed icu|transfer delay|icu los/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside ICU focus', 'خارج تركيز العناية المركزة'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Hospital Bed Occupancy stays in Beds. ED boarding stays in Emergency. Medication Orders stay in Pharmacy.', 'الأسرة والطوارئ والصيدلية تملك مؤشراتها.'),
+      explanation: tx(lang, 'ICU owns critical-care admissions, flow delays, staffed capacity, equipment, quality processes, and feasible optimization.', 'العناية المركزة تملك القبول والتدفق والسعة والمعدات والجودة.'),
+      action: tx(lang, 'Stay on ICU screens for demand, flow, staffing, equipment, quality, and optimization questions.', 'ابقَ في شاشات العناية المركزة.'),
+      role: tx(lang, 'ICU operations lead', 'قائد عمليات العناية المركزة'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated bed or ED dashboards inside ICU.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/dose|dosing|ventilator setting|wean|extubat|prescribe|treat the patient|prognosis|mortality risk/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside operational ICU support', 'خارج الدعم التشغيلي للعناية المركزة'),
+      observation: tx(lang, 'Vital Assist does not give bedside treatment, ventilator-setting, or prognosis advice.', 'المساعد لا يقدم نصائح علاجية أو إعدادات جهاز تنفس.'),
+      evidence: tx(lang, `ICU screens report operational signals only: ${n(view.admissions)} admissions, median wait ${view.medianAdmissionWaitMin} min, available staffed ${n(view.availableStaffed)}.`, 'مؤشرات تشغيلية فقط.'),
+      explanation: tx(lang, 'Clinical decisions stay with ICU clinicians. This demo uses synthetic illustrative data and is not an accreditation system.', 'القرارات السريرية للأطباء.'),
+      action: tx(lang, 'Ask about admission delays, staffed capacity, equipment readiness, or recoverable bed hours instead.', 'اسأل عن التأخير أو السعة أو المعدات.'),
+      role: tx(lang, 'ICU operations lead', 'قائد عمليات العناية المركزة'),
+      benefit: tx(lang, 'Keeps operational analytics separate from clinical treatment decisions.', 'يفصل التحليل التشغيلي عن العلاج.'),
+    });
+  }
+
+  if (/equip|ventilat|downtime|device|readiness/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Ventilation & equipment · ${name} · ${view.periodLabel}`, `المعدات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Vent patient-days ${n(view.ventPatientDays)} · utilization ${p(view.ventUtilization)} · available vents ${n(view.ventAvailable)} · downtime ${n(view.downtimeHours)} h · readiness ${p(view.equipmentReadiness)}.`, `أجهزة متاحة ${n(view.ventAvailable)}.`),
+      evidence: tx(lang, `Inventory ${n(view.ventInventory)} = in use ${n(view.ventInUse)} + available ${n(view.ventAvailable)} + maintenance ${n(view.ventMaintenance)} + prep ${n(view.ventPrep)}. ${view.methodology.equipment}`, 'هوية المخزون.'),
+      explanation: tx(lang, 'Potential reasons (not proven): parts wait, unplanned repair, and cleaning cycles. Inventory is not clinical capacity.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Clear parts wait and unplanned repair before assuming ventilated capacity growth.', 'عالج أعطال القطع أولاً.'),
+      role: tx(lang, 'Biomedical equipment lead', 'قائد المعدات الطبية'),
+      benefit: tx(lang, 'Separating inventory, in-use, and available states prevents double-counting devices.', 'فصل الحالات يمنع العد المزدوج.'),
+    });
+  }
+
+  if (/staff|nurse|coverage|gap|ratio|staffed bed|available staffed/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Critical care capacity & staffing · ${name} · ${view.periodLabel}`, `السعة والتوظيف · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Staffed beds ${n(view.staffedBeds)} of ${n(view.physicalBeds)} physical · available staffed ${n(view.availableStaffed)} · coverage ${p(view.nurseCoverage)} · gap ${n(view.staffingGapHours)} h · pt:nurse ${view.patientNurseRatio.toFixed(1)}.`, `أسرة موظفة ${n(view.staffedBeds)}.`),
+      evidence: tx(lang, `Lowest available unit ${lowAvail.name} (${n(lowAvail.available)}). Night gap ${n(night.gapHours)} h. ${view.methodology.capacity}`, `أقل توفر ${lowAvail.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): unstaffed physical beds, blocked staffed beds, and shift gaps. Ratio is descriptive — not a safety verdict.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Close ${night.name} gap hours and review ${lowAvail.name} staffing before converting physical vacancy into assumed capacity.`, `أغلق فجوة ${night.name}.`),
+      role: tx(lang, 'Critical care nursing lead', 'قائد تمريض العناية المركزة'),
+      benefit: tx(lang, 'Distinguishing physical and staffed capacity prevents false availability.', 'الفصل يمنع التوفر الزائف.'),
+    });
+  }
+
+  if (/quality|readmit|surveillance|safety|review|infection/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `ICU quality & safety · ${name} · ${view.periodLabel}`, `جودة العناية المركزة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Readmission ${p(view.readmissionRate)} · unplanned transfer ${p(view.unplannedTransferRate)} · review backlog ${n(view.unresolvedReviews)} · surveillance completeness ${p(view.surveillanceCompleteness)} · review timeliness ${p(view.reviewTimeliness)}.`, `طابور المراجعات ${n(view.unresolvedReviews)}.`),
+      evidence: tx(lang, `${view.methodology.quality}`, 'اكتمال التوثيق وليس معدل عدوى معتمد.'),
+      explanation: tx(lang, 'Potential reasons (not proven): review aging and documentation gaps. Completeness is not a validated CLABSI/CAUTI/VAE rate.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Age the safety review backlog and improve device-day documentation completeness — do not treat counts as certified harm.', 'راجع طابور المراجعات.'),
+      role: tx(lang, 'ICU quality lead', 'قائد جودة العناية المركزة'),
+      benefit: tx(lang, 'Keeps process signals distinct from validated infection surveillance.', 'يفصل إشارات العملية عن الترصد المعتمد.'),
+    });
+  }
+
+  if (/recoverable|feasible|optim|priorit|management|capacity opportunity/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `ICU capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة العناية المركزة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Recoverable bed hours ${n(view.recoverableBedHours)} · feasible capacity ${n(view.feasibleAdditionalCapacity)} · avoidable delay ${n(view.avoidableTransferDelayHours)} h · staff-constrained ${n(view.staffConstrainedHours)} h.`, `ساعات قابلة للاسترداد ${n(view.recoverableBedHours)}.`),
+      evidence: tx(lang, `${view.methodology.optimization} Hottest pending unit ${hotUnit.name}.`, `أعلى وحدة انتظار ${hotUnit.name}.`),
+      explanation: tx(lang, 'Estimates are illustrative. Drivers are exclusive. Never pressure clinical readiness or premature discharge.', 'التقديرات توضيحية.'),
+      action: tx(lang, `Sequence transfer coordination, discharge handoff, and bed preparation for ${hotUnit.name} before adding unstaffed physical beds.`, `رتّب التنسيق لـ ${hotUnit.name}.`),
+      role: tx(lang, 'Patient flow lead', 'قائد تدفق المرضى'),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating achievable ICU capacity.', 'السيناريوهات المقيدة تمنع المبالغة.'),
+    });
+  }
+
+  if (/wait|delay|transfer|discharge|los|board|flow|pending|admission/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `ICU patient flow · ${name} · ${view.periodLabel}`, `تدفق العناية المركزة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Admissions ${n(view.admissions)} · median wait ${view.medianAdmissionWaitMin} min · delayed ${n(view.delayedAdmissions)} · median LOS ${view.medianLosHours.toFixed(1)} h · transfer delay ${view.medianTransferDelayHours.toFixed(1)} h · pending ${n(view.pendingTransfers)}.`, `انتظار القبول ${view.medianAdmissionWaitMin} دقيقة.`),
+      evidence: tx(lang, `Hottest pending unit ${hotUnit.name} (${n(hotUnit.pendingTransfers)}). ${view.methodology.los} ${view.methodology.census}`, `أعلى انتظار ${hotUnit.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): staffed bed shortage, downstream ward waits, and coordination handoffs. Shorter LOS is not assumed clinically better.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Clear ${hotUnit.name} pending transfers and review delayed admission sources before adding physical beds.`, `أغلق انتظار ${hotUnit.name}.`),
+      role: tx(lang, 'ICU operations lead', 'قائد عمليات العناية المركزة'),
+      benefit: tx(lang, 'Separating request, arrival, ready, and exit clocks keeps actions targeted.', 'فصل الساعات يوجه الإجراءات.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'ICU' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `ICU at ${name} · ${view.periodLabel}`, `العناية المركزة في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Admissions ${n(view.admissions)} · avg census ${view.avgCensus.toFixed(1)} · available staffed ${n(view.availableStaffed)} · pending ${n(view.pendingTransfers)}.`, topAlert ? topAlert.title : `القبول ${n(view.admissions)}.`),
+    evidence: tx(lang, `${view.methodology.grains} ${view.methodology.census}`, 'القبول ≠ أيام المرضى ≠ الإقامات المكتملة.'),
+    explanation: tx(lang, 'Potential reasons (not proven): demand pressure, staffing gaps, and exit coordination move together across ICU screens. Operational analytics only — not clinical advice.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command demand, Flow delays (${hotUnit.name}), Capacity staffing, then Optimization.`, topAlert?.action ?? 'راجع الطلب والتدفق والسعة.'),
+    role: tx(lang, 'ICU operations lead', 'قائد عمليات العناية المركزة'),
+    benefit: tx(lang, 'A sequenced ICU review keeps demand, flow, staffing, equipment, quality, and capacity distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

@@ -28,6 +28,7 @@ export const SCREENS: ScreenDef[] = [
   screen('laboratory', 'Laboratory & Diagnostics', 'المختبر', 'Clinical', 'Where is the laboratory workload?', ['Laboratory']),
   screen('radiology', 'Radiology & Imaging', 'الأشعة', 'Clinical', 'Where are imaging delays this year?', ['Radiology']),
   screen('pharmacy', 'Pharmacy', 'الصيدلية', 'Clinical', 'How does medication workload appear this year?', ['Pharmacy']),
+  screen('icu', 'ICU & Critical Care', 'العناية المركزة', 'Clinical', 'How is ICU demand, flow, and staffed capacity performing?', ['ICU']),
   screen('experience', 'Patient Experience', 'تجربة المريض', 'Patient', 'How do satisfaction, complaints, surveys, and recovery move together?', ['Patient experience']),
   screen('registry', 'Patient Registry', 'سجل المرضى', 'Patient', 'How many patients are in scope?', ['Patients']),
   screen('diagnoses', 'Diagnoses', 'التشخيصات', 'Patient', 'How complete is diagnosis documentation?', ['Diagnoses']),

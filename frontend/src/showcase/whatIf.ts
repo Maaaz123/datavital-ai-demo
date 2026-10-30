@@ -4,12 +4,13 @@ import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU';
 
 export type WhatIfResult = {
   id: string;
@@ -87,6 +88,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if staffed pharmacy hours increase by 10%?',
     'What if avoidable medication waste decreases by 20%?',
   ],
+  ICU: [
+    'What if ICU transfer delays decrease by 20%?',
+    'What if ICU discharge coordination improves by 25%?',
+    'What if staffed ICU bed availability increases by 10%?',
+    'What if critical equipment downtime decreases by 20%?',
+    'What if ICU staffing is reallocated across shifts by 10%?',
+    'What if ICU flow coordination improves by 15%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -106,6 +115,15 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // ICU intents before beds/pharmacy generics that mention staffed, transfer, discharge, or downtime.
+  if (/icu/.test(q) && /transfer/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'icu-transfer-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/icu/.test(q) && /discharge/.test(q) && /(improv|coord|fell|decreas|reduc)/.test(q)) return { kind: 'icu-discharge-coord', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/icu/.test(q) && /staffed/.test(q) && /(increas|improv|avail)/.test(q)) return { kind: 'icu-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/(icu|critical.?care|critical equipment|ventilat)/.test(q) && /(equipment|ventilat|downtime)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'icu-equip-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/icu/.test(q) && /(reallocat|redistribut)/.test(q) && /staff/.test(q)) return { kind: 'icu-reallocate', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/icu/.test(q) && /flow/.test(q) && /(improv|coord)/.test(q)) return { kind: 'icu-flow-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/transfer delay/.test(q) && /icu|critical.?care/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'icu-transfer-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
 
   // Pharmacy intents first: their keywords (dispensing, stockout, expiry, barcode, medication waste) are domain-specific.
   if (/dispens/.test(q) && /(tat|turnaround|time)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
@@ -168,6 +186,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/icu|critical.?care|ventilat/.test(q)) return { kind: 'icu-transfer-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/pharmac|dispens|medication|stock-?out|formulary|barcode/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/laborator|analyzer|specimen|hemolys|lab tat|testing backlog|pending validation/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/radiolog|imaging|scanner|mri|report tat|imaging backlog/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
@@ -194,6 +213,7 @@ export function runWhatIf(
   if (domain === 'Radiology') return radiologyWhatIf(hospital, year, period, resolved);
   if (domain === 'Laboratory') return laboratoryWhatIf(hospital, year, period, resolved);
   if (domain === 'Pharmacy') return pharmacyWhatIf(hospital, year, period, resolved);
+  if (domain === 'ICU') return icuWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -206,6 +226,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Radiology') return { kind: 'rad-mri-duration-down', amount: 0.1 };
   if (domain === 'Laboratory') return { kind: 'lab-reject-down', amount: 0.2 };
   if (domain === 'Pharmacy') return { kind: 'rx-tat-down', amount: 0.15 };
+  if (domain === 'ICU') return { kind: 'icu-transfer-down', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1043,6 +1064,112 @@ function pharmacyWhatIf(
     implications: `Clear verification queue aging first; ${slowest?.name ?? 'the slowest pathway'} remains the longest by design.`,
     followUp: 'Median Dispensing TAT, Over-Target Dispenses, and Verification Backlog',
     owner: 'Pharmacy operations lead',
+  };
+}
+
+function icuWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildIcuView(hospital, year, period);
+  const amount = Math.min(Math.max(intent.amount, 0), 0.9);
+  const hotUnit = [...view.unitRows].sort((a, b) => b.pendingTransfers - a.pendingTransfers)[0];
+
+  if (intent.kind === 'icu-discharge-coord') {
+    const cut = view.medianDischargeReadyDelayHours * amount;
+    const hours = Math.round(cut * view.discharges);
+    return {
+      id: intent.kind,
+      title: 'ICU discharge coordination scenario',
+      current: `Discharge readiness delay ${num(view.medianDischargeReadyDelayHours, 1)} h · discharges ${num(view.discharges)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} improvement in post-readiness coordination only`,
+      estimated: `Ready delay near ${num(view.medianDischargeReadyDelayHours - cut, 1)} h · about ${num(hours)} coordination hours avoided — clinical readiness is unchanged`,
+      assumptions: 'Does not change clinical discharge-ready decisions. Downstream ward capacity still limits exits. Illustrative — not achieved.',
+      implications: 'Coordinate bed preparation and ward handoffs after readiness; never pressure premature discharge.',
+      followUp: 'Discharge Readiness Delay, Recoverable ICU Bed Hours, and Available Staffed Capacity',
+      owner: 'ICU operations lead',
+    };
+  }
+
+  if (intent.kind === 'icu-staffed-up') {
+    const added = Math.max(1, Math.round(view.unstaffedPhysical * amount + view.availableStaffed * amount));
+    const capped = Math.min(added, view.unstaffedPhysical + Math.round(view.staffingGapHours / (24 * Math.max(1, view.days / 30))));
+    return {
+      id: intent.kind,
+      title: 'Staffed ICU bed availability scenario',
+      current: `Staffed ${num(view.staffedBeds)} · available ${num(view.availableStaffed)} · unstaffed physical ${num(view.unstaffedPhysical)} · gap ${num(view.staffingGapHours)} h (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} increase in staffed coverage for otherwise physical beds`,
+      estimated: `About ${num(capped)} additional staffed bed positions feasible under workforce limits · pending demand ${num(view.pendingTransfers)}`,
+      assumptions: 'Requires nursing coverage and competency. Physical beds alone are not staffed capacity. Illustrative — not achieved.',
+      implications: 'Close staffing gap hours before converting unstaffed physical beds.',
+      followUp: 'Staffed ICU Beds, Available Staffed Capacity, and Staffing Gap Hours',
+      owner: 'Critical care nursing lead',
+    };
+  }
+
+  if (intent.kind === 'icu-equip-down') {
+    const cut = Math.round(view.downtimeHours * amount);
+    const extraVents = Math.min(view.ventMaintenance + view.ventPrep, Math.max(1, Math.round((view.ventMaintenance + view.ventPrep) * amount)));
+    return {
+      id: intent.kind,
+      title: 'Critical equipment downtime reduction scenario',
+      current: `Downtime ${num(view.downtimeHours)} h · available vents ${num(view.ventAvailable)} · maintenance ${num(view.ventMaintenance)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in eligible downtime`,
+      estimated: `Downtime near ${num(view.downtimeHours - cut)} h · about ${num(extraVents)} additional serviceable devices in readiness — not automatic clinical capacity`,
+      assumptions: 'Maintenance windows and parts lead times remain. Device availability does not equal safe staffing. Illustrative — not achieved.',
+      implications: 'Clear parts wait and unplanned repair before assuming ventilated capacity growth.',
+      followUp: 'Critical Equipment Downtime, Available Ventilators, and Equipment Readiness',
+      owner: 'Biomedical equipment lead',
+    };
+  }
+
+  if (intent.kind === 'icu-reallocate') {
+    const moved = Math.round(view.staffingGapHours * amount * 0.5);
+    const night = view.shiftRows.find((item) => item.name === 'Night');
+    return {
+      id: intent.kind,
+      title: 'ICU staffing reallocation scenario',
+      current: `Coverage ${pct(view.nurseCoverage)} · gap ${num(view.staffingGapHours)} h · night gap ${num(night?.gapHours ?? 0)} h (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} redistribution of eligible shift hours`,
+      estimated: `About ${num(moved)} gap hours rebalanced toward the highest-gap shift without reducing coverage below safeguards`,
+      assumptions: 'Competencies and unit assignments are not fully interchangeable. Does not reduce staffing below documented operational safeguards. Illustrative only.',
+      implications: `Prioritize ${night && night.gapHours > 0 ? 'Night' : 'highest-gap'} coverage before adding headcount.`,
+      followUp: 'Nurse Coverage Rate, Staffing Gap Hours, and Staffing Gaps by Shift',
+      owner: 'Critical care nursing lead',
+    };
+  }
+
+  if (intent.kind === 'icu-flow-up') {
+    const recovered = Math.round(view.recoverableBedHours * amount);
+    const extras = Math.min(view.feasibleAdditionalCapacity, Math.floor(recovered / Math.max(8, view.medianLosHours)));
+    return {
+      id: intent.kind,
+      title: 'ICU flow coordination scenario',
+      current: `Recoverable ${num(view.recoverableBedHours)} h · feasible capacity ${num(view.feasibleAdditionalCapacity)} · pending ${num(view.pendingTransfers)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} combined improvement in transfer, prep, and handoff drivers`,
+      estimated: `About ${num(recovered)} bed hours recovered without double-counting drivers · up to ${num(extras)} feasible additional admissions under caps`,
+      assumptions: 'Drivers remain exclusive. Downstream capacity and staffing still constrain exits. Never overrides clinical readiness. Illustrative — not achieved.',
+      implications: `Focus ${hotUnit?.name ?? 'the highest-pending unit'} first for coordination gains.`,
+      followUp: 'Recoverable ICU Bed Hours, Feasible Additional ICU Capacity, and Pending ICU Transfers',
+      owner: 'Patient flow lead',
+    };
+  }
+
+  const cutHours = Math.round(view.avoidableTransferDelayHours * amount);
+  const bedHours = Math.round(cutHours * 0.7);
+  const bedsFreed = Math.max(0, Math.floor(bedHours / Math.max(8, view.medianLosHours)));
+  return {
+    id: 'icu-transfer-down',
+    title: 'ICU transfer delay reduction scenario',
+    current: `Transfer delay ${num(view.medianTransferDelayHours, 1)} h · avoidable ${num(view.avoidableTransferDelayHours)} h · pending ${num(view.pendingTransfers)} · hottest ${hotUnit?.name ?? 'n/a'} (${view.periodLabel})`,
+    change: `Illustrative ${pct(amount, 0)} reduction in eligible administrative/coordination transfer delays`,
+    estimated: `About ${num(cutHours)} delay hours avoided · ~${num(bedHours)} recoverable bed hours · up to ${num(bedsFreed)} bed-equivalents if downstream capacity allows`,
+    assumptions: 'Only coordination delays are eligible. Clinical transfer-ready decisions are unchanged. Downstream ward capacity may absorb gains. Illustrative — not achieved.',
+    implications: `Clear ${hotUnit?.name ?? 'high-pending'} coordination handoffs before adding physical beds.`,
+    followUp: 'Median ICU Transfer Delay, Avoidable Transfer Delay Hours, and Available Staffed Capacity',
+    owner: 'Patient flow lead',
   };
 }
 

@@ -11,13 +11,13 @@ describe('catalog coverage', () => {
   });
 
   it('keeps the internal screen, extension, KPI, and use-case catalogs', () => {
-    expect(SCREENS).toHaveLength(39);
-    expect(new Set(SCREENS.map((item) => item.id)).size).toBe(39);
+    expect(SCREENS).toHaveLength(40);
+    expect(new Set(SCREENS.map((item) => item.id)).size).toBe(40);
     expect(EXTENSIONS).toHaveLength(14);
     expect(USE_CASES).toHaveLength(37);
     expect(KPIS.filter((item) => item.origin === 'catalog')).toHaveLength(192);
     expect(KPIS.filter((item) => item.origin === 'registry')).toHaveLength(188);
-    expect(KPIS.filter((item) => item.origin === 'demo_assumption')).toHaveLength(90);
+    expect(KPIS.filter((item) => item.origin === 'demo_assumption')).toHaveLength(121);
     expect(TOUR).toHaveLength(10);
     for (const item of [...SCREENS, ...EXTENSIONS]) {
       for (const key of featuredKpis(item.id)) expect(findKpi(key)?.key).toBe(key);

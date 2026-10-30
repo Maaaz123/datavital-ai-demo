@@ -9,6 +9,7 @@ import { SurgAccessPage, SurgCommandPage, SurgOptimizationPage, SurgOrPage, Surg
 import { RadAccessPage, RadCommandPage, RadOptimizationPage, RadQualityPage, RadUtilizationPage } from '@/core/radiology';
 import { PharmCommandPage, PharmCostPage, PharmDispensingPage, PharmInventoryPage, PharmOptimizationPage, PharmSafetyPage } from '@/core/pharmacy';
 import { LabAnalyzersPage, LabCommandPage, LabOptimizationPage, LabQualityPage, LabSamplesPage } from '@/core/laboratory';
+import { IcuCapacityPage, IcuCommandPage, IcuEquipmentPage, IcuFlowPage, IcuOptimizationPage, IcuQualityPage } from '@/core/icu';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
@@ -65,6 +66,12 @@ export const routes = [
       { path: 'pharmacy/safety', element: <PharmSafetyPage /> },
       { path: 'pharmacy/cost', element: <PharmCostPage /> },
       { path: 'pharmacy/optimization', element: <PharmOptimizationPage /> },
+      { path: 'icu', element: <IcuCommandPage /> },
+      { path: 'icu/flow', element: <IcuFlowPage /> },
+      { path: 'icu/capacity', element: <IcuCapacityPage /> },
+      { path: 'icu/equipment', element: <IcuEquipmentPage /> },
+      { path: 'icu/quality', element: <IcuQualityPage /> },
+      { path: 'icu/optimization', element: <IcuOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

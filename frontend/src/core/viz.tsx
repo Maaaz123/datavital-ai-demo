@@ -152,6 +152,20 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     }], 'orders', 0, 'Administered does not exceed dispensed, and dispensed does not exceed ordered.'),
     fig(c.domain, ['medication-workload'], 'line', 'Pharmacy workload', c.months, [{ name: 'Orders', values: monthSeries(c.scenario, 'pharmOrders') }], 'orders', 0, 'Monthly medication orders. This is pharmacy workload, not the inpatient census.'),
   ],
+  icu: (c) => [
+    fig(c.domain, ['icu-census'], 'bars', 'ICU staffed snapshot', ['Occupied', 'Available staffed', 'Staffed'], [{
+      name: 'Beds',
+      values: [
+        c.scenario.focus.icuOccupied,
+        Math.max(0, c.scenario.focus.icuStaffed - c.scenario.focus.icuOccupied),
+        c.scenario.focus.icuStaffed,
+      ],
+    }], 'beds', 0, 'Occupied and available staffed are parts of staffed ICU beds. Physical beds are not this chart.'),
+    fig(c.domain, ['icu-demand'], 'line', 'Monthly ICU admissions proxy', c.months, [{
+      name: 'Admissions',
+      values: c.scenario.months.map((month) => Math.round(month.admissions * 0.1)),
+    }], 'admissions', 0, 'Illustrative monthly ICU admissions derived from hospital admissions. Full ICU ledger lives on /icu.'),
+  ],
   rcm: ledger,
   revenue: ledger,
   'billing-collections': ledger,
