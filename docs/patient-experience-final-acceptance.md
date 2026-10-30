@@ -2,7 +2,7 @@
 
 **Domain:** Domain 11 — Patient Experience & Satisfaction Intelligence  
 **BUILD_ID:** `v72-patient-experience`  
-**Production commit:** `PLACEHOLDER_COMMIT` — fill after commit; **pending push**  
+**Production commit:** `16720825c4f9818fda179eb8f1a015d70858dae1` — fill after commit; **pending push**  
 **JS bundle:** `assets/index-Cfi4FfYs.js`  
 **PWA helper:** `assets/pwa-DeMTWY9q.js`  
 **Instrument:** `DV-PX-Internal-v1` (official HCAHPS / CAHPS benchmarking **unavailable**)  
@@ -363,10 +363,10 @@ PX Command (after push): https://maaaz123.github.io/datavital-ai-demo/patient-ex
 
 | Item | Value | Result |
 |---|---|---|
-| Production commit | `PLACEHOLDER_COMMIT` | **NOT TESTED** — fill after commit |
+| Production commit | `16720825c4f9818fda179eb8f1a015d70858dae1` | **NOT TESTED** — fill after commit |
 | Push to remote / GitHub Pages deploy | pending push | **NOT TESTED** |
 
-Do not invent a commit hash. Replace `PLACEHOLDER_COMMIT` once the Domain 11 commit exists and record Pages build status after push.
+Do not invent a commit hash. Replace `16720825c4f9818fda179eb8f1a015d70858dae1` once the Domain 11 commit exists and record Pages build status after push.
 
 ---
 
@@ -411,7 +411,7 @@ Documentable future associations (satisfaction ↔ service quality ↔ capacity 
 | Artifact pack (dictionary / mapping / lineage / readiness) | **PASS** |
 | Ten-domain regression suite | **PASS** (271/271) |
 | Local production build identity `v72-patient-experience` / `index-Cfi4FfYs.js` / `pwa-DeMTWY9q.js` | **PASS** |
-| Commit hash recorded | **NOT TESTED** (`PLACEHOLDER_COMMIT`) |
+| Commit hash recorded | **NOT TESTED** (`16720825c4f9818fda179eb8f1a015d70858dae1`) |
 | GitHub Pages live verification + desktop browser visual QA | **NOT TESTED** (pending push) |
 
-**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `PLACEHOLDER_COMMIT` is replaced with the real hash, and live Pages checks confirm `v72-patient-experience` with bundles `index-Cfi4FfYs.js` / `pwa-DeMTWY9q.js` on the six `/patient-experience*` routes.
+**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `16720825c4f9818fda179eb8f1a015d70858dae1` is replaced with the real hash, and live Pages checks confirm `v72-patient-experience` with bundles `index-Cfi4FfYs.js` / `pwa-DeMTWY9q.js` on the six `/patient-experience*` routes.
