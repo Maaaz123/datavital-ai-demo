@@ -208,41 +208,52 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
 function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; domains: string[] }) {
   const [reveal, setReveal] = useState(false);
   const rows = indicators.filter((item) => domains.includes(item.domain) && (reveal || item.status !== 'unavailable'));
+  const blankCount = indicators.filter((item) => domains.includes(item.domain) && item.status === 'unavailable').length;
   return (
-    <section className="gc-panel" data-testid="rad-indicator-catalog">
-      <h2>Performance indicators</h2>
-      <p className="gc-next">
-        Definition catalog for this screen — full names, formulas, units, and ownership. Headline numbers stay in the KPI ribbon above. Bed occupancy stays in Beds; OR utilization stays in Surgery; clinic slots stay in Appointments.
-      </p>
-      <div className="gc-scope-grid">
+    <section className="gc-panel span-12 gc-scope gc-scope-tight" data-testid="rad-indicator-catalog">
+      <div className="gc-scope-head">
+        <div>
+          <h2>Performance indicators</h2>
+          <p>
+            Definition catalog for this screen — full names, formulas, units, and ownership. Headline numbers stay in the KPI ribbon above. Bed occupancy stays in Beds; OR utilization stays in Surgery; clinic slots stay in Appointments.
+          </p>
+        </div>
+        {blankCount ? (
+          <button type="button" className="gc-text-btn" aria-pressed={reveal} onClick={() => setReveal((value) => !value)}>
+            {reveal ? 'Hide indicators not available in this view' : 'Show indicators not available in this view'}
+          </button>
+        ) : null}
+      </div>
+      <div className="gc-scope-grid gc-scope-grid-dense">
         {rows.map((item) => (
           <article
             key={`${item.domain}-${item.name}`}
-            className="gc-scope-card"
+            className={`gc-scope-card${item.status === 'unavailable' ? ' is-blank' : ''}`}
             title={[item.method, item.cohort, item.aggregation, item.scope, item.limitations].filter(Boolean).join(' · ')}
             data-catalog="definition"
           >
             <strong>{item.name}</strong>
             <em>{item.summary}</em>
-            <span className={`gc-scope-status is-${item.status === 'unavailable' ? 'missing' : item.status === 'scenario' ? 'live' : 'estimated'}`}>
+            <span className={`gc-scope-status is-${item.status === 'unavailable' ? 'blank' : item.status === 'scenario' ? 'available' : 'estimated'}`}>
               {item.status === 'unavailable' ? 'Owned elsewhere' : item.status === 'scenario' ? 'Scenario' : 'Constructed'}
             </span>
           </article>
         ))}
       </div>
-      <button type="button" className="gc-text-btn" aria-pressed={reveal} onClick={() => setReveal((value) => !value)}>
-        {reveal ? 'Hide indicators not available in this view' : 'Show indicators not available in this view'}
-      </button>
     </section>
   );
 }
 
 function AiIndex() {
   return (
-    <section className="gc-panel">
-      <h2>AI decision support</h2>
-      <p className="gc-next">Illustrative imaging capacity intelligence · not a validated RIS/PACS engine</p>
-      <div className="gc-scope-grid">
+    <section className="gc-panel span-12 gc-scope">
+      <div className="gc-scope-head">
+        <div>
+          <h2>AI decision support</h2>
+          <p>Illustrative imaging capacity intelligence · not a validated RIS/PACS engine</p>
+        </div>
+      </div>
+      <div className="gc-scope-grid gc-scope-grid-dense">
         {RADIOLOGY_AI_CASES.map((item) => (
           <article key={item.id} className="gc-scope-card">
             <strong>{item.name}</strong>

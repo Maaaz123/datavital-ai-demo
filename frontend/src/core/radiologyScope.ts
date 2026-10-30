@@ -158,6 +158,26 @@ export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
       limitations: 'Illustrative 14-day management target — not a national standard.',
       method: `Active wait age > ${view.waitTargetDays} days from the same distribution.`,
     }),
+    row('Imaging Access', 'Imaging Waitlist Growth', {
+      unit: 'cases',
+      formula: 'Closing backlog − Opening backlog',
+      cohort: 'Waitlist ledger for the selected period',
+      aggregation: 'Net change (not a stock)',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Growth can be negative while closing backlog remains positive. Distinct from Imaging Backlog stock.',
+      method: 'Closing − Opening from the monthly waitlist ledger.',
+    }),
+    row('Imaging Access', 'Imaging Cases Within Access Target', {
+      unit: 'rate',
+      formula: 'Within-target backlog ÷ Closing backlog',
+      cohort: 'Active backlog',
+      aggregation: 'Share',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Complement of overdue share for the same illustrative target.',
+      method: 'Within-target cases ÷ closing backlog from the same wait distribution.',
+    }),
 
     row('Scanner Efficiency', 'Diagnostic Scanner Utilization', {
       unit: 'rate',
@@ -199,6 +219,16 @@ export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
       limitations: 'Hospital-wide downtime ≠ CT-specific downtime alert.',
       method: 'Inside staffed denominator; CT-specific downtime is separate.',
     }),
+    row('Scanner Efficiency', 'Imaging Schedule Adherence Rate', {
+      unit: 'rate',
+      formula: 'On-schedule exam starts ÷ eligible scheduled starts',
+      cohort: 'Staffed imaging sessions',
+      aggregation: 'Share',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Illustrative schedule adherence — feeds late-start recoverable hours.',
+      method: 'Share of eligible starts within the on-schedule window.',
+    }),
 
     row('Reporting Quality', 'Median Final Report TAT', {
       unit: 'hours',
@@ -220,6 +250,16 @@ export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
       limitations: 'Unsigned reports excluded from completed TAT.',
       method: 'P90 of signed-report TAT hours.',
     }),
+    row('Reporting Quality', 'Final Reports Over TAT Target', {
+      unit: 'reports',
+      formula: 'Signed reports with TAT > target hours',
+      cohort: 'Final signed reports',
+      aggregation: 'Count',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Unsigned reports are excluded from completed TAT over-target counts.',
+      method: `Signed reports exceeding the illustrative ${view.reportTatTargetHours}h TAT target.`,
+    }),
     row('Reporting Quality', 'Unsigned Diagnostic Reports', {
       unit: 'reports',
       formula: 'Completed exams − signed reports at observation',
@@ -239,6 +279,16 @@ export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
       classification: 'constructed',
       limitations: 'Not every repeat is a quality failure.',
       method: 'Repeat exams ÷ completed. Not every repeat is a quality failure.',
+    }),
+    row('Reporting Quality', 'Critical Result Acknowledgement Rate', {
+      unit: 'rate',
+      formula: 'Acknowledged critical results ÷ Critical results',
+      cohort: 'Critical imaging findings',
+      aggregation: 'Share',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Distinct from Critical Delay Rate (pending ÷ critical). Not a delay percentage.',
+      method: 'Acknowledged ÷ critical results. Delay rate is the pending share.',
     }),
 
     row('Capacity Optimization', 'Recoverable Scanner Hours', {
@@ -260,6 +310,16 @@ export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
       classification: 'constructed',
       limitations: 'Modeled opportunity — not achieved productivity. Modalities are not interchangeable.',
       method: 'Σ modality-feasible extras. Modeled — not achieved.',
+    }),
+    row('Capacity Optimization', 'Eligible Imaging Waitlist Cases', {
+      unit: 'cases',
+      formula: 'Σ modality eligible demand',
+      cohort: 'Overdue-weighted routine waitlist share by modality',
+      aggregation: 'Sum',
+      scope: view.periodLabel,
+      classification: 'constructed',
+      limitations: 'Demand cap for additional exams — not the full closing backlog.',
+      method: 'Sum of modality-eligible waitlist cases that could use recovered capacity.',
     }),
 
     blank('Cross-domain context', 'Bed Occupancy', 'Owned by Beds & Capacity. Radiology references occupancy only as a capacity constraint.'),
