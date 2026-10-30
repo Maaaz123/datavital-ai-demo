@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost';
 };
 
 export type NavDomain = {
@@ -312,6 +312,57 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'pharmacy',
+    label: 'Pharmacy',
+    mark: 'Rx',
+    match: (path) => path.startsWith('/pharmacy'),
+    screens: [
+      {
+        to: '/pharmacy',
+        short: 'Command',
+        title: 'Pharmacy Command Center',
+        purpose: 'Order demand, lines, and dispensing completion',
+        end: true,
+        glyph: 'rx',
+      },
+      {
+        to: '/pharmacy/dispensing',
+        short: 'Dispensing',
+        title: 'Verification & Dispensing Flow',
+        purpose: 'Verification backlog, TAT, and rework',
+        glyph: 'rx-dispense',
+      },
+      {
+        to: '/pharmacy/inventory',
+        short: 'Inventory',
+        title: 'Inventory & Stock Position',
+        purpose: 'Stockouts, days of supply, and near-expiry',
+        glyph: 'rx-stock',
+      },
+      {
+        to: '/pharmacy/safety',
+        short: 'Safety',
+        title: 'Medication Safety Process',
+        purpose: 'Exceptions, scans, and incident reviews',
+        glyph: 'rx-safety',
+      },
+      {
+        to: '/pharmacy/cost',
+        short: 'Cost',
+        title: 'Medication Cost & Waste',
+        purpose: 'Spend, write-offs, and exclusive savings',
+        glyph: 'rx-cost',
+      },
+      {
+        to: '/pharmacy/optimization',
+        short: 'Capacity',
+        title: 'Pharmacy Capacity Optimization',
+        purpose: 'Recoverable hours and feasible extra lines',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -327,10 +378,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock') return 'M4 7h16M4 12h10M4 17h14';
   if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

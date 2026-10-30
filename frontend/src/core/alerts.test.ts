@@ -11,7 +11,7 @@ describe('deterministic copilot alerts', () => {
     const pharmacy = visibleAlerts('H1', 2026, 'All', 'pharmacy').alerts;
     expect(pharmacy.length).toBeGreaterThan(0);
     expect(pharmacy.every((alert) => alert.department === 'Pharmacy')).toBe(true);
-    expect(pharmacy.every((alert) => alert.kpi.startsWith('kpi_med_'))).toBe(true);
+    expect(pharmacy.every((alert) => alert.kpi.startsWith('kpi_rx_'))).toBe(true);
     expect(pharmacy.map((alert) => `${alert.title} ${alert.evidence}`).join(' ')).not.toMatch(/admission/i);
   });
 

@@ -7,6 +7,7 @@ import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -68,6 +69,24 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
+  if (department === 'Pharmacy') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('rx-')) {
+      const result = runWhatIf('Pharmacy', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      return pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+    }
+  }
+
   if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments' || department === 'Surgery' || department === 'Radiology') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
@@ -94,6 +113,7 @@ export function answerQuestion(
   if (department === 'Surgery') return answerSurgery(q, hospital, year, name, lang, period);
   if (department === 'Radiology') return answerRadiology(q, hospital, year, name, lang, period);
   if (department === 'Laboratory') return answerLaboratory(q, hospital, year, name, lang, period);
+  if (department === 'Pharmacy') return answerPharmacy(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -982,6 +1002,128 @@ function answerLaboratory(
     action: tx(lang, topAlert?.action ?? `Review Command demand, Samples rejection, Analyzers downtime (${hotBacklog.id}), then Capacity Optimization.`, topAlert?.action ?? `راجع الطلب والرفض والتوقف.`),
     role: tx(lang, 'Laboratory operations lead', 'قائد عمليات المختبر'),
     benefit: tx(lang, 'A sequenced Laboratory review keeps demand, samples, analyzers, results, and capacity distinct.', 'مراجعة مختبر متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerPharmacy(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildPharmacyView(hospital, year, period);
+  const n = (value: number) => value.toLocaleString('en-US');
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const sar = (value: number) => `SAR ${value.toLocaleString('en-US')}`;
+  const slowest = [...view.workflows].sort((a, b) => b.medianTatMin - a.medianTatMin)[0];
+  const topExpiry = [...view.classRows].sort((a, b) => b.expiredValue - a.expiredValue)[0];
+  const topNear = [...view.classRows].sort((a, b) => b.nearExpiryValue - a.nearExpiryValue)[0];
+  const lowCover = [...view.classRows].sort((a, b) => a.daysOfSupply - b.daysOfSupply)[0];
+  const lowScan = [...view.barcodeSettings].sort((a, b) => a.rate - b.rate)[0];
+  const topRework = [...view.reworkReasons].sort((a, b) => b.count - a.count)[0];
+  const topIncident = [...view.incidentTypes].sort((a, b) => b.count - a.count)[0];
+  const topSpend = [...view.classRows].sort((a, b) => b.spend - a.spend)[0];
+  const topWorkflow = [...view.workflows].sort((a, b) => b.recoverableHours - a.recoverableHours)[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|appointment no-?show|slot fill|clinic wait|or util|surgical backlog|first.?case|scanner util|imaging backlog|analyzer util|testing backlog|lab tat/.test(q)
+    && !/pharmac|medication|dispens|stock|formulary|barcode|incident|expir|waste/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Pharmacy focus', 'خارج تركيز الصيدلية'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Bed Occupancy stays in Beds. OR Utilization stays in Surgery. Scanner Utilization stays in Radiology. Analyzer Utilization and Testing Backlog stay in Laboratory.', 'الأسرة والجراحة والأشعة والمختبر تملك مؤشراتها.'),
+      explanation: tx(lang, 'Pharmacy owns medication orders, dispensing flow, stock position, process safety, cost and waste, and workflow capacity.', 'الصيدلية تملك الطلبات والصرف والمخزون والسلامة والتكلفة والسعة.'),
+      action: tx(lang, 'Stay on Pharmacy screens for orders, dispensing, inventory, safety, cost, and capacity questions.', 'ابقَ في شاشات الصيدلية.'),
+      role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/dose|dosing|dosage|prescribe|which drug should|clinical advice|treat/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside operational Pharmacy support', 'خارج الدعم التشغيلي للصيدلية'),
+      observation: tx(lang, 'Vital Assist does not give clinical dosing or prescribing advice.', 'المساعد لا يقدم نصائح الجرعات أو الوصف الطبي.'),
+      evidence: tx(lang, `Pharmacy screens report operational signals only: ${n(view.orders)} orders, ${n(view.dispensedLines)} dispensed lines, median TAT ${view.medianTatMin} min.`, 'مؤشرات تشغيلية فقط.'),
+      explanation: tx(lang, 'Medication decisions belong to clinicians and pharmacists using approved sources. This demo uses synthetic illustrative data.', 'القرارات الدوائية للأطباء والصيادلة.'),
+      action: tx(lang, 'Ask about dispensing flow, stock position, process safety, cost, or capacity instead.', 'اسأل عن الصرف أو المخزون أو السلامة أو التكلفة.'),
+      role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
+      benefit: tx(lang, 'Keeps operational analytics separate from clinical decisions.', 'يفصل التحليل التشغيلي عن القرارات السريرية.'),
+    });
+  }
+
+  if (/stock|inventory|supply|expir|sku|low.?stock|batch|days of/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Inventory & stock position · ${name} · ${view.periodLabel}`, `المخزون · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Inventory value ${sar(view.inventoryValue)} · stockout SKUs ${n(view.stockoutSkus)} · low-stock SKUs ${n(view.lowStockSkus)} · days of supply ${view.daysOfSupply.toFixed(1)} · near-expiry ${sar(view.nearExpiryValue)}.`, `قيمة المخزون ${sar(view.inventoryValue)}.`),
+      evidence: tx(lang, `Lowest cover ${lowCover.name} (${lowCover.daysOfSupply.toFixed(1)} d). Largest near-expiry exposure ${topNear.name} (${sar(topNear.nearExpiryValue)}). ${view.methodology.inventory}`, `أقل تغطية ${lowCover.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): reorder points, supplier lead times, and par levels. Stockout and low-stock SKUs are mutually exclusive.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review reorder points for stocked-out SKUs and rotate ${topNear.name} stock first-expired-first-out.`, `راجع نقاط إعادة الطلب.`),
+      role: tx(lang, 'Pharmacy supply lead', 'قائد إمداد الصيدلية'),
+      benefit: tx(lang, 'Separating stockout, low-stock, and near-expiry keeps supply actions correctly targeted.', 'فصل النفاد والمخزون المنخفض وقرب الانتهاء يوجه الإجراءات.'),
+    });
+  }
+
+  if (/cost|spend|waste|saving|expired|sar|price/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Medication cost & waste · ${name} · ${view.periodLabel}`, `تكلفة الأدوية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Medication spend ${sar(view.medicationSpend)} · cost per line ${sar(view.costPerLine)} · expired ${sar(view.expiredValue)} · avoidable waste ${sar(view.avoidableWaste)} · potential savings ${sar(view.potentialSavings)}.`, `الإنفاق ${sar(view.medicationSpend)}.`),
+      evidence: tx(lang, `Largest spend group ${topSpend.name} (${sar(topSpend.spend)}). Largest expiry group ${topExpiry.name} (${sar(topExpiry.expiredValue)}). ${view.methodology.cost}`, `أكبر مجموعة إنفاق ${topSpend.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): par levels, expiry rotation, and discard handling. Avoidable waste is a subset of write-offs and savings are counted once.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Target ${topExpiry.name} expiry write-offs and discard handling before changing purchasing.`, `ركّز على ${topExpiry.name}.`),
+      role: tx(lang, 'Pharmacy finance lead', 'قائد مالية الصيدلية'),
+      benefit: tx(lang, 'Counting each SAR once prevents overstated savings.', 'عدّ كل ريال مرة واحدة يمنع المبالغة.'),
+    });
+  }
+
+  if (/safety|barcode|scan|incident|high.?alert|exception|review/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Medication safety process · ${name} · ${view.periodLabel}`, `سلامة الأدوية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Barcode scan rate ${p(view.barcodeRate)} · high-alert compliance ${p(view.highAlertCompliance)} · exception rate ${p(view.verificationExceptionRate)} · incident reports ${n(view.incidentReports)} · unresolved reviews ${n(view.unresolvedReviews)}.`, `معدل المسح ${p(view.barcodeRate)}.`),
+      evidence: tx(lang, `Lowest scan setting ${lowScan.name} (${p(lowScan.rate)}). Top report type ${topIncident.name}. ${view.methodology.safety}`, `أدنى مسح ${lowScan.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): scanner availability, workflow pressure, and reporting culture. These are process signals, not clinical outcomes.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Review scanner workflow in ${lowScan.name} and clear the oldest incident reviews.`, `راجع سير العمل في ${lowScan.name}.`),
+      role: tx(lang, 'Medication safety lead', 'قائد سلامة الأدوية'),
+      benefit: tx(lang, 'Each rate keeps its own denominator so process gaps are not blended.', 'كل معدل يحتفظ بمقامه.'),
+    });
+  }
+
+  if (/additional|capacity|recoverable|feasible|optimization|priorit|management|staffed/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Pharmacy capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة الصيدلية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Recoverable hours ${n(view.recoverableHours)} · feasible additional lines ${n(view.additionalLines)} · eligible pending ${n(view.eligiblePending)} · feasible TAT cut ${view.feasibleTatCutMin.toFixed(1)} min.`, `ساعات قابلة للاسترداد ${n(view.recoverableHours)}.`),
+      evidence: tx(lang, `${view.methodology.capacity} Largest recoverable pathway ${topWorkflow.name} (${n(topWorkflow.recoverableHours)} h). Verification backlog ${n(view.verificationBacklog)}.`, `أكبر مسار ${topWorkflow.name}.`),
+      explanation: tx(lang, 'Estimates are illustrative. Not all recovered hours become lines; staffing and workflow constraints remain, and pathways are not interchangeable.', 'التقديرات توضيحية.'),
+      action: tx(lang, `Sequence rework reduction, verification backlog clearance, and eligible pending-line prioritization for ${topWorkflow.name} before extending staffed hours.`, `رتّب خفض إعادة العمل والطابور.`),
+      role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating achievable dispensing throughput.', 'السيناريوهات المقيدة تمنع المبالغة.'),
+    });
+  }
+
+  if (/tat|turnaround|verification|dispens|rework|first.?pass|backlog|queue|pending|late|slow/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Verification & dispensing flow · ${name} · ${view.periodLabel}`, `التحقق والصرف · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median dispensing TAT ${view.medianTatMin} min · P90 ${view.p90TatMin} · over target ${n(view.dispensesOverTarget)} · verification backlog ${n(view.verificationBacklog)} · first-pass ${p(view.firstPass)} · rework ${p(view.reworkRate)}.`, `زمن الصرف ${view.medianTatMin} دقيقة.`),
+      evidence: tx(lang, `Slowest pathway ${slowest.name} (${slowest.medianTatMin} min). Top rework reason ${topRework.name} (${n(topRework.count)}). ${view.methodology.tat}`, `أبطأ مسار ${slowest.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): verification queue aging, clarification waits, and pathway mix such as IV compounding. First-pass is not 1 − rework.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Clear the oldest verification aging bands, then review ${topRework.name} and ${slowest.name}.`, `أغلق أقدم طوابير التحقق.`),
+      role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
+      benefit: tx(lang, 'Separating verification, dispensing, and rework keeps actions targeted without claiming new staff.', 'الفصل يوجه الإجراءات.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Pharmacy' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Pharmacy at ${name} · ${view.periodLabel}`, `الصيدلية في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Orders ${n(view.orders)} · dispensed lines ${n(view.dispensedLines)} · median TAT ${view.medianTatMin} min · stockout SKUs ${n(view.stockoutSkus)}.`, topAlert ? topAlert.title : `الطلبات ${n(view.orders)}.`),
+    evidence: tx(lang, `${view.methodology.grains} ${view.methodology.ledger}`, 'الطلبات ≠ السطور ≠ الصرف ≠ الإعطاء.'),
+    explanation: tx(lang, 'Potential reasons (not proven): verification queue, stock availability, and workflow rework move together across Pharmacy screens. This is operational analytics, not clinical advice.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command demand, Dispensing flow (${slowest.name}), Inventory cover (${lowCover.name}), then Capacity Optimization.`, topAlert?.action ?? 'راجع الطلب والصرف والمخزون.'),
+    role: tx(lang, 'Pharmacy operations lead', 'قائد عمليات الصيدلية'),
+    benefit: tx(lang, 'A sequenced Pharmacy review keeps orders, dispensing, stock, safety, cost, and capacity distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

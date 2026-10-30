@@ -4,11 +4,12 @@ import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy';
 
 export type WhatIfResult = {
   id: string;
@@ -78,6 +79,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if staffed laboratory hours increase by 10%?',
     'What if pending validation decreases by 25%?',
   ],
+  Pharmacy: [
+    'What if median dispensing turnaround decreases by 15%?',
+    'What if stockout SKUs decrease by 30%?',
+    'What if near-expiry stock decreases by 25%?',
+    'What if barcode scan coverage increases by 5%?',
+    'What if staffed pharmacy hours increase by 10%?',
+    'What if avoidable medication waste decreases by 20%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -97,6 +106,14 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Pharmacy intents first: their keywords (dispensing, stockout, expiry, barcode, medication waste) are domain-specific.
+  if (/dispens/.test(q) && /(tat|turnaround|time)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/stock-?out|out of stock/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-stockout-down', amount: percent ? Number(percent[1]) / 100 : 0.3 };
+  if (/expir/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-expiry-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/barcode/.test(q) && /(increas|improv|rise|rose|extend)/.test(q)) return { kind: 'rx-barcode-up', amount: percent ? Number(percent[1]) / 100 : 0.05 };
+  if (/staffed/.test(q) && /pharmac/.test(q) && /(increas|extend)/.test(q)) return { kind: 'rx-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/waste/.test(q) && /(medication|pharmac|drug)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-waste-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
 
   // Laboratory intents before radiology/surgery generics that mention downtime, TAT, staffed, or backlog.
   if (/reject/.test(q) && /specimen|lab|laborator/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -151,6 +168,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/pharmac|dispens|medication|stock-?out|formulary|barcode/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/laborator|analyzer|specimen|hemolys|lab tat|testing backlog|pending validation/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/radiolog|imaging|scanner|mri|report tat|imaging backlog/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/surgery|theatre|operating room|\bor\b|turnover|first.?case|surgical backlog/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
@@ -175,6 +193,7 @@ export function runWhatIf(
   if (domain === 'Surgery') return surgeryWhatIf(hospital, year, period, resolved);
   if (domain === 'Radiology') return radiologyWhatIf(hospital, year, period, resolved);
   if (domain === 'Laboratory') return laboratoryWhatIf(hospital, year, period, resolved);
+  if (domain === 'Pharmacy') return pharmacyWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -186,6 +205,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Surgery') return { kind: 'surg-first-case-up', amount: 0.15 };
   if (domain === 'Radiology') return { kind: 'rad-mri-duration-down', amount: 0.1 };
   if (domain === 'Laboratory') return { kind: 'lab-reject-down', amount: 0.2 };
+  if (domain === 'Pharmacy') return { kind: 'rx-tat-down', amount: 0.15 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -905,6 +925,124 @@ function laboratoryWhatIf(
     implications: `Focus collection coaching on ${topReject.name} before expanding analyzer sessions for ${hotBacklog.id}.`,
     followUp: 'Rejection Rate, Hemolysis Rate, and Recoverable Hours',
     owner: 'Laboratory lead',
+  };
+}
+
+function sar(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `SAR ${num(value / 1_000_000, 2)}M`;
+  return `SAR ${num(value)}`;
+}
+
+function pharmacyWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildPharmacyView(hospital, year, period);
+  const amount = Math.min(Math.max(intent.amount, 0), 0.9);
+  const hotClass = [...view.classRows].sort((a, b) => b.nearExpiryValue - a.nearExpiryValue)[0];
+  const hotExpiry = [...view.classRows].sort((a, b) => b.expiredValue - a.expiredValue)[0];
+  const lowScan = [...view.barcodeSettings].sort((a, b) => a.rate - b.rate)[0];
+  const slowest = [...view.workflows].sort((a, b) => b.medianTatMin - a.medianTatMin)[0];
+
+  if (intent.kind === 'rx-stockout-down') {
+    const cleared = Math.min(view.stockoutSkus, Math.round(view.stockoutSkus * amount));
+    const toLow = Math.round(cleared * 0.4);
+    return {
+      id: intent.kind,
+      title: 'Stockout SKU reduction scenario',
+      current: `Stockout SKUs ${num(view.stockoutSkus)} · Low-Stock SKUs ${num(view.lowStockSkus)} · adequate ${num(view.adequateSkus)} of ${num(view.totalSkus)} SKUs (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in stocked-out SKUs`,
+      estimated: `Stockout SKUs near ${num(view.stockoutSkus - cleared)} · about ${num(cleared - toLow)} return to adequate cover and ~${num(toLow)} move to low stock (the two groups stay mutually exclusive)`,
+      assumptions: 'Supplier lead times and allocation limits remain. Substitution decisions stay with clinicians. Illustrative — not achieved availability.',
+      implications: 'Restocking converts stockouts into low-stock first; days of supply rises only as receipts exceed issues.',
+      followUp: 'Stocked-Out SKUs, Low-Stock SKUs, and Days of Supply',
+      owner: 'Pharmacy supply lead',
+    };
+  }
+
+  if (intent.kind === 'rx-expiry-down') {
+    const avoided = Math.round(view.nearExpiryValue * amount * 0.7);
+    const writeOffAvoided = Math.min(view.avoidableExpired, Math.round(avoided * 0.35));
+    return {
+      id: intent.kind,
+      title: 'Near-expiry stock reduction scenario',
+      current: `Near-Expiry Value ${sar(view.nearExpiryValue)} · expired write-offs ${sar(view.expiredValue)} · largest exposure ${hotClass?.name ?? 'n/a'} (${sar(hotClass?.nearExpiryValue ?? 0)}) (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in eligible near-expiry stock`,
+      estimated: `Exposure near ${sar(view.nearExpiryValue - avoided)} · up to ${sar(writeOffAvoided)} of future expired write-off avoided (counted once; not added to savings twice)`,
+      assumptions: 'Only part of near-expiry stock can be redistributed or consumed in time. Exposure is not a write-off. Illustrative — not achieved.',
+      implications: `Rotate ${hotClass?.name ?? 'high-exposure groups'} first-expired-first-out before changing purchasing.`,
+      followUp: 'Near-Expiry Value, Expired Value, and Avoidable Waste',
+      owner: 'Pharmacy supply lead',
+    };
+  }
+
+  if (intent.kind === 'rx-barcode-up') {
+    const next = Math.min(0.99, view.barcodeRate + amount);
+    const extraScans = Math.round(view.administrationEvents * (next - view.barcodeRate));
+    return {
+      id: intent.kind,
+      title: 'Barcode scan coverage scenario',
+      current: `Barcode Scan Rate ${pct(view.barcodeRate)} · ${num(view.scannedAdministrations)} of ${num(view.administrationEvents)} administration events · lowest ${lowScan?.name ?? 'n/a'} ${pct(lowScan?.rate ?? 0)} (${view.periodLabel})`,
+      change: `Illustrative ${num(amount * 100, 0)} percentage-point increase in scanned administration events`,
+      estimated: `Scan rate near ${pct(next)} · about ${num(extraScans)} more scanned administration events`,
+      assumptions: 'Illustrative: interpreted as percentage points of administration events. Scanner availability and workflow limit uptake. Process signal only — not a clinical outcome claim.',
+      implications: 'Gains concentrate in the lowest-scan care settings; orders and dispenses are unchanged.',
+      followUp: 'Barcode Scan Rate and Incident Reports',
+      owner: 'Medication safety lead',
+    };
+  }
+
+  if (intent.kind === 'rx-staffed-up') {
+    const addedHours = Math.round(view.staffedHours * amount);
+    const usable = Math.round(addedHours * 0.65);
+    const minPerLine = view.workflows[0]?.minPerLine ?? 3;
+    const extras = Math.min(view.eligiblePending, Math.floor((usable * 60) / Math.max(minPerLine, 0.5)));
+    return {
+      id: intent.kind,
+      title: 'Extended staffed pharmacy hours scenario',
+      current: `Staffed pharmacy hours ${num(view.staffedHours)} · unused ${num(view.unusedHours)} · eligible pending lines ${num(view.eligiblePending)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} increase in staffed pharmacy hours`,
+      estimated: `About ${num(addedHours)} added hours · ~${num(usable)} usable after workforce and workflow limits · up to ${num(extras)} feasible additional lines`,
+      assumptions: 'Extra hours require staffing and workflow fit. Capacity does not rise without workforce. Pathways are not interchangeable. Illustrative only.',
+      implications: 'Recover unused staffed time and rework hours before extending sessions.',
+      followUp: 'Recoverable Hours, Additional Lines, and Eligible Pending',
+      owner: 'Pharmacy operations lead',
+    };
+  }
+
+  if (intent.kind === 'rx-waste-down') {
+    const avoided = Math.round(view.avoidableWaste * amount);
+    const nextAvoidable = view.avoidableWaste - avoided;
+    return {
+      id: intent.kind,
+      title: 'Avoidable medication waste reduction scenario',
+      current: `Avoidable Waste ${sar(view.avoidableWaste)} of ${sar(view.totalWaste)} write-offs · expired ${sar(view.expiredValue)} · discards ${sar(view.discardValue)} · top expiry group ${hotExpiry?.name ?? 'n/a'} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in avoidable waste`,
+      estimated: `Avoidable Waste near ${sar(nextAvoidable)} · about ${sar(avoided)} of write-offs avoided — a subset of existing write-offs, never added on top`,
+      assumptions: 'Not all waste is avoidable. Savings are counted once inside Potential Medication Savings. Illustrative — not achieved savings. Fictional SAR.',
+      implications: `Start with ${hotExpiry?.name ?? 'the highest-expiry group'} and discard handling before changing purchasing.`,
+      followUp: 'Avoidable Waste, Expired Value, and Potential Savings',
+      owner: 'Pharmacy finance lead',
+    };
+  }
+
+  const wantedCut = view.medianTatMin * amount;
+  const appliedCut = Math.min(wantedCut, view.feasibleTatCutMin);
+  const share = wantedCut > 0 ? appliedCut / wantedCut : 0;
+  const cleared = Math.round(view.dispensesOverTarget * Math.min(1, (appliedCut / Math.max(view.medianTatMin, 1))) * 0.6);
+  return {
+    id: 'rx-tat-down',
+    title: 'Dispensing turnaround improvement scenario',
+    current: `Median Dispensing TAT ${num(view.medianTatMin)} min · P90 ${num(view.p90TatMin)} · over target ${num(view.dispensesOverTarget)} · slowest pathway ${slowest?.name ?? 'n/a'} (${view.periodLabel})`,
+    change: `Illustrative ${pct(amount, 0)} reduction in verification-to-dispense turnaround`,
+    estimated: `Median near ${num(view.medianTatMin - appliedCut, 1)} min (feasible cut ${num(appliedCut, 1)} of ${num(wantedCut, 1)} requested, ${pct(share, 0)}) · about ${num(cleared)} fewer over-target dispenses`,
+    assumptions: 'Only queue handoff and clarification gaps are addressable, so the feasible cut is capped. Pathways keep their own minutes. Illustrative — not a measured improvement.',
+    implications: `Clear verification queue aging first; ${slowest?.name ?? 'the slowest pathway'} remains the longest by design.`,
+    followUp: 'Median Dispensing TAT, Over-Target Dispenses, and Verification Backlog',
+    owner: 'Pharmacy operations lead',
   };
 }
 

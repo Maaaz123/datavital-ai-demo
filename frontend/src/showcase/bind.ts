@@ -1,6 +1,7 @@
 import { leaveSplit } from '@/core/derived';
 import { longStayRateFromP90 } from '@/core/ipdScope';
 import { buildLaboratoryView } from '@/core/laboratoryView';
+import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
@@ -86,8 +87,48 @@ export function bindKpi(kpi: KpiDef, fact: AnnualFact, hospital: string, year: n
   return hit;
 }
 
+/** Pharmacy & Medication Operations KPIs bound to the shared Pharmacy view. */
+function pharmacyMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildPharmacyView(hospital, year, 'year');
+  switch (key) {
+    case 'kpi_rx_med_orders': return count(v.orders, 'neutral', 'Unique medication orders from the Pharmacy Command view. Distinct from order lines, dispenses, and administrations.', GRAIN, 'orders');
+    case 'kpi_rx_verified_orders': return count(v.verifiedOrders, 'up', 'Pharmacist-verified orders from the Pharmacy Command view.', GRAIN, 'orders');
+    case 'kpi_rx_dispensed_lines': return count(v.dispensedLines, 'neutral', 'Dispensed order lines from the Pharmacy Command view. Lines are not orders.', GRAIN, 'lines');
+    case 'kpi_rx_dispensing_completion': return exactRate(v.dispensedLines, v.lineLedger.opening + v.orderLines, 'up', 'Dispensed lines ÷ (opening open lines + new lines) from the Pharmacy Command view.');
+    case 'kpi_rx_pending_orders': return count(v.pendingOrders, 'down', 'Open undispensed orders at observation from the Pharmacy Command view.', GRAIN, 'orders');
+    case 'kpi_rx_urgent_share': return exactRate(v.urgentOrders, v.orders, 'neutral', 'Urgent orders ÷ medication orders from the Pharmacy Command view.');
+    case 'kpi_rx_median_tat': return duration(v.medianTatMin, 'minutes', 'down', 'Median verification-to-dispense turnaround from the Pharmacy Dispensing view.');
+    case 'kpi_rx_p90_tat': return duration(v.p90TatMin, 'minutes', 'down', 'P90 verification-to-dispense turnaround from the Pharmacy Dispensing view.');
+    case 'kpi_rx_over_target': return count(v.dispensesOverTarget, 'down', 'Dispensed orders over the TAT target from the Pharmacy Dispensing view.', GRAIN, 'orders');
+    case 'kpi_rx_verification_backlog': return count(v.verificationBacklog, 'down', 'Orders awaiting pharmacist verification from the Pharmacy Dispensing view.', GRAIN, 'orders');
+    case 'kpi_rx_first_pass': return exactRate(v.firstPassLines, v.dispensedLines, 'up', 'First-pass lines ÷ dispensed lines from the Pharmacy Dispensing view.');
+    case 'kpi_rx_rework': return exactRate(v.reworkLines, v.dispensedLines, 'down', 'Rework lines ÷ dispensed lines from the Pharmacy Dispensing view.');
+    case 'kpi_rx_inventory_value': return money(v.inventoryValue, 'Closing medication stock value from the Pharmacy Inventory view. Fictional SAR.');
+    case 'kpi_rx_stockout_skus': return count(v.stockoutSkus, 'down', 'SKUs with zero available stock from the Pharmacy Inventory view.', GRAIN, 'SKUs');
+    case 'kpi_rx_low_stock_skus': return count(v.lowStockSkus, 'down', 'Low-stock SKUs (stocked-out SKUs excluded) from the Pharmacy Inventory view.', GRAIN, 'SKUs');
+    case 'kpi_rx_days_of_supply': return duration(v.daysOfSupply, 'days', 'neutral', 'Closing stock value ÷ average daily issue value from the Pharmacy Inventory view.');
+    case 'kpi_rx_near_expiry_value': return money(v.nearExpiryValue, 'Closing stock value in batches expiring within 90 days from the Pharmacy Inventory view. Fictional SAR.', 'down');
+    case 'kpi_rx_verification_exception_rate': return exactRate(v.exceptionOrders, v.verifiedOrders, 'down', 'Exception orders ÷ verified orders from the Pharmacy Safety view.');
+    case 'kpi_rx_high_alert_compliance': return exactRate(v.highAlertCompliant, v.highAlertLines, 'up', 'High-alert lines with independent check ÷ high-alert lines from the Pharmacy Safety view.');
+    case 'kpi_rx_barcode_rate': return exactRate(v.scannedAdministrations, v.administrationEvents, 'up', 'Scanned administrations ÷ administration events from the Pharmacy Safety view.');
+    case 'kpi_rx_incident_reports': return count(v.incidentReports, 'neutral', 'Reported medication process incidents from the Pharmacy Safety view.', GRAIN, 'reports');
+    case 'kpi_rx_unresolved_reviews': return count(v.unresolvedReviews, 'down', 'Open incident reviews at observation from the Pharmacy Safety view.', GRAIN, 'reviews');
+    case 'kpi_rx_medication_spend': return money(v.medicationSpend, 'Issued units × unit cost from the Pharmacy Cost view. Excludes write-offs. Fictional SAR.');
+    case 'kpi_rx_cost_per_line': return money(v.costPerLine, 'Medication spend ÷ dispensed lines from the Pharmacy Cost view. Fictional SAR.');
+    case 'kpi_rx_expired_value': return money(v.expiredValue, 'Expired stock write-off value from the Pharmacy Cost view. Fictional SAR.', 'down');
+    case 'kpi_rx_avoidable_waste': return money(v.avoidableWaste, 'Avoidable share of expired and discarded value (a subset of write-offs) from the Pharmacy Cost view. Fictional SAR.', 'down');
+    case 'kpi_rx_potential_savings': return money(v.potentialSavings, 'Exclusive savings drivers, each SAR counted once, from the Pharmacy Cost view. Illustrative. Fictional SAR.', 'up');
+    case 'kpi_rx_recoverable_hours': return count(v.recoverableHours, 'up', 'Potentially recoverable pharmacy hours from Pharmacy Optimization.', GRAIN, 'hours');
+    case 'kpi_rx_additional_lines': return count(v.additionalLines, 'up', 'Feasible additional dispensing lines from Pharmacy Optimization.', GRAIN, 'lines');
+    case 'kpi_rx_eligible_pending': return count(v.eligiblePending, 'neutral', 'Eligible pending lines from Pharmacy Optimization.', GRAIN, 'lines');
+    case 'kpi_rx_feasible_tat_cut': return duration(v.feasibleTatCutMin, 'minutes', 'up', 'Feasible median TAT reduction from queue and clarification gaps. Illustrative upper bound.');
+    default: return null;
+  }
+}
+
 function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): Raw | null {
   const key = kpi.key;
+  if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);
   const admissions = fact.admissions;
   const discharges = fact.discharges;
   const encounters = fact.encounters;

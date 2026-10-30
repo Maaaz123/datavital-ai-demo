@@ -84,7 +84,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "revision": "567b79fc0f9fc3a156dc4f6694936449"
   }, {
     "url": "index.html",
-    "revision": "293f35028e006df21fd4f465f378c936"
+    "revision": "beea4a8290822c5099c5746a27836136"
   }, {
     "url": "favicon.svg",
     "revision": "294d223cf35255343cf5e00adfb0d52a"
@@ -92,7 +92,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/workbox-window.prod.es5-BBnX5xw4.js",
     "revision": null
   }, {
-    "url": "assets/pwa-DtPz1IbE.js",
+    "url": "assets/pwa-Dcp5ZxTP.js",
     "revision": null
   }, {
     "url": "assets/manrope-vietnamese-800-normal-bvg7iBCV.woff",
@@ -215,7 +215,7 @@ define(['./workbox-d3a36d94'], (function (workbox) { 'use strict';
     "url": "assets/manrope-cyrillic-500-normal-B1OEZity.woff2",
     "revision": null
   }, {
-    "url": "assets/index-DWbsy6vZ.js",
+    "url": "assets/index-v90Mr-rx.js",
     "revision": null
   }, {
     "url": "assets/index-BUfHIh3l.css",
