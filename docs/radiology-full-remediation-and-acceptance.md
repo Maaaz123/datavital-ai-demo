@@ -326,7 +326,7 @@ Shared `facts.ts` scenario generators were not modified. Surgery reconcile, fact
 
 ## 28. Git commit hash
 
-Recorded at publish time in this document’s footer after commit/push.
+`eb7f5ceb4c7b04d408958d803b9d7154efb6f4cf` (message: Remediate Radiology lifecycle, ledger, capacity, and alert semantics (v65).)
 
 ---
 
@@ -338,6 +338,7 @@ Recorded at publish time in this document’s footer after commit/push.
 | Bundle | `assets/index-BuLFJGO8.js` |
 | PWA helper | `assets/pwa-BhFuuvbV.js` |
 | Production URL | https://maaaz123.github.io/datavital-ai-demo/radiology |
+| Commit | `eb7f5ce` |
 
 ---
 
