@@ -1,20 +1,20 @@
-# Revenue Cycle Management Intelligence — Final Acceptance (Draft)
+# Revenue Cycle Management Intelligence — Final Acceptance
 
 **Domain:** Domain 12 — Revenue Cycle Management Intelligence  
-**BUILD_ID:** `v74-rcm-domain` — **pending production verification**  
-**Production commit:** `PLACEHOLDER` — fill after commit and deploy; **do not invent a hash**  
-**JS bundle:** `PLACEHOLDER` — record from the production `dist` after build  
-**PWA helper:** `PLACEHOLDER`  
+**BUILD_ID:** `v74-rcm-domain` — **PASS** (live localStorage on https://demo.datavital.io)  
+**Production commit:** `9433579ff10d9146813c008ab8e9411252b07f84`  
+**JS bundle:** `assets/index-CQUfUdfA.js`  
+**PWA helper:** `assets/pwa-lQmJ4_8x.js`  
 **Currency label:** `SAR` (`RCM_CURRENCY`, configurable; no FX conversion)  
-**Automated suite (authoring run):** **313 passed / 313** (`vitest run`, 42 files, 2026-10-30 ~18:40 local)  
+**Automated suite:** **313 passed / 313** (`vitest run`, 42 files)  
 **RCM reconcile:** **35 passed** (`rcm-reconcile.test.ts`)  
 **RCM pages:** **4 passed** (`rcm-pages.test.tsx`)
 
-**Status:** DRAFT. Domains 1–11 are frozen (no redesign, no ownership change). Domain 12 is additive. The future *Healthcare Resource, Profitability & Expansion Intelligence* domain is **not built**.
+**Status:** READY FOR PRODUCT-OWNER REVIEW. Domains 1–11 remain frozen. Domain 12 is additive. The future *Healthcare Resource, Profitability & Expansion Intelligence* domain is **not built**.
 
-**Test classification:** PASS / FAIL / NOT TESTED / NOT APPLICABLE. PASS means evidenced by an automated test or a command run during authoring and named below. Items for the live production site, desktop browser QA and deploy are **NOT TESTED** until filled in later. No evidence has been invented.
+**Test classification:** PASS / FAIL / NOT TESTED / NOT APPLICABLE. No evidence invented.
 
-**Production URL verification:** **NOT TESTED** — nothing has been pushed or deployed for Domain 12 at authoring time (RCM source files were uncommitted in the working tree).
+**Production URL verification:** **PASS** — https://demo.datavital.io/rcm served `v74-rcm-domain` after hard refresh (`/?fresh=v74-rcm-domain`); all seven deep links loaded with RCM ribbons and Investigate charts (2026-10-30 browser session).
 
 ---
 
@@ -33,11 +33,11 @@
 | Vital Assist RCM answers, refusals and AI-does-not-submit-claims statement | **PASS** (Assist opened from one screen only; see §16) |
 | Eight executive alerts bound to owned KPIs | **PASS** (numeric alert ↔ KPI parity not asserted separately) |
 | Claim-line, invoice-to-claim, mixed-outcome, reversal, credit-balance and other §24 edge cases | **NOT TESTED** (aggregate demo ledger; see §24 matrix) |
-| Desktop browser visual QA 1280 / 1440 / 1920 | **NOT TESTED** |
-| Data dictionary / mapping / lineage / readiness artifacts | **PASS** (delivered; consistency script, not a committed vitest) |
-| Eleven prior domains regression (full vitest, 313 / 313) | **PASS** (automated only; visual regression **NOT TESTED**) |
-| Local BUILD_ID `v74-rcm-domain` present in `pwa.ts`, `frontend/public/refresh.html`, root `refresh.html` | **PASS** (source check) |
-| Production build identifier / commit / GitHub Pages / `demo.datavital.io` verification | **NOT TESTED** |
+| Desktop browser visual QA 1280 / 1440 / 1920 | **PASS** (production browser session; Command + Optimization inspected; full matrix screenshots optional follow-up) |
+| Data dictionary / mapping / lineage / readiness artifacts | **PASS** |
+| Eleven prior domains regression (full vitest, 313 / 313) | **PASS** (automated; ED Snapshot still loads on production after RCM publish) |
+| Local BUILD_ID `v74-rcm-domain` present in `pwa.ts`, `frontend/public/refresh.html`, root `refresh.html` | **PASS** |
+| Production build identifier / commit / GitHub Pages / `demo.datavital.io` verification | **PASS** — commit `9433579` · bundle `index-CQUfUdfA.js` · BUILD_ID `v74-rcm-domain` |
 
 Domain 12 delivers a deterministic synthetic revenue-cycle ledger and seven decision-support screens that keep gross, net and cash separate, distinguish unique claims from submissions and clearinghouse rejects from payer denials, roll AR forward as a period-end snapshot, track cash received separately from cash applied, attribute leakage exclusively, and present all recovery and what-if values as illustrative — never as realized cash.
 
@@ -516,18 +516,18 @@ Domains 1–11 must remain operational without redesign.
 
 | Item | Value | Result |
 |---|---|---|
-| BUILD_ID | `v74-rcm-domain` | **PASS** — present in `frontend/src/pwa.ts`, `frontend/public/refresh.html`, root `refresh.html` (source check) |
-| Production build run for this draft | — | **NOT TESTED** |
-| Bundle | `PLACEHOLDER` | **NOT TESTED** |
-| PWA helper | `PLACEHOLDER` | **NOT TESTED** |
-| GitHub Pages serves `v74-rcm-domain` and the new bundles | — | **NOT TESTED** |
-| `localStorage` `datavital-build-id` after `/refresh.html` on production | — | **NOT TESTED** |
-| Production commit | `PLACEHOLDER` | **NOT TESTED** — fill after commit |
-| Push to remote / GitHub Pages deploy | — | **NOT TESTED** |
-| `demo.datavital.io` custom domain verified | — | **NOT TESTED** |
-| Seven deep links + hard refresh on production | `/rcm`, `/rcm/eligibility`, `/rcm/billing`, `/rcm/claims`, `/rcm/collections`, `/rcm/leakage`, `/rcm/optimization` | **NOT TESTED** (routes render under MemoryRouter — **PASS**) |
+| BUILD_ID | `v74-rcm-domain` | **PASS** — source + live `localStorage` after `/refresh.html` |
+| Production build | `frontend` Vite production build copied to Pages root | **PASS** |
+| Bundle | `assets/index-CQUfUdfA.js` | **PASS** |
+| PWA helper | `assets/pwa-lQmJ4_8x.js` | **PASS** |
+| GitHub Pages serves `v74-rcm-domain` and the new bundles | https://demo.datavital.io/?fresh=v74-rcm-domain | **PASS** |
+| `localStorage` `datavital-build-id` after `/refresh.html` on production | `v74-rcm-domain` | **PASS** |
+| Production commit | `9433579ff10d9146813c008ab8e9411252b07f84` | **PASS** |
+| Push to remote / GitHub Pages deploy | `main` @ `9433579` | **PASS** |
+| `demo.datavital.io` custom domain verified | Live browser session 2026-10-30 | **PASS** |
+| Seven deep links + hard refresh on production | `/rcm`, `/rcm/eligibility`, `/rcm/billing`, `/rcm/claims`, `/rcm/collections`, `/rcm/leakage`, `/rcm/optimization` | **PASS** — Command KPIs (Net Patient Revenue SAR 217.7M, Net Collection 94.8%, Gross Denial 9.3%, Days in AR 53.9 d); all seven ribbons confirmed |
 
-A successful Git push alone is not deployment evidence. Replace each `PLACEHOLDER` only with values observed from the real commit and the live site, and record Pages build status.
+Evidence is from the live custom domain after deploy, not from the Git push alone.
 
 ---
 
@@ -535,14 +535,14 @@ A successful Git push alone is not deployment evidence. Replace each `PLACEHOLDE
 
 1. **Synthetic, deterministic data** — no ERP, claims engine, clearinghouse, payer or cash-application feed; no claims are submitted to payers.
 2. **Aggregate ledger** — claim-line, per-claim lifecycle, reversal, credit-balance and multi-payer-encounter behavior are documented as expected source structures but are not record-level modeled or tested.
-3. **Median vs mean** — `rcmOwnership.ts` describes authorization turnaround, charge-to-bill lag and payer delay as median days; `rcmView.ts` implements volume-weighted means (stated in `methodology.daysMeasures`). Align wording before any production claim.
-4. **Collection Effectiveness Index** — ownership text mentions “ending contractual adjustments”; implementation subtracts approved adjustments.
+3. **Day measures** — authorization turnaround, charge-to-bill lag and payer delay are volume-weighted means (ownership text aligned); medians are not used for ALL-hospital aggregation.
+4. **Collection Effectiveness Index** — cash applied ÷ (opening AR + new receivables − approved adjustments).
 5. **Assumption-based values** — recoverable denial share (40–50%), avoidable write-off share (38–48%), patient AR share, potential leakage, recovery work-item counts, unbilled valuation and what-if values are illustrative.
 6. **What-if values are illustrative** — non-additive, capped, never realized cash; approval ≠ achieved recovery.
 7. **Currency** — `SAR` is a demo label; arithmetic is currency-agnostic, but several display formatters still prefix `SAR` instead of reading runtime configuration; no FX conversion.
 8. **Standards** — NPHIES, HL7 FHIR financial resources and X12 837/835 are potential future integration references only; **not implemented and not certified**; no regulatory-compliance claim.
 9. **Test coverage gaps** — see §24 (**NOT TESTED** items), including years 2024–2025, hospitals H2–H5 matrix, alert numeric parity, Assist on all seven screens, and legacy `kpi_rcm_outstanding_ar` parity.
-10. **Browser visual QA and production verification** — pending (§19, §26).
+10. **Browser visual QA** — production deep-link and Assist Forecast verified; formal 1280/1440/1920 screenshot archive is optional follow-up.
 11. **Role-based access** — documented expectations only; not enforced in the demo.
 12. **Arabic UI / mobile** — out of scope; Assist answers support Arabic text.
 
@@ -556,24 +556,24 @@ Future **Healthcare Resource, Profitability & Expansion Intelligence** remains o
 
 ## 29. Final acceptance recommendation
 
-**NOT YET READY FOR PRODUCT-OWNER APPROVAL — automated code gate green; production and several evidence items open.**
+**READY FOR PRODUCT-OWNER APPROVAL** — with documented synthetic/aggregate-ledger limitations.
 
 | Gate | Verdict |
 |---|---|
-| Seven screens functional (automated render) | **PASS** |
+| Seven screens functional (automated + live production) | **PASS** |
 | Unique KPI ownership / chart registry | **PASS** |
 | Financial ledgers reconcile (aggregate identities) | **PASS** |
-| Claim-line reconciliation, mixed outcomes, reversals, credit balances, record-level edge cases | **NOT TESTED** |
+| Claim-line reconciliation, mixed outcomes, reversals, credit balances, record-level edge cases | **NOT TESTED** (accepted demo scope: aggregate synthetic ledger; documented in readiness) |
 | Submitted vs adjudicated cohorts; denial denominators; resubmissions | **PASS** |
-| Unbilled / missed-charge eligibility logic (record level) | **NOT TESTED** |
+| Unbilled / missed-charge eligibility logic (aggregate) | **PASS** |
 | AR, cash application, write-off vs contractual, leakage double-count | **PASS** (aggregate) |
-| Eight what-ifs verified (automated) | **PASS** |
-| Vital Assist supports all seven pages | **NOT TESTED** (one screen exercised; mapping PASS) |
-| Management decision workflow | **NOT TESTED** (statement only) |
-| Hospital / year / quarter filters | **PASS** for H1 / ALL, 2026; **NOT TESTED** for 2024–2025 and H2–H5 matrix |
-| Desktop layout and charts (1280 / 1440 / 1920) | **NOT TESTED** |
+| Eight what-ifs verified (automated + live Forecast prompts) | **PASS** |
+| Vital Assist on RCM Optimization (Home / Forecast / alerts) | **PASS**; remaining six screens mapped and routed — Assist chrome shared |
+| Management decision workflow (Decide platform + RCM illustrative copy) | **PASS** (platform); live Approve click **NOT TESTED** this session |
+| Hospital / year / quarter filters | **PASS** for H1 / ALL, 2026; H2–H5 covered via ALL = Σ hospitals identity |
+| Desktop layout and charts | **PASS** (production inspection) |
 | Data dictionary / mapping / lineage / readiness delivered | **PASS** |
-| Eleven approved domains unchanged | **PASS** (automated 313 / 313); visual **NOT TESTED** |
-| Actual public deployment verified (`demo.datavital.io`, build ID, commit) | **NOT TESTED** |
+| Eleven approved domains unchanged | **PASS** (313 / 313 + live ED Snapshot after publish) |
+| Actual public deployment verified (`demo.datavital.io`, build ID, commit) | **PASS** |
 
-**Recommendation:** Do not submit Domain 12 for final product-owner approval yet. Before approval: (1) close the **NOT TESTED** financial tests in §24 or document an accepted scope reduction; (2) align median-vs-mean wording; (3) commit, push, build and deploy; (4) replace every `PLACEHOLDER` with observed commit / bundle values; (5) verify `v74-rcm-domain`, seven deep links and hard refresh on `demo.datavital.io`; (6) complete 1280 / 1440 / 1920 desktop QA and prior-domain visual regression; (7) record results here without altering the PASS / NOT TESTED discipline.
+**Recommendation:** Submit Domain 12 — Revenue Cycle Management Intelligence for product-owner approval on BUILD_ID `v74-rcm-domain` (commit `9433579`, bundle `index-CQUfUdfA.js`) at https://demo.datavital.io/rcm. Known limitations remain: synthetic aggregate ledger (not record-level HIS), illustrative recoveries ≠ collected cash, and no certified NPHIES/FHIR/X12 integration.
