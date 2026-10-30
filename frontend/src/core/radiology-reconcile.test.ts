@@ -268,4 +268,133 @@ describe('Radiology alerts, Assist, and what-if', () => {
     expect(kinds.every(Boolean)).toBe(true);
     expect(new Set(kinds).size).toBe(6);
   });
+
+  it('runs each What-if prompt end-to-end without NaN or negative modeled capacity', async () => {
+    const { parseWhatIfIntent, runWhatIf, WHAT_IF_PROMPTS } = await import('@/showcase/whatIf');
+    for (const prompt of WHAT_IF_PROMPTS.Radiology) {
+      const intent = parseWhatIfIntent(prompt);
+      expect(intent).not.toBeNull();
+      const result = runWhatIf('Radiology', 'H1', 2026, intent, 'year');
+      expect(result.title.length).toBeGreaterThan(5);
+      expect(result.current).not.toMatch(/NaN/);
+      expect(result.estimated).not.toMatch(/NaN|−\d|-\d+\s*(h|hours|exams)/i);
+      expect(result.owner.length).toBeGreaterThan(3);
+      expect(result.followUp.length).toBeGreaterThan(5);
+    }
+    const ctAlt = runWhatIf('Radiology', 'H1', 2026, { kind: 'rad-ct-downtime-down', amount: 0.35 }, 'year');
+    const ctDefault = runWhatIf('Radiology', 'H1', 2026, { kind: 'rad-ct-downtime-down', amount: 0.2 }, 'year');
+    expect(ctAlt.estimated).not.toBe(ctDefault.estimated);
+    expect(ctAlt.current).toMatch(/CT downtime/i);
+  });
+});
+
+describe('Radiology filter matrix and catalog', () => {
+  it('builds finite reconciled views for every hospital × year × period', () => {
+    for (const hospital of SITES) {
+      for (const year of YEARS) {
+        for (const period of PERIODS) {
+          const view = buildRadiologyView(hospital.code, year, period);
+          const numbers = [
+            view.requests, view.completed, view.cancelled, view.noShows, view.pending,
+            view.closingBacklog, view.openingBacklog, view.scannerUtilization, view.staffedHours,
+            view.inSessionUsed, view.downtimeHours, view.unusedHours, view.overtimeHours,
+            view.medianReportTatHours, view.unsignedReports, view.criticalAckRate, view.criticalDelayRate,
+            view.recoverableHours, view.additionalExams, view.eligibleWaitlist,
+          ];
+          for (const value of numbers) {
+            expect(Number.isFinite(value)).toBe(true);
+            expect(value).not.toBe(Number.POSITIVE_INFINITY);
+          }
+          expect(view.completed + view.cancelled + view.noShows + view.pending).toBe(view.requests);
+          expect(view.signedReports + view.unsignedReports).toBe(view.completed);
+          expect(view.openingBacklog + view.addedToWaitlist - view.completedFromWaitlist - view.otherExits).toBe(view.closingBacklog);
+          expect(view.inSessionUsed + view.downtimeHours + view.unusedHours).toBe(view.staffedHours);
+          expect(view.criticalAcked + view.criticalPendingAck).toBe(view.criticalResults);
+          expect(view.additionalExams).toBeLessThanOrEqual(view.eligibleWaitlist);
+          expect(view.closingBacklog).toBeGreaterThanOrEqual(0);
+          expect(view.unusedHours).toBeGreaterThanOrEqual(0);
+          expect(view.overtimeHours).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
+  it('keeps the indicator catalog free of headline numeric duplication', async () => {
+    const { radiologyIndicatorsFor } = await import('./radiologyScope');
+    const view = buildRadiologyView('H1', 2026, 'year');
+    const catalog = radiologyIndicatorsFor(view);
+    expect(catalog.length).toBeGreaterThan(10);
+    for (const item of catalog.filter((row) => row.status !== 'unavailable')) {
+      expect(item.summary).not.toMatch(/^[0-9][0-9,]*(?:\.\d+)?%?$/);
+      expect(item.summary).toMatch(/·/);
+      expect(item.formula.length).toBeGreaterThan(3);
+      expect(item.unit.length).toBeGreaterThan(1);
+      expect(item.name).not.toMatch(/Bed Occupancy|OR Utilization|Slot Fill/i);
+    }
+    expect(assertUniqueRadiologyOwnership()).toEqual([]);
+  });
+
+  it('labels Radiology alerts as full-year even when KPI period can be a quarter', () => {
+    const alerts = alertsFor('H2', 2025).filter((alert) => alert.department === 'Radiology');
+    expect(alerts.length).toBeGreaterThan(0);
+    for (const alert of alerts) {
+      expect(alert.period).toMatch(/Full year 2025/);
+      expect(alert.hospital).toBe('H2');
+    }
+    const h1 = alertsFor('H1', 2026).find((alert) => alert.kpi === 'kpi_rad_ct_downtime');
+    const view = buildRadiologyView('H1', 2026, 'year');
+    expect(h1?.observed).toMatch(String(view.ctDowntimeHours));
+  });
+});
+
+describe('Radiology decision persistence contract', () => {
+  it('scopes decision keys and persists approve/reject/defer through showcase storage', async () => {
+    const { clearDemoStorage, decisionKey, ShowcaseState, useShowcase } = await import('@/showcase/state');
+    const { createElement } = await import('react');
+    const { render, act, screen, cleanup } = await import('@testing-library/react');
+
+    const keyH1 = decisionKey('kpi_rad_imaging_backlog', 'H1', 2026, 'Radiology');
+    const keyH2 = decisionKey('kpi_rad_imaging_backlog', 'H2', 2026, 'Radiology');
+    expect(keyH1).not.toBe(keyH2);
+
+    clearDemoStorage();
+    let latest: ReturnType<typeof useShowcase> | null = null;
+    function Probe() {
+      latest = useShowcase();
+      return createElement('div', { 'data-testid': 'decision-state' }, latest.approvals[keyH1] ?? 'none');
+    }
+
+    render(createElement(ShowcaseState, null, createElement(Probe)));
+    expect(screen.getByTestId('decision-state').textContent).toBe('none');
+
+    await act(async () => {
+      latest!.decide(keyH1, 'approved');
+    });
+    expect(screen.getByTestId('decision-state').textContent).toBe('approved');
+
+    await act(async () => {
+      latest!.decide(keyH1, 'rejected');
+    });
+    expect(screen.getByTestId('decision-state').textContent).toBe('rejected');
+
+    await act(async () => {
+      latest!.decide(keyH1, 'deferred');
+    });
+    expect(screen.getByTestId('decision-state').textContent).toBe('deferred');
+    expect(latest!.approvals[keyH1]).toBe('deferred');
+    expect(latest!.approvals[keyH1]).not.toBe('approved');
+    expect(latest!.approvals[keyH1]).not.toBe('rejected');
+
+    // Remount restores from showcase storage (localStorage or in-memory fallback).
+    cleanup();
+    latest = null;
+    render(createElement(ShowcaseState, null, createElement(Probe)));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('decision-state').textContent).toBe('deferred');
+
+    clearDemoStorage();
+    cleanup();
+  });
 });

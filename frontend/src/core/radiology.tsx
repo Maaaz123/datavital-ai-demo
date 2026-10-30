@@ -209,14 +209,21 @@ function IndicatorIndex({ indicators, domains }: { indicators: Indicator[]; doma
   const [reveal, setReveal] = useState(false);
   const rows = indicators.filter((item) => domains.includes(item.domain) && (reveal || item.status !== 'unavailable'));
   return (
-    <section className="gc-panel">
+    <section className="gc-panel" data-testid="rad-indicator-catalog">
       <h2>Performance indicators</h2>
-      <p className="gc-next">Imaging demand, access, scanners, and reporting. Bed occupancy stays in Beds; OR utilization stays in Surgery; clinic slots stay in Appointments.</p>
+      <p className="gc-next">
+        Definition catalog for this screen — full names, formulas, units, and ownership. Headline numbers stay in the KPI ribbon above. Bed occupancy stays in Beds; OR utilization stays in Surgery; clinic slots stay in Appointments.
+      </p>
       <div className="gc-scope-grid">
         {rows.map((item) => (
-          <article key={`${item.domain}-${item.name}`} className="gc-scope-card" title={item.method}>
+          <article
+            key={`${item.domain}-${item.name}`}
+            className="gc-scope-card"
+            title={[item.method, item.cohort, item.aggregation, item.scope, item.limitations].filter(Boolean).join(' · ')}
+            data-catalog="definition"
+          >
             <strong>{item.name}</strong>
-            <em className="gc-ltr">{item.value}</em>
+            <em>{item.summary}</em>
             <span className={`gc-scope-status is-${item.status === 'unavailable' ? 'missing' : item.status === 'scenario' ? 'live' : 'estimated'}`}>
               {item.status === 'unavailable' ? 'Owned elsewhere' : item.status === 'scenario' ? 'Scenario' : 'Constructed'}
             </span>
