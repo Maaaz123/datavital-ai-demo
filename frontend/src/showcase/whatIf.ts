@@ -588,15 +588,15 @@ function surgeryWhatIf(
 
   if (intent.kind === 'surg-elective-up') {
     const extraSlots = Math.round(view.electiveScheduled * intent.amount);
-    const bedLimited = Math.round(extraSlots * 0.35);
-    const feasible = Math.max(0, extraSlots - bedLimited);
+    const bedLimited = Math.round(extraSlots * view.bedConstrainedShare);
+    const feasible = Math.max(0, Math.min(extraSlots - bedLimited, view.eligibleBacklogCases));
     return {
       id: intent.kind,
       title: 'Elective capacity increase scenario',
       current: `Elective scheduled ${num(view.electiveScheduled)} · closing backlog ${num(view.closingBacklog)} · bed occ context ${pct(view.bedOccupancyContext)} (${view.periodLabel})`,
       change: `Illustrative ${pct(intent.amount, 0)} rise in elective case slots`,
-      estimated: `About ${num(extraSlots)} added slots · ~${num(feasible)} feasible after bed constraint (~${num(bedLimited)} bed-limited)`,
-      assumptions: 'Room, staffing, and postoperative bed availability constrain conversion. Bed Occupancy remains owned by Beds & Capacity.',
+      estimated: `About ${num(extraSlots)} added slots · ~${num(feasible)} feasible after bed haircut ${pct(view.bedConstrainedShare, 0)} and backlog cap`,
+      assumptions: 'Room, staffing, and postoperative bed availability constrain conversion. Bed Occupancy remains owned by Beds & Capacity. Illustrative bed haircut is occupancy-tied — not an observed bed fact.',
       implications: 'Added elective slots without bed relief overstate completed-case gains.',
       followUp: 'Elective completed volume, Surgical Backlog, and Additional Cases',
       owner: 'Surgical services lead',

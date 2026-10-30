@@ -103,8 +103,14 @@ describe('Surgery final acceptance', () => {
 
     renderAt('/surgery/optimization');
     expect(await screen.findByRole('heading', { name: 'Surgical Capacity Optimization' })).toBeInTheDocument();
-    expect(screen.getAllByText('Recoverable OR Hours').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Recoverable Hours').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Scenario Improvement')).not.toBeInTheDocument();
+    expect(screen.queryByText('Avoidable Delay Hours')).not.toBeInTheDocument();
+    expect(screen.queryByText('Delay Reduction Opportunity')).not.toBeInTheDocument();
     expect(screen.getAllByText(/Recoverable Hours by Driver|Current vs Scenario Capacity|Capacity Constraints/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Improve first-case starts|Reduce turnover time/i).length).toBeGreaterThan(0);
+
+    renderAt('/surgery/or');
+    expect(screen.queryByText('OR Delay Reasons')).not.toBeInTheDocument();
   });
 });

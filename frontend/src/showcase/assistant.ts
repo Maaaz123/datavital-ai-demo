@@ -762,7 +762,7 @@ function answerSurgery(
     return pack(lang, {
       title: tx(lang, `Surgical capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة الجراحة · ${name} · ${view.periodLabel}`),
       observation: tx(lang, `Recoverable OR Hours ${view.recoverableOrHours.toLocaleString('en-US')} · feasible Additional Cases ${view.additionalCases.toLocaleString('en-US')} · capacity gain ${view.capacityGainHours.toFixed(1)} h (${view.scenarioImprovementPct.toFixed(1)}% of staffed).`, `ساعات قابلة للاسترداد ${view.recoverableOrHours.toLocaleString('en-US')}.`),
-      evidence: tx(lang, `Eligible backlog ${view.eligibleBacklogCases.toLocaleString('en-US')} · bed-related cancels ${view.bedRelatedCancels.toLocaleString('en-US')} · bed occ context ${((view.bedOccupancyContext) * 100).toFixed(1)}% (Beds-owned). Drivers are exclusive — no double count.`, `الطابور المؤهل ${view.eligibleBacklogCases.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Eligible backlog ${view.eligibleBacklogCases.toLocaleString('en-US')} · bed haircut ${((view.bedConstrainedShare) * 100).toFixed(0)}% (${view.bedConstrainedHours.toLocaleString('en-US')} h) · bed occ context ${((view.bedOccupancyContext) * 100).toFixed(1)}% (Beds-owned). Exclusive drivers — bed applied once as haircut.`, `الطابور المؤهل ${view.eligibleBacklogCases.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Estimates are illustrative. Not all recovered hours become cases; bed and staffing constraints remain.', 'التقديرات توضيحية.'),
       action: tx(lang, `Sequence first-case improvement, turnover reduction, and same-day cancel prevention before adding elective slots for ${hotBacklog.id}.`, `رتّب تحسين البداية والتدوير وتقليل الإلغاء لـ ${hotBacklog.id}.`),
       role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
@@ -776,7 +776,7 @@ function answerSurgery(
       observation: tx(lang, `Cancelled ${view.cancelled.toLocaleString('en-US')} of ${view.scheduled.toLocaleString('en-US')} (${((view.cancellationRate) * 100).toFixed(1)}%) · same-day ${view.sameDayCancels.toLocaleString('en-US')} (${((view.sameDayCancelRate) * 100).toFixed(1)}% of scheduled) · highest cancel specialty ${hotCancel.id}.`, `الملغى ${view.cancelled.toLocaleString('en-US')}.`),
       evidence: tx(lang, `Top cancel reasons include bed holds (${view.bedRelatedCancels.toLocaleString('en-US')}). Completed + Cancelled = Scheduled.`, `حجوزات الأسرة ${view.bedRelatedCancels.toLocaleString('en-US')}.`),
       explanation: tx(lang, 'Potential reasons (not proven): postoperative bed unavailability, earlier OR overrun, and staffing gaps. Clinical cancellations stay clinical.', 'أسباب محتملة وليست مثبتة.'),
-      action: tx(lang, `Review OR Delay Reasons and bed-related cancel pathways with Bed Manager — without duplicating Bed Occupancy as a Surgery KPI.`, `راجع أسباب التأخير مع مدير الأسرة.`),
+      action: tx(lang, `Review Recoverable Hours by Driver and bed-related cancel pathways with Bed Manager — without duplicating Bed Occupancy as a Surgery KPI.`, `راجع الساعات القابلة للاسترداد مع مدير الأسرة.`),
       role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
       benefit: tx(lang, 'Avoidable operational cancels protect completed case volume.', 'الإلغاءات التشغيلية التي يمكن تجنبها تحمي الحالات المكتملة.'),
     });

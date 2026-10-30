@@ -279,11 +279,11 @@ export function SurgCommandPage() {
       score('Emergency Share', pct(view.emergencyShare), 'Illustrative', 'Emergency Surgery Share',
         'Emergency scheduled share of scheduled cases. Elective + Emergency = Scheduled.',
         `${num(view.emergencyScheduled)} emergency · ${num(view.electiveScheduled)} elective.`,
-        { formula: 'Emergency scheduled ÷ Scheduled', limitations: 'Constructed elective/emergency split (78%/22%).' }),
-      score('Throughput', num(view.throughput, 2), compare(view, prior, (item) => item.throughput), 'Surgical Throughput',
-        'Completed cases per staffed theatre-day.',
-        `${num(view.completed)} cases / (${view.theatres} theatres × period days).`,
-        { formula: 'Completed ÷ (theatres × period days)', tone: 'neutral' }),
+        { formula: 'Emergency scheduled ÷ Scheduled', limitations: 'Single elective share (78%) for scheduled, completed, and cancelled partitions.' }),
+      score('Cases / OR Day', num(view.throughput, 2), compare(view, prior, (item) => item.throughput), 'Surgical Throughput',
+        'Completed cases per staffed theatre-day (weekday sessions).',
+        `${num(view.completed)} cases / ${num(view.theatreDays)} theatre-days.`,
+        { formula: 'Completed ÷ (theatres × staffed weekdays)', tone: 'neutral' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
@@ -325,36 +325,36 @@ export function SurgOrPage() {
   return (
     <Page title="OR Utilization & Scheduling" kpis={[
       score('OR Utilization', pct(view.orUtilization), compare(view, prior, (item) => item.orUtilization, true), 'Operating Room Utilization',
-        'Qualifying used OR time including turnover, divided by staffed OR hours.',
-        `${num(view.usedHours)} used / ${num(view.staffedHours)} staffed hours.`,
+        'Used OR time (procedure + turnover) ÷ staffed OR hours. Uncapped — overruns appear as overtime.',
+        `${num(view.usedHours)} used / ${num(view.staffedHours)} staffed · ${num(view.overtimeHours)} overtime.`,
         { formula: '(Procedure hours + Turnover hours) ÷ Staffed OR hours', testId: 'value-kpi_surg_util', tone: rateTone(view.orUtilization, 0.78, 0.7, false) }),
       score('First-Case On-Time', pct(view.firstCaseOnTimeRate), compare(view, prior, (item) => item.firstCaseOnTimeRate, true), 'First-Case On-Time Start Rate',
-        'Share of first cases starting on time.',
-        `${pct(view.firstCaseOnTimeRate)} on time.`,
-        { formula: 'On-time first cases ÷ first cases', tone: rateTone(view.firstCaseOnTimeRate, 0.75, 0.65, false) }),
+        'Share of eligible first cases starting on time. Eligible = staffed theatre-days.',
+        `${num(view.onTimeFirstCases)} on time of ${num(view.eligibleFirstCases)} eligible.`,
+        { formula: 'On-time first cases ÷ eligible first cases (theatre-days)', tone: rateTone(view.firstCaseOnTimeRate, 0.75, 0.65, false) }),
       score('Median Turnover', `${num(view.medianTurnoverMin)} min`, compare(view, prior, (item) => item.medianTurnoverMin), 'Median Operating Room Turnover Time',
-        'Illustrative median minutes between cases.',
-        `${num(view.medianTurnoverMin)} minutes · ${view.periodLabel}.`,
+        'Illustrative median minutes between cases. Turnover events = completed − theatre-days.',
+        `${num(view.turnoverEvents)} turnover events · ${num(view.turnoverHours)} h.`,
         { formula: 'Median between-case turnover', tone: view.medianTurnoverMin >= 40 ? 'alert' : view.medianTurnoverMin >= 32 ? 'watch' : 'good' }),
       score('OR Overtime', `${num(view.overtimeHours)} h`, compare(view, prior, (item) => item.overtimeHours), 'Operating Room Overtime Hours',
         'Hours used beyond staffed OR hours.',
         `${num(view.overtimeHours)} overtime hours.`,
         { formula: 'max(0, Used hours − Staffed hours)', tone: view.overtimeHours > 40 ? 'watch' : 'neutral' }),
-      score('Unused OR Hours', `${num(view.unusedHours)} h`, compare(view, prior, (item) => item.unusedHours), 'Unused Allocated Operating Room Hours',
-        'Staffed hours not occupied by procedure or turnover.',
+      score('Unused OR Hours', `${num(view.unusedHours)} h`, compare(view, prior, (item) => item.unusedHours), 'Unused Staffed Operating Room Hours',
+        'Staffed hours not occupied by in-session procedure or turnover.',
         `${num(view.unusedHours)} unused of ${num(view.staffedHours)} staffed.`,
-        { formula: 'max(0, Staffed − Used)', tone: view.unusedHours > view.staffedHours * 0.2 ? 'watch' : 'good' }),
+        { formula: 'Staffed − in-session used', tone: view.unusedHours > view.staffedHours * 0.2 ? 'watch' : 'good' }),
       score('Late Start Hours', `${num(view.lateStartHours)} h`, compare(view, prior, (item) => item.lateStartHours), 'Late Start Hours',
-        'Estimated hours lost to late first-case starts.',
-        `${num(view.lateStartHours)} hours.`,
-        { formula: 'Illustrative late-start hour estimate from first-case punctuality', tone: 'watch' }),
+        'Hours lost to late first-case starts (late first cases × mean delay minutes).',
+        `${num(view.lateFirstCases)} late of ${num(view.eligibleFirstCases)} eligible · ${num(view.lateStartHours)} h.`,
+        { formula: 'Late first cases × mean late-start minutes ÷ 60', tone: 'watch' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'OR Utilization by Room', view.rooms.map((item) => item.id), [{ name: 'Utilization %', values: view.rooms.map((item) => Math.round(item.utilization * 1000) / 10) }], '%', `Room utilization from used ÷ staffed hours. Hospital util ${pct(view.orUtilization)}.`)} />
+          <Slot span={false} figure={fig('bars', 'OR Utilization by Room', view.rooms.map((item) => item.id), [{ name: 'Utilization %', values: view.rooms.map((item) => Math.round(item.utilization * 1000) / 10) }], '%', `Room used ÷ staffed (distinct weights). Hospital util ${pct(view.orUtilization)}.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'First-Case On-Time Trend', view.labels, [{ name: 'On-time %', values: view.monthlyFirstCase }], '%', 'Monthly first-case on-time rate. Illustrative punctuality series.')} />
+          <Slot span={false} figure={fig('line', 'First-Case On-Time Trend', view.labels, [{ name: 'On-time %', values: view.monthlyFirstCase }], '%', 'Monthly on-time rate from eligible first-case counts. Period rate uses theatre-day denominator.')} />
         </div>
       </div>
       <div className="gc-ed-pack">
@@ -362,17 +362,10 @@ export function SurgOrPage() {
           <Slot span={false} figure={fig('bars', 'Turnover by Specialty', view.specialties.map((item) => item.id), [{ name: 'Median min', values: view.specialties.map((item) => item.turnoverMin) }], 'min', `Specialty turnover around hospital median ${num(view.medianTurnoverMin)} min.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Scheduled vs Used Hours', ['Allocated', 'Staffed', 'Used', 'Unused', 'Overtime'], [{ name: 'Hours', values: [view.allocatedHours, view.staffedHours, view.usedHours, view.unusedHours, view.overtimeHours] }], 'hours', 'OR time accounting. Used includes procedure + turnover. Overtime is used beyond staffed.')} />
+          <Slot span={false} figure={fig('bars', 'Scheduled vs Used Hours', ['Allocated', 'Staffed', 'Used', 'Unused', 'Overtime'], [{ name: 'Hours', values: [view.allocatedHours, view.staffedHours, view.usedHours, view.unusedHours, view.overtimeHours] }], 'hours', 'OR time accounting. Used = procedure + turnover. In-session used + unused = staffed. Overtime = used beyond staffed.')} />
         </div>
       </div>
-      <div className="gc-ed-pack">
-        <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'OR Delay Reasons', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Mutually exclusive delay-driver hours — sum equals recoverable OR hours used on Optimization.')} />
-        </div>
-        <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Late Starts by Room', view.rooms.map((item) => item.id), [{ name: 'Late start hours', values: view.rooms.map((item) => item.lateStartHours) }], 'hours', `Room late-start hours sum to ${num(view.lateStartHours)}.`)} />
-        </div>
-      </div>
+      <Slot span="span-12" figure={fig('bars', 'Late Starts by Room', view.rooms.map((item) => item.id), [{ name: 'Late start hours', values: view.rooms.map((item) => item.lateStartHours) }], 'hours', `Room late-start hours sum to ${num(view.lateStartHours)}. Recoverable delay drivers live on Capacity Optimization.`)} />
       <IndicatorIndex indicators={surgeryIndicatorsFor(view)} domains={['OR Efficiency']} />
     </Page>
   );
@@ -404,14 +397,14 @@ export function SurgAccessPage() {
         'Net change in elective backlog during the period.',
         `Opening ${num(view.openingBacklog)} → closing ${num(view.closingBacklog)}.`,
         { formula: 'Closing backlog − Opening backlog', tone: view.waitlistGrowth > 0 ? 'watch' : 'good' }),
-      score('Within Target', pct(view.withinTargetShare), compare(view, prior, (item) => item.withinTargetShare, true), 'Cases Within Wait Target',
+      score('Within Wait Target', pct(view.withinTargetShare), compare(view, prior, (item) => item.withinTargetShare, true), 'Cases Within Wait Target',
         'Share of elective backlog inside the illustrative wait target.',
         `${num(view.withinTargetCases)} within target.`,
         { formula: 'Within-target backlog ÷ Closing backlog', tone: rateTone(view.withinTargetShare, 0.75, 0.6, false) }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Waiting List Trend', view.labels, [{ name: 'Active backlog', values: view.monthlyBacklog }], 'cases', 'Illustrative month-end elective backlog sketch. Snapshot inventory — do not sum months.')} />
+          <Slot span={false} figure={fig('line', 'Waiting List Trend', view.labels, [{ name: 'Active backlog', values: view.monthlyBacklog }], 'cases', 'Month-end elective backlog from monthly ledger (open + added − completed − exits = close). Snapshot — do not sum months.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Wait by Specialty', view.specialties.map((item) => item.id), [{ name: 'Median days', values: view.specialties.map((item) => item.medianWait) }], 'days', `Specialty median waits. Highest backlog: ${hottest?.id ?? 'n/a'} (${num(hottest?.backlog ?? 0)}).`)} />
@@ -459,7 +452,7 @@ export function SurgQualityPage() {
         'Illustrative postoperative infection flags ÷ completed cases.',
         `${num(view.infections)} flags.`,
         { formula: 'Infection flags ÷ Completed', tone: rateTone(view.infectionRate, 0.012, 0.02), limitations: 'Illustrative synthetic flag — not surveillance-validated SSI.' }),
-      score('Doc Completion', pct(view.docCompletionRate), compare(view, prior, (item) => item.docCompletionRate, true), 'Surgical Documentation Completion',
+      score('Documentation Rate', pct(view.docCompletionRate), compare(view, prior, (item) => item.docCompletionRate, true), 'Surgical Documentation Completion',
         'Operative documentation complete ÷ completed cases.',
         `${num(view.docsComplete)} documented.`,
         { formula: 'Docs complete ÷ Completed', tone: rateTone(view.docCompletionRate, 0.9, 0.85, false) }),
@@ -470,21 +463,21 @@ export function SurgQualityPage() {
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Unplanned Returns Trend', view.labels, [{ name: 'Returns', values: view.monthlyReturns }], 'cases', 'Monthly unplanned return counts. Denominator remains period completed cases for the rate KPI.')} />
+          <Slot span={false} figure={fig('line', 'Unplanned Returns Trend', view.labels, [{ name: 'Returns', values: view.monthlyReturns }], 'cases', 'Monthly unplanned return counts sum to period total. Rate KPI uses period completed denominator.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Complications by Specialty', view.specialties.map((item) => item.id), [{ name: 'Flags', values: view.specialties.map((item) => Math.round(item.completed * view.complicationRate)) }], 'flags', 'Illustrative specialty complication flags proportional to completed volume. Not clinical risk adjustment.')} />
+          <Slot span={false} figure={fig('bars', 'Complications by Specialty', view.specialties.map((item) => item.id), [{ name: 'Flags', values: view.specialtyComplications }], 'flags', `Specialty complication flags sum to ${num(view.complications)}. Illustrative — not clinical risk adjustment.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Checklist Compliance Trend', view.labels, [{ name: 'Completion %', values: view.monthlyChecklist }], '%', 'Monthly checklist completion rate. Process measure — distinct from outcome flags.')} />
+          <Slot span={false} figure={fig('line', 'Checklist Compliance Trend', view.labels, [{ name: 'Completion %', values: view.monthlyChecklist }], '%', 'Monthly checklist completion from monthly complete counts ÷ monthly completed. Process measure — distinct from outcome flags.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Safety Events by Type', view.safetyEventTypes.map((item) => item.name), [{ name: 'Events', values: view.safetyEventTypes.map((item) => item.count) }], 'events', `${view.qualityOverlapNote} Do not sum as unique patients.`)} />
         </div>
       </div>
-      <Slot span="span-12" figure={fig('bars', 'Documentation by Specialty', view.specialties.map((item) => item.id), [{ name: 'Completion %', values: view.specialties.map((_, index) => Math.round((view.docCompletionRate + ((index % 3) - 1) * 0.015) * 1000) / 10) }], '%', 'Illustrative documentation completion by specialty.')} />
+      <Slot span="span-12" figure={fig('bars', 'Documentation by Specialty', view.specialties.map((item) => item.id), [{ name: 'Completion %', values: view.specialtyDocRates }], '%', `Specialty documentation rates from docs complete ÷ specialty completed. Completes sum to ${num(view.docsComplete)}.`)} />
       <IndicatorIndex indicators={surgeryIndicatorsFor(view)} domains={['Surgical Quality', 'Cross-domain context']} />
     </Page>
   );
@@ -495,34 +488,26 @@ export function SurgOptimizationPage() {
   const prior = usePrior();
   return (
     <Page title="Surgical Capacity Optimization" kpis={[
-      score('Recoverable OR Hours', `${num(view.recoverableOrHours)} h`, compare(view, prior, (item) => item.recoverableOrHours), 'Recoverable Operating Room Hours',
-        'Hours recoverable from mutually exclusive delay drivers — counted once.',
-        `${num(view.recoverableOrHours)} hours across delay drivers.`,
+      score('Recoverable Hours', `${num(view.recoverableOrHours)} h`, compare(view, prior, (item) => item.recoverableOrHours), 'Recoverable Operating Room Hours',
+        'Hours from exclusive delay drivers (late starts, excess turnover, same-day cancel blocks, equipment). Top-3 operational subset is annotated in Details — not a second headline KPI.',
+        `${num(view.recoverableOrHours)} h total · top-3 operational ${num(view.avoidableDelayHours)} h.`,
         { formula: 'Sum of exclusive delay-driver hours', testId: 'value-kpi_surg_recoverable', tone: view.recoverableOrHours > 80 ? 'watch' : 'neutral' }),
       score('Additional Cases', num(view.additionalCases), compare(view, prior, (item) => item.additionalCases), 'Potential Additional Surgical Cases',
         'Feasible extra completed cases under room, staffing, bed, and backlog constraints.',
         `${num(view.additionalCases)} of ${num(view.potentialAdditionalCases)} hour-feasible · capped by eligible backlog.`,
-        { formula: 'min(hour-feasible extras, eligible backlog)', tone: 'watch', limitations: 'Illustrative estimate — not an achieved result. Bed constraint reduces usable recovered hours.' }),
+        { formula: 'min(floor(feasible recovered hours ÷ avg case hours), eligible backlog)', tone: 'watch', limitations: 'Illustrative estimate — not an achieved result. Bed constraint is a single occupancy-tied haircut.' }),
       score('Capacity Gain', `${num(view.capacityGainHours, 1)} h`, compare(view, prior, (item) => item.capacityGainHours), 'Estimated Surgical Capacity Improvement',
-        'Illustrative hours corresponding to feasible additional cases.',
+        'Illustrative hours corresponding to feasible additional cases. Uplift % of staffed is derived (not a separate headline KPI).',
         `${num(view.capacityGainHours, 1)} hours · ${num(view.scenarioImprovementPct, 1)}% of staffed.`,
         { formula: 'Additional cases × average case hours', limitations: 'Modeled scenario — not implemented capacity.' }),
-      score('Avoidable Delay Hours', `${num(view.avoidableDelayHours)} h`, compare(view, prior, (item) => item.avoidableDelayHours), 'Avoidable Delay Hours',
-        'Subset of recoverable hours from the top operational delay drivers.',
-        `${num(view.avoidableDelayHours)} of ${num(view.recoverableOrHours)} recoverable.`,
-        { formula: 'Sum of top operational delay-driver hours', tone: 'watch' }),
       score('Eligible Backlog', num(view.eligibleBacklogCases), compare(view, prior, (item) => item.eligibleBacklogCases), 'Eligible Backlog Cases',
         'Elective backlog cases that could use recovered capacity under policy.',
         `${num(view.eligibleBacklogCases)} eligible of ${num(view.closingBacklog)} backlog.`,
         { formula: 'Contactable / schedulable share of backlog + overdue priority' }),
-      score('Scenario Improvement', `${num(view.scenarioImprovementPct, 1)}%`, compare(view, prior, (item) => item.scenarioImprovementPct, true), 'Scenario Capacity Improvement',
-        'Illustrative capacity uplift as a share of staffed OR hours.',
-        `${num(view.scenarioImprovementPct, 1)}% of ${num(view.staffedHours)} staffed hours.`,
-        { formula: 'Capacity gain hours ÷ Staffed hours', limitations: 'Combined illustrative scenario — not a forecast of actual gain.' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Recoverable Hours by Driver', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Exclusive drivers — sum equals Recoverable OR Hours. No double counting.')} />
+          <Slot span={false} figure={fig('bars', 'Recoverable Hours by Driver', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Exclusive drivers — sum equals Recoverable Hours. Late-start driver equals Late Start Hours KPI. Bed is a haircut, not a driver.')} />
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel gc-insight">
@@ -554,9 +539,6 @@ export function SurgOptimizationPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Delay Reduction Opportunity', view.delayDriverHours.slice(0, 3).map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.slice(0, 3).map((item) => item.hours) }], 'hours', `Top avoidable drivers totaling ${num(view.avoidableDelayHours)} hours.`)} />
-        </div>
-        <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Backlog Reduction Scenario', ['Closing backlog', 'Eligible backlog', 'Additional cases', 'Residual backlog'], [{ name: 'Cases', values: [
             view.closingBacklog,
             view.eligibleBacklogCases,
@@ -564,12 +546,14 @@ export function SurgOptimizationPage() {
             Math.max(0, view.closingBacklog - view.additionalCases),
           ] }], 'cases', 'Illustrative backlog draw-down if feasible additional cases are scheduled. Not an operational commitment.')} />
         </div>
+        <div className="gc-ed-pack-col">
+          <Slot span={false} figure={fig('bars', 'Capacity Constraints', ['Recoverable hours', 'Bed-constrained hours', 'Usable recovered hours'], [{ name: 'Hours', values: [
+            view.recoverableOrHours,
+            view.bedConstrainedHours,
+            view.feasibleRecoverableHours,
+          ] }], 'hours', `Bed haircut ${(view.bedConstrainedShare * 100).toFixed(0)}% from occupancy context ${pct(view.bedOccupancyContext)} (illustrative assumption — not observed bed fact). Eligible backlog cap ${num(view.eligibleBacklogCases)}. Bed Occupancy stays in Beds & Capacity.`)} />
+        </div>
       </div>
-      <Slot span="span-12" figure={fig('bars', 'Capacity Constraints', ['Recoverable hours', 'Bed-constrained hours', 'Usable recovered hours'], [{ name: 'Hours', values: [
-        view.recoverableOrHours,
-        Math.round(view.recoverableOrHours * 0.35),
-        Math.round(view.recoverableOrHours * 0.65),
-      ] }], 'hours', `Constraints on capacity recovery: ~35% of recovered hours remain bed-constrained (bed occ context ${pct(view.bedOccupancyContext)}). Eligible backlog cap is ${num(view.eligibleBacklogCases)} cases. Bed occupancy KPI stays in Beds & Capacity.`)} />
       <IndicatorIndex indicators={surgeryIndicatorsFor(view)} domains={['Capacity Optimization', 'Cross-domain context']} />
       <AiIndex />
     </Page>

@@ -1,7 +1,8 @@
 import { leaveSplit } from '@/core/derived';
 import { longStayRateFromP90 } from '@/core/ipdScope';
+import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
-import { CURRENCY, SITE_SPECS, type AnnualFact, type SiteCode } from './facts';
+import { CURRENCY, type AnnualFact } from './facts';
 
 export type MeasureKind = 'count' | 'rate' | 'duration' | 'currency' | 'index' | 'multiplier' | 'fte';
 
@@ -149,14 +150,8 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_or_session_volume') return count(Math.round(fact.surgCompleted / 2), 'neutral', 'Sessions are completed cases ÷ 2 in this story.');
   if (key === 'kpi_surg_pending_cases') return count(fact.surgCancelled, 'down', 'Pending work in this story is the cancelled-request cohort, not a third population.');
   if (key === 'kpi_surg_overdue_cases') {
-    const pressure = Math.min(0.14, Math.max(0, occ - 0.76));
-    const elective = Math.round(fact.surgRequests * 0.78);
-    const opening = Math.round(elective * (0.18 + pressure * 0.25));
-    const added = Math.round(elective * (0.92 + pressure * 0.04));
-    const completedElective = Math.round(fact.surgCompleted * 0.8);
-    const otherExits = Math.round(fact.surgCancelled * 0.35);
-    const closing = Math.max(0, opening + added - Math.min(added + opening, completedElective) - otherExits);
-    return count(Math.round(closing * (0.12 + pressure * 0.35)), 'down', 'Overdue elective backlog beyond illustrative wait target. Aligned with Surgery Access view.');
+    const view = buildSurgeryView(hospital, year, 'year');
+    return count(view.overdueCases, 'down', 'Overdue elective backlog beyond illustrative wait target. Bound to Surgery Access view.');
   }
 
   if (key === 'kpi_claim_volume') return count(claims, 'neutral', 'Submitted claims. The same integer as the revenue workspace.');
@@ -230,15 +225,8 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_bed_wait_gt_4h_rate') return share(0.06 + occ * 0.08, arrivals, 'down', 'Arrivals waiting more than 4 hours for a bed. The denominator is ED arrivals.');
   if (key === 'kpi_rad_modality_utilization') return ratio(fact.occupiedBeds, staffed, 'neutral', 'Utilization uses the same occupied ÷ staffed snapshot as bed occupancy. It is labelled as that capacity ratio.');
   if (key === 'kpi_surg_or_utilization') {
-    const theatres = SITE_SPECS[hospital as SiteCode]?.theatres ?? 6;
-    const calendarDays = year % 4 === 0 ? 366 : 365;
-    const workingDays = Math.round(calendarDays * 5 / 7);
-    const pressure = Math.min(0.14, Math.max(0, occ - 0.76));
-    const staffedHours = Math.round(theatres * 8 * workingDays * (0.9 - pressure * 0.04));
-    const procedureHours = Math.round((fact.surgCompleted * (78 + pressure * 12)) / 60);
-    const turnoverHours = Math.round((Math.max(0, fact.surgCompleted - theatres) * (28 + pressure * 14)) / 60);
-    const used = procedureHours + turnoverHours;
-    return ratio(used, staffedHours, 'up', 'OR Utilization = (procedure hours + turnover hours) ÷ staffed weekday OR hours. Not bed occupancy.');
+    const view = buildSurgeryView(hospital, year, 'year');
+    return exactRate(view.usedHours, view.staffedHours, 'up', 'OR Utilization = (procedure + turnover) ÷ staffed hours from Surgery OR view. Uncapped; overtime is separate.');
   }
 
   if (key === 'kpi_ed_esi1_share') return ratio(fact.acuity1, arrivals, 'neutral', 'ESI 1 ÷ ED arrivals. The shares sum to arrivals.');
@@ -265,8 +253,8 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_appointment_provider_cancel_rate') return share(0.02, fact.apptBooked, 'down', 'Provider cancellations are 2% of booked appointments, inside the cancellation story.');
   if (key === 'kpi_surgery_cancellation_rate' || key === 'kpi_surg_cancellation_rate') return ratio(fact.surgCancelled, fact.surgRequests, 'down', 'Cancelled cases ÷ requested cases.');
   if (key === 'kpi_surg_same_day_cancel_rate') {
-    const sameDay = Math.round(fact.surgCancelled * 0.45);
-    return ratio(sameDay, fact.surgRequests, 'down', 'Same-day cancellations ÷ scheduled requests. Same-day share of cancellations is illustrative (45%).');
+    const view = buildSurgeryView(hospital, year, 'year');
+    return exactRate(view.sameDayCancels, view.scheduled, 'down', 'Same-day cancellations ÷ scheduled. Bound to Surgery Command view.');
   }
   if (key === 'kpi_lab_cancellation_rate') return ratio(fact.labCancelled, orders, 'down', 'Cancelled tests ÷ laboratory orders.');
   if (key === 'kpi_rad_cancelled_exam_rate') return ratio(fact.radCancelled, fact.radOrders, 'down', 'Cancelled exams ÷ radiology orders.');
@@ -303,13 +291,24 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   }
   if (key === 'kpi_outpatient_seen_within_30_rate' || key === 'kpi_clinic_on_time_start_rate') return share(0.74 - occ * 0.05, fact.apptAttended, 'up', 'On-time visits ÷ attended appointments.');
   if (key === 'kpi_surg_first_case_ontime' || key === 'kpi_surg_ontime_start_rate') {
-    const pressure = Math.min(0.14, Math.max(0, occ - 0.76));
-    const rate = key.includes('first') ? Math.max(0.5, 0.71 - pressure * 0.35) : 0.64;
-    return share(rate, fact.surgCompleted, 'up', 'On-time starts ÷ completed cases. Aligned with Surgery OR view.');
+    const view = buildSurgeryView(hospital, year, 'year');
+    if (key.includes('first')) {
+      return exactRate(view.onTimeFirstCases, view.eligibleFirstCases, 'up', 'On-time first cases ÷ eligible first cases (staffed theatre-days). Bound to Surgery OR view.');
+    }
+    return share(0.64, fact.surgCompleted, 'up', 'Generic on-time starts ÷ completed cases (non first-case key).');
   }
-  if (key === 'kpi_surg_checklist_compliance') return share(0.97, fact.surgCompleted, 'up', 'Checklist completion ÷ completed cases.');
-  if (key === 'kpi_surg_postop_complication_rate') return share(0.028, fact.surgCompleted, 'down', 'Complications ÷ completed cases.');
-  if (key === 'kpi_surg_unplanned_return_or_rate') return share(0.011, fact.surgCompleted, 'down', 'Unplanned returns ÷ completed cases.');
+  if (key === 'kpi_surg_checklist_compliance') {
+    const view = buildSurgeryView(hospital, year, 'year');
+    return exactRate(view.checklistComplete, view.completed, 'up', 'Checklist completion ÷ completed cases. Bound to Surgery Quality view.');
+  }
+  if (key === 'kpi_surg_postop_complication_rate') {
+    const view = buildSurgeryView(hospital, year, 'year');
+    return exactRate(view.complications, view.completed, 'down', 'Complications ÷ completed cases. Bound to Surgery Quality view.');
+  }
+  if (key === 'kpi_surg_unplanned_return_or_rate') {
+    const view = buildSurgeryView(hospital, year, 'year');
+    return exactRate(view.unplannedReturns, view.completed, 'down', 'Unplanned returns ÷ completed cases. Bound to Surgery Quality view.');
+  }
   if (key === 'kpi_surg_day_surgery_rate') return share(0.36, fact.surgCompleted, 'neutral', 'Day-surgery cases ÷ completed cases.');
   if (key === 'kpi_dx_documentation_rate' || key === 'kpi_dx_principal_completeness' || key === 'kpi_dx_coding_quality' || key === 'kpi_dx_admit_final_match_rate') return share(0.96, encounters, 'up', 'Documentation completeness ÷ encounters.');
   if (key === 'kpi_dx_multiple_chronic_rate') return share(0.44, Math.round(fact.activePatients * 0.37), 'neutral', 'Multiple chronic conditions ÷ chronic-disease patients.');
@@ -388,16 +387,19 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   }
   if (key === 'kpi_appointment_referral_to_first_days') return duration(16.5, 'days', 'down', 'Referral to first visit is 16.5 days in this story.');
   if (key === 'kpi_surg_median_turnover_minutes') {
-    const pressure = Math.min(0.14, Math.max(0, occ - 0.76));
-    return duration(Math.round(28 + pressure * 14), 'minutes', 'down', 'Median theatre turnover aligned with Surgery OR view.');
+    const view = buildSurgeryView(hospital, year, 'year');
+    return duration(view.medianTurnoverMin, 'minutes', 'down', 'Median theatre turnover bound to Surgery OR view.');
   }
   if (key === 'kpi_surg_median_procedure_minutes' || key === 'kpi_surgery_avg_case_hours') {
-    const minutes = 74 + occ * 20;
+    const view = buildSurgeryView(hospital, year, 'year');
     return key.includes('hours')
-      ? duration((minutes * 1.12) / 60, 'hours', 'down', 'Average case duration is 12% above the median, converted to hours from the unrounded minutes.')
-      : duration(minutes, 'minutes', 'down', 'Median procedure duration.');
+      ? duration(view.avgCaseHours, 'hours', 'down', 'Average case hours (procedure + turnover) from Surgery capacity model.')
+      : duration(view.medianProcedureMin, 'minutes', 'down', 'Median procedure duration from Surgery OR view.');
   }
-  if (key === 'kpi_surg_median_wait_days') return duration(12 + occ * 8, 'days', 'down', 'Median wait for surgery lengthens with occupancy.');
+  if (key === 'kpi_surg_median_wait_days') {
+    const view = buildSurgeryView(hospital, year, 'year');
+    return duration(view.medianWaitDays, 'days', 'down', 'Median elective surgical wait bound to Surgery Access view.');
+  }
 
   if (key === 'demo_satisfaction_index') return index(fact.satisfaction, 'Labelled demo assumption on a 0–100 index.');
   if (key === 'demo_discharge_experience_index') return index(fact.satisfaction - 2.6, 'Satisfaction minus a fixed 2.6-point discharge gap. Labelled demo assumption.');
