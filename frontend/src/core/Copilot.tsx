@@ -81,7 +81,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
-type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery';
+type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology';
 
 function domainCount(hospital: string, year: number, department: DomainName, statuses: Record<string, AlertStatus>): number {
   return alertsFor(hospital, year).filter((alert) => {
@@ -91,7 +91,7 @@ function domainCount(hospital: string, year: number, department: DomainName, sta
   }).length;
 }
 
-function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery'; department: DomainName; page: string; askScope: string } {
+function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology'; department: DomainName; page: string; askScope: string } {
   if (path.startsWith('/beds')) {
     const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
       : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
@@ -124,6 +124,14 @@ function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpat
           : path.startsWith('/surgery/optimization') ? 'Surgical Capacity Optimization'
             : 'Surgical Command Center';
     return { screenId: 'surgery', department: 'Surgery', page, askScope: 'Operating Room & Surgery' };
+  }
+  if (path.startsWith('/radiology')) {
+    const page = path.startsWith('/radiology/access') ? 'Imaging Access & Waitlist'
+      : path.startsWith('/radiology/utilization') ? 'Modality Utilization & Scheduling'
+        : path.startsWith('/radiology/quality') ? 'Reporting & Imaging Quality'
+          : path.startsWith('/radiology/optimization') ? 'Imaging Capacity Optimization'
+            : 'Imaging Command Center';
+    return { screenId: 'radiology', department: 'Radiology', page, askScope: 'Radiology & Diagnostic Imaging' };
   }
   const page = path.startsWith('/emergency/flow') ? 'Waiting & Patient Flow'
     : path.startsWith('/emergency/quality') ? 'Safety & Return Visits'
@@ -215,7 +223,8 @@ export function CopilotPanel() {
                   : domain.department === 'Outpatient' ? 'Outpatient decision support'
                     : domain.department === 'Appointments' ? 'Appointments & Scheduling Decision Support'
                       : domain.department === 'Surgery' ? 'OR & Surgery Decision Support'
-                        : 'Emergency decision support'}
+                        : domain.department === 'Radiology' ? 'Radiology Decision Support'
+                          : 'Emergency decision support'}
             </p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
           </div>
@@ -430,7 +439,7 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
         <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
         <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : ''}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : ''}</p>
       </section>
       <div className="gc-inline">
         {mode === 'decide' ? null : (
@@ -453,6 +462,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
       : department === 'Outpatient' ? 'kpi_outpatient_median_wait_minutes'
         : department === 'Appointments' ? 'kpi_appointment_no_show_rate'
           : department === 'Surgery' ? 'kpi_surg_same_day_cancel_rate'
+            : department === 'Radiology' ? 'kpi_rad_imaging_backlog'
             : 'kpi_ed_door_to_provider_median_minutes';
   const key = decisionKey(lead?.kpi ?? defaultKpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
@@ -461,13 +471,15 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const opd = department === 'Outpatient';
   const appt = department === 'Appointments';
   const surg = department === 'Surgery';
-  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : 'emergency';
+  const rad = department === 'Radiology';
+  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
       : opd ? 'Median clinic arrival-to-provider · selected hospital and year'
         : appt ? 'Appointment no-show rate · selected hospital and year'
           : surg ? 'Same-day surgery cancellation rate · selected hospital and year'
-            : 'Door-to-provider time · selected hospital and year';
+            : rad ? 'Imaging backlog · selected hospital and year'
+              : 'Door-to-provider time · selected hospital and year';
   const boxTone = decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch';
   return (
     <article className="gc-decision gc-assist-stack">
@@ -492,7 +504,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
         ) : null}
         {step === 1 ? (
           <p>
-            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : 'Waiting time affects ED flow.')}
+            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : rad ? 'Imaging backlog and scanner delays reduce diagnostic access.' : 'Waiting time affects ED flow.')}
             {' '}Potential drivers: {lead?.drivers ?? lead?.investigation ?? 'Review domain evidence together.'} These are not proven causes.
           </p>
         ) : null}
@@ -508,13 +520,15 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                     ? 'Fill, recovery, and lead-time sketches are illustrative. Not a validated scheduling forecast.'
                     : surg
                       ? 'OR recovery and backlog sketches are illustrative. Not a validated theatre forecast.'
-                      : 'Continued demand is not converted into a predicted wait. Not a validated model.'}
+                      : rad
+                        ? 'Scanner recovery and backlog sketches are illustrative. Not a validated imaging forecast.'
+                        : 'Continued demand is not converted into a predicted wait. Not a validated model.'}
           </p>
         ) : null}
         {step === 3 ? (
           <p>
-            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : 'Review the peak arrival hours against the door-to-provider median.')}
-            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : ''}
+            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : rad ? 'Recover scanner downtime and prioritize eligible imaging waitlist before adding unstaffed sessions.' : 'Review the peak arrival hours against the door-to-provider median.')}
+            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : rad ? ' AI does not change imaging schedules alone.' : ''}
             {lead?.period ? ` Alert evidence period: ${lead.period}.` : ''}
           </p>
         ) : null}
@@ -560,6 +574,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
   const opd = department === 'Outpatient';
   const appt = department === 'Appointments';
   const surg = department === 'Surgery';
+  const rad = department === 'Radiology';
   const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const prompts = beds
     ? page === 'Bed Assignment'
@@ -597,11 +612,21 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                   : page === 'Surgical Capacity Optimization'
                     ? ['How many additional cases could fit within available capacity?', 'What is the estimated impact of reducing turnover time?', ...WHAT_IF_PROMPTS.Surgery.slice(1, 3)]
                     : ['Which cancellations could have been avoided operationally?', ...WHAT_IF_PROMPTS.Surgery.slice(2, 4)]
-            : page === 'Waiting & Patient Flow'
-              ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
-              : page === 'Safety & Return Visits'
-                ? ['What is the left-without-being-seen rate?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
-                : ['What should the Emergency Director prioritize?', 'How many visits are boarding beyond 4 hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
+            : rad
+              ? page === 'Imaging Access & Waitlist'
+                ? ['Which modalities have the longest access waits?', 'Where is imaging backlog growing?', ...WHAT_IF_PROMPTS.Radiology.slice(5, 6)]
+                : page === 'Modality Utilization & Scheduling'
+                  ? ['Which scanners have low utilization?', 'What are the main causes of downtime?', ...WHAT_IF_PROMPTS.Radiology.slice(0, 2)]
+                  : page === 'Reporting & Imaging Quality'
+                    ? ['Which modality has the longest report turnaround time?', 'How many reports are unsigned?', ...WHAT_IF_PROMPTS.Radiology.slice(3, 4)]
+                    : page === 'Imaging Capacity Optimization'
+                      ? ['How many additional exams are operationally feasible?', 'What can reduce the imaging backlog?', ...WHAT_IF_PROMPTS.Radiology.slice(1, 3)]
+                      : ['Which operational actions should radiology management prioritize?', ...WHAT_IF_PROMPTS.Radiology.slice(0, 1)]
+              : page === 'Waiting & Patient Flow'
+                ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+                : page === 'Safety & Return Visits'
+                  ? ['What is the left-without-being-seen rate?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+                  : ['What should the Emergency Director prioritize?', 'How many visits are boarding beyond 4 hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -648,15 +673,25 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                         : page === 'Surgical Capacity Optimization'
                           ? 'Ask about recoverable OR hours, additional cases, capacity gain, or constraint-aware what-if scenarios on this screen.'
                           : 'Ask about completed and scheduled cases, same-day cancellations, emergency share, or surgical throughput on this screen.'
-                  : page === 'Waiting & Patient Flow'
-                    ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
-                    : page === 'Safety & Return Visits'
-                      ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
-                      : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
+                  : rad
+                    ? page === 'Imaging Access & Waitlist'
+                      ? 'Ask about imaging backlog, access waits, overdue imaging, or waitlist growth on this screen.'
+                      : page === 'Modality Utilization & Scheduling'
+                        ? 'Ask about scanner utilization, downtime, exam duration, or schedule adherence on this screen.'
+                        : page === 'Reporting & Imaging Quality'
+                          ? 'Ask about report TAT, unsigned reports, repeat exams, or critical acknowledgement on this screen.'
+                          : page === 'Imaging Capacity Optimization'
+                            ? 'Ask about recoverable hours, additional exams, eligible waitlist, or capacity what-if scenarios on this screen.'
+                            : 'Ask about imaging requests, completed exams, completion rate, urgent share, or pending exams on this screen.'
+                    : page === 'Waiting & Patient Flow'
+                      ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
+                      : page === 'Safety & Return Visits'
+                        ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
+                        : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
-  }, [askScope, appt, beds, ipd, opd, surg, label, page, periodLabel]);
+  }, [askScope, appt, beds, ipd, opd, rad, surg, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -726,7 +761,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : 'Ask the Emergency Director view…'}
+          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : 'Ask the Emergency Director view…'}
           aria-label="Message Vital Assist"
           disabled={typing}
         />

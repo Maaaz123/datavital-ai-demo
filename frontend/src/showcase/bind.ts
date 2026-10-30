@@ -1,5 +1,6 @@
 import { leaveSplit } from '@/core/derived';
 import { longStayRateFromP90 } from '@/core/ipdScope';
+import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
@@ -129,13 +130,70 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_lab_order_volume') return count(orders, 'neutral', 'Laboratory orders. The same integer as the laboratory workspace.');
   if (key === 'kpi_lab_result_volume') return count(fact.labResulted, 'neutral', 'Resulted tests. Resulted + cancelled + delayed = orders.');
   if (key === 'kpi_lab_cancelled_tests') return count(fact.labCancelled, 'down', 'Cancelled tests inside the order identity.');
-  if (key === 'kpi_radiology_order_volume' || key === 'kpi_rad_imaging_order_volume') return count(fact.radOrders, 'neutral', 'Radiology orders.');
-  if (key === 'kpi_radiology_result_volume' || key === 'kpi_rad_final_report_count' || key === 'kpi_rad_completed_exams') return count(fact.radReported, 'neutral', 'Reported exams. Reported + cancelled + no-show = orders.');
+  if (key === 'kpi_radiology_order_volume' || key === 'kpi_rad_imaging_order_volume' || key === 'kpi_rad_imaging_requests') {
+    if (key === 'kpi_rad_imaging_requests') {
+      const view = buildRadiologyView(hospital, year, 'year');
+      return count(view.requests, 'neutral', 'Imaging requests from Radiology Command view. Completed + Cancelled + No-show + Pending = Requests.');
+    }
+    return count(fact.radOrders, 'neutral', 'Radiology orders.');
+  }
+  if (key === 'kpi_radiology_result_volume' || key === 'kpi_rad_final_report_count' || key === 'kpi_rad_completed_exams') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.completed, 'neutral', 'Completed exams from Radiology Command view. Reported + cancelled + no-show + pending = requests.');
+  }
   if (key === 'kpi_rad_preliminary_report_count') return count(Math.round(fact.radReported * 0.22), 'neutral', 'Preliminary reports are 22% of final reports, not an extra order.');
-  if (key === 'kpi_rad_pending_exams') return count(fact.radNoShow + fact.radCancelled, 'down', 'Orders that did not receive a report: no-shows plus cancellations.');
-  if (key === 'kpi_rad_overdue_exams') return count(Math.round(fact.radOrders * 0.04), 'down', 'Overdue exams are 4% of radiology orders.');
+  if (key === 'kpi_rad_pending_exams') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.pending, 'down', 'Pending unfinished imaging requests from Radiology Command view.');
+  }
+  if (key === 'kpi_rad_imaging_backlog') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.closingBacklog, 'down', 'Closing imaging waitlist from Radiology Access view.');
+  }
+  if (key === 'kpi_rad_overdue_imaging' || key === 'kpi_rad_overdue_exams') {
+    if (key === 'kpi_rad_overdue_imaging') {
+      const view = buildRadiologyView(hospital, year, 'year');
+      return count(view.overdueImaging, 'down', 'Imaging cases beyond illustrative access target. Bound to Radiology Access view.');
+    }
+    return count(Math.round(fact.radOrders * 0.04), 'down', 'Overdue exams are 4% of radiology orders.');
+  }
+  if (key === 'kpi_rad_waitlist_growth') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.waitlistGrowth, 'down', 'Closing minus opening imaging backlog for the reporting year.');
+  }
+  if (key === 'kpi_rad_unsigned_reports') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.unsignedReports, 'down', 'Unsigned report backlog at year-end observation. Bound to Radiology Quality view.');
+  }
+  if (key === 'kpi_rad_reports_over_target') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.reportsOverTarget, 'down', 'Final reports beyond illustrative TAT target. Bound to Radiology Quality view.');
+  }
+  if (key === 'kpi_rad_unused_scanner_hours') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.unusedHours, 'down', 'Unused staffed scanner hours from Radiology Utilization view.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_rad_scanner_downtime') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.downtimeHours, 'down', 'Scanner downtime hours inside staffed sessions. Bound to Radiology Utilization view.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_rad_recoverable_hours') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.recoverableHours, 'up', 'Exclusive recoverable scanner hours from Radiology Optimization.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_rad_additional_exams') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.additionalExams, 'up', 'Feasible additional exams under capacity constraints. Bound to Radiology Optimization.');
+  }
+  if (key === 'kpi_rad_eligible_waitlist') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.eligibleWaitlist, 'up', 'Eligible waitlist cases that could use recovered capacity.');
+  }
   if (key === 'kpi_rad_stat_exam_volume') return count(Math.round(fact.radOrders * 0.12), 'neutral', 'STAT exams are 12% of radiology orders.');
-  if (key === 'kpi_rad_unack_critical_count') return count(Math.round(fact.radReported * 0.004), 'down', 'Unacknowledged critical findings are 0.4% of reported exams.');
+  if (key === 'kpi_rad_unack_critical_count') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(Math.max(0, view.criticalResults - view.criticalAcked), 'down', 'Unacknowledged critical findings from Radiology Quality view.');
+  }
 
   if (key === 'kpi_med_order_volume') return count(fact.pharmOrders, 'neutral', 'Medication orders.');
   if (key === 'kpi_med_dispense_volume') return count(fact.pharmDispensed, 'neutral', 'Dispensed orders. Dispensed does not exceed ordered.');
@@ -223,7 +281,13 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_bed_available_rate_status') return ratio(fact.availableBeds, staffed, 'up', 'Available beds ÷ staffed beds.');
   if (key === 'kpi_bed_icu_occupancy_rate') return ratio(fact.icuOccupied, fact.icuStaffed, 'neutral', 'ICU occupied ÷ ICU staffed.');
   if (key === 'kpi_bed_wait_gt_4h_rate') return share(0.06 + occ * 0.08, arrivals, 'down', 'Arrivals waiting more than 4 hours for a bed. The denominator is ED arrivals.');
-  if (key === 'kpi_rad_modality_utilization') return ratio(fact.occupiedBeds, staffed, 'neutral', 'Utilization uses the same occupied ÷ staffed snapshot as bed occupancy. It is labelled as that capacity ratio.');
+  if (key === 'kpi_rad_modality_utilization' || key === 'kpi_rad_scanner_utilization') {
+    if (key === 'kpi_rad_scanner_utilization') {
+      const view = buildRadiologyView(hospital, year, 'year');
+      return exactRate(view.usedHours, view.staffedHours, 'up', 'Scanner Utilization = used exam hours ÷ staffed scanner hours from Radiology Utilization view. Uncapped; overtime is separate.');
+    }
+    return ratio(fact.occupiedBeds, staffed, 'neutral', 'Utilization uses the same occupied ÷ staffed snapshot as bed occupancy. It is labelled as that capacity ratio.');
+  }
   if (key === 'kpi_surg_or_utilization') {
     const view = buildSurgeryView(hospital, year, 'year');
     return exactRate(view.usedHours, view.staffedHours, 'up', 'OR Utilization = (procedure + turnover) ÷ staffed hours from Surgery OR view. Uncapped; overtime is separate.');
@@ -259,7 +323,22 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_lab_cancellation_rate') return ratio(fact.labCancelled, orders, 'down', 'Cancelled tests ÷ laboratory orders.');
   if (key === 'kpi_rad_cancelled_exam_rate') return ratio(fact.radCancelled, fact.radOrders, 'down', 'Cancelled exams ÷ radiology orders.');
   if (key === 'kpi_lab_order_completed_rate' || key === 'kpi_lab_result_to_order_ratio') return ratio(fact.labResulted, orders, 'up', 'Resulted tests ÷ laboratory orders.');
-  if (key === 'kpi_rad_exam_completion_rate') return ratio(fact.radReported, fact.radOrders, 'up', 'Reported exams ÷ radiology orders.');
+  if (key === 'kpi_rad_exam_completion_rate' || key === 'kpi_rad_completion_rate') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return exactRate(view.completed, view.requests, 'up', 'Completed exams ÷ imaging requests. Bound to Radiology Command view.');
+  }
+  if (key === 'kpi_rad_urgent_share') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return exactRate(view.urgentRequests, view.requests, 'neutral', 'Urgent imaging requests ÷ requests. Bound to Radiology Command view.');
+  }
+  if (key === 'kpi_rad_within_access_target') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return exactRate(view.withinTargetCases, view.closingBacklog || 1, 'up', 'Within-target backlog share from Radiology Access view.');
+  }
+  if (key === 'kpi_rad_schedule_adherence') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return share(view.scheduleAdherence, view.completed, 'up', 'On-schedule exam starts from Radiology Utilization view.');
+  }
   if (key === 'kpi_surg_completion_rate') return ratio(fact.surgCompleted, fact.surgRequests, 'up', 'Completed cases ÷ requested cases.');
   if (key === 'kpi_lab_result_abnormal_rate') return share(0.14, fact.labResulted, 'neutral', 'Abnormal results are 14% of resulted tests.');
   if (key === 'kpi_lab_result_patient_key_coverage') return share(0.99, fact.labResulted, 'up', 'Result rows carrying a patient key are 99% of resulted tests.');
@@ -269,12 +348,21 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_rcm_clean_claim_rate') return ratio(claims - fact.claimsDenied - Math.round(claims * 0.012), claims, 'up', 'Submitted claims minus denials minus technical rejections, ÷ submitted claims.');
   if (key === 'kpi_rcm_ar_over_90_rate') return share(0.28, fact.outstanding, 'down', 'The over-90 share of outstanding SAR. The numerator is rounded SAR, and the rate is that integer ÷ outstanding.');
   if (key === 'kpi_rad_stat_exam_rate') return share(0.12, fact.radOrders, 'neutral', 'STAT exams ÷ radiology orders.');
-  if (key === 'kpi_rad_repeat_exam_rate') return share(0.035, fact.radOrders, 'down', 'Repeat exams are 3.5% of radiology orders.');
+  if (key === 'kpi_rad_repeat_exam_rate') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return exactRate(view.repeatExams, view.completed, 'down', 'Repeat exams ÷ completed exams. Bound to Radiology Quality view. Not every repeat is a quality failure.');
+  }
   if (key === 'kpi_rad_report_tat_compliance' || key === 'kpi_radiology_tat_breach_rate') {
     const within = key.includes('breach') ? 0.08 + occ * 0.04 : 0.92 - occ * 0.04;
     return share(within, fact.radReported, key.includes('breach') ? 'down' : 'up', 'Report timing compliance uses reported exams as the denominator.');
   }
-  if (key === 'kpi_rad_critical_comm_compliance') return share(0.94, fact.radReported, 'up', 'Critical results communicated ÷ reported exams.');
+  if (key === 'kpi_rad_critical_comm_compliance' || key === 'kpi_rad_critical_ack_rate') {
+    if (key === 'kpi_rad_critical_ack_rate') {
+      const view = buildRadiologyView(hospital, year, 'year');
+      return exactRate(view.criticalAcked, view.criticalResults || 1, 'up', 'Acknowledged critical results ÷ critical results. Bound to Radiology Quality view.');
+    }
+    return share(0.94, fact.radReported, 'up', 'Critical results communicated ÷ reported exams.');
+  }
   if (key === 'kpi_lab_tat_compliance_rate') return share(0.9 - occ * 0.05, fact.labResulted, 'up', 'Results inside the TAT window ÷ resulted tests.');
   if (key === 'kpi_lab_stat_tat_compliance_rate') return share(0.86 - occ * 0.04, Math.round(orders * 0.15), 'up', 'STAT compliance uses the STAT order cohort, 15% of orders, as the denominator.');
   if (key === 'kpi_lab_lost_specimen_rate') return share(0.004, orders, 'down', 'Lost specimens are 0.4% of laboratory orders.');
@@ -366,8 +454,33 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_lab_tat_p90_minutes') return duration(fact.labTatP90Min, 'minutes', 'down', 'P90 laboratory turnaround.');
   if (key === 'kpi_lab_e2e_tat_minutes') return duration(fact.labTatAvgMin + 18, 'minutes', 'down', 'End-to-end time is the average turnaround plus an 18-minute collection allowance.');
   if (key === 'kpi_radiology_avg_tat_hours') return duration(fact.radTatAvgMin / 60, 'hours', 'down', 'Average report turnaround in hours, from the unrounded average in minutes.');
-  if (key === 'kpi_rad_median_report_tat_minutes') return duration(fact.radTatMedianMin, 'minutes', 'down', 'Median radiology report time.');
-  if (key === 'kpi_rad_p90_report_tat_minutes') return duration(fact.radTatP90Min, 'minutes', 'down', 'P90 radiology report time.');
+  if (key === 'kpi_rad_median_report_tat_minutes' || key === 'kpi_rad_median_report_tat') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return key === 'kpi_rad_median_report_tat'
+      ? duration(view.medianReportTatHours, 'hours', 'down', 'Median final report TAT (signature − exam completion). Bound to Radiology Quality view.')
+      : duration(Math.round(view.medianReportTatHours * 60), 'minutes', 'down', 'Median final report TAT in minutes. Bound to Radiology Quality view.');
+  }
+  if (key === 'kpi_rad_p90_report_tat_minutes' || key === 'kpi_rad_p90_report_tat') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return key === 'kpi_rad_p90_report_tat'
+      ? duration(view.p90ReportTatHours, 'hours', 'down', 'P90 final report TAT. Bound to Radiology Quality view.')
+      : duration(Math.round(view.p90ReportTatHours * 60), 'minutes', 'down', 'P90 final report TAT in minutes. Bound to Radiology Quality view.');
+  }
+  if (key === 'kpi_rad_median_access_wait' || key === 'kpi_rad_p90_access_wait') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return duration(
+      key === 'kpi_rad_median_access_wait' ? view.medianAccessWaitDays : view.p90AccessWaitDays,
+      'days',
+      'down',
+      key === 'kpi_rad_median_access_wait'
+        ? 'Median request-to-exam wait from Radiology Access view. Not report TAT.'
+        : 'P90 request-to-exam wait from Radiology Access view. Not report TAT.',
+    );
+  }
+  if (key === 'kpi_rad_median_exam_duration') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return duration(view.medianExamMin, 'minutes', 'down', 'Volume-weighted median exam duration from Radiology Utilization view.');
+  }
   if (key === 'kpi_rad_median_patient_wait_minutes') return duration(fact.opWaitMedianMin * 1.15, 'minutes', 'down', 'Radiology patient wait is 15% longer than the clinic median wait. It is not the appointment no-show rate.');
   if (key === 'kpi_outpatient_avg_wait_minutes') return duration(fact.opWaitAvgMin, 'minutes', 'down', 'Average clinic wait. It is not the median.');
   if (key === 'kpi_outpatient_median_wait_minutes') return duration(fact.opWaitMedianMin, 'minutes', 'down', 'Median clinic wait.');

@@ -48,8 +48,9 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('button', { name: 'Outpatient domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Appointments domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Surgery domain' })).toBeInTheDocument();
-    expect(NAV_DOMAINS).toHaveLength(6);
-    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(21);
+    expect(screen.getByRole('button', { name: 'Radiology domain' })).toBeInTheDocument();
+    expect(NAV_DOMAINS).toHaveLength(7);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(26);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();

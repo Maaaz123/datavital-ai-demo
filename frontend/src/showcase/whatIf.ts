@@ -3,10 +3,11 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology';
 
 export type WhatIfResult = {
   id: string;
@@ -60,6 +61,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if elective surgical capacity increases by 10%?',
     'What if bed-related surgical delays fall by 25%?',
   ],
+  Radiology: [
+    'What if MRI exam duration decreases by 10%?',
+    'What if CT scanner downtime decreases by 20%?',
+    'What if staffed imaging hours increase by 10%?',
+    'What if report turnaround time decreases by 20%?',
+    'What if routine imaging slots are reallocated across modalities?',
+    'What if eligible imaging backlog is prioritized with recovered capacity?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -79,6 +88,15 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Radiology intents before surgery/appointment generics that mention capacity or wait.
+  if (/mri/.test(q) && /exam|scan|duration|time/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/ct/.test(q) && /downtime/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rad-ct-downtime-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/staffed/.test(q) && /imaging|scanner|radiolog/.test(q) && /increas|extend/.test(q)) return { kind: 'rad-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/report/.test(q) && /(tat|turnaround)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rad-report-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/reallocat|redistribut/.test(q) && /imaging|radiolog|modality|scanner|routine.?slot/.test(q)) return { kind: 'rad-reallocate-slots', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/prioritiz/.test(q) && /imaging|radiolog|waitlist|backlog/.test(q)) return { kind: 'rad-prioritize-backlog', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/downtime/.test(q) && /scanner|imaging|radiolog/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rad-ct-downtime-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
 
   // Surgery intents before appointment/OR-adjacent generics.
   if (/first.?case|on-?time start/.test(q) && /(improv|increas)/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
@@ -114,6 +132,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/radiolog|imaging|scanner|mri|report tat|imaging backlog/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/surgery|theatre|operating room|\bor\b|turnover|first.?case|surgical backlog/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/appointment|no-?show|slot|lead time|waitlist|schedul/.test(q)) return { kind: 'appt-noshow-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/outpatient|clinic|wait|referral|document/.test(q)) return { kind: 'opd-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
@@ -134,6 +153,7 @@ export function runWhatIf(
   if (domain === 'Outpatient') return outpatientWhatIf(hospital, year, period, resolved);
   if (domain === 'Appointments') return appointmentsWhatIf(hospital, year, period, resolved);
   if (domain === 'Surgery') return surgeryWhatIf(hospital, year, period, resolved);
+  if (domain === 'Radiology') return radiologyWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -143,6 +163,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Outpatient') return { kind: 'opd-demand-up', amount: 0.15 };
   if (domain === 'Appointments') return { kind: 'appt-noshow-down', amount: 0.2 };
   if (domain === 'Surgery') return { kind: 'surg-first-case-up', amount: 0.15 };
+  if (domain === 'Radiology') return { kind: 'rad-mri-duration-down', amount: 0.1 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -632,6 +653,120 @@ function surgeryWhatIf(
     implications: `Improving starts on ${lowUtil.id} and high-backlog ${hotBacklog.id} concentrates operational value.`,
     followUp: 'First-Case On-Time, Late Start Hours, and Recoverable OR Hours',
     owner: 'Theatre lead',
+  };
+}
+
+function radiologyWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildRadiologyView(hospital, year, period);
+  const mri = view.modalities.find((item) => item.id === 'MRI') ?? view.modalities[view.modalities.length - 1];
+  const ct = view.modalities.find((item) => item.id === 'CT') ?? view.modalities[1];
+  const hotWait = [...view.modalities].sort((a, b) => b.medianWait - a.medianWait)[0];
+  const hotBacklog = [...view.modalities].sort((a, b) => b.backlog - a.backlog)[0];
+  const lowUtil = [...view.scanners].sort((a, b) => a.utilization - b.utilization)[0];
+
+  if (intent.kind === 'rad-ct-downtime-down') {
+    const ctShare = ct.scanners / Math.max(view.totalScanners, 1);
+    const ctDown = Math.round(view.downtimeHours * ctShare);
+    const recovered = Math.round(ctDown * intent.amount * 0.7);
+    const extras = Math.min(view.eligibleWaitlist, Math.floor(recovered / Math.max(view.avgExamHours, 0.2)));
+    return {
+      id: intent.kind,
+      title: 'CT scanner downtime reduction scenario',
+      current: `Scanner Downtime ${num(view.downtimeHours)} h · CT share ~${num(ctDown)} h · CT util context via ${ct.scanners} scanner(s) (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible CT downtime`,
+      estimated: `About ${num(recovered)} genuinely recoverable hours · up to ${num(extras)} extra exams if openings are staffed and scheduled`,
+      assumptions: 'Only a share of downtime is recoverable. Maintenance windows and parts lead time remain. Illustrative — not achieved capacity.',
+      implications: `Recovered CT hours help ${hotBacklog.id} backlog first if openings are released deliberately.`,
+      followUp: 'Scanner Downtime, Recoverable Hours, and Additional Exams',
+      owner: 'Imaging operations lead',
+    };
+  }
+
+  if (intent.kind === 'rad-staffed-up') {
+    const addedHours = Math.round(view.staffedHours * intent.amount);
+    const workforceLimited = Math.round(addedHours * 0.35);
+    const usable = Math.max(0, addedHours - workforceLimited);
+    const extras = Math.min(view.eligibleWaitlist, Math.floor(usable / Math.max(view.avgExamHours, 0.2)));
+    return {
+      id: intent.kind,
+      title: 'Extended staffed imaging hours scenario',
+      current: `Staffed scanner hours ${num(view.staffedHours)} · unused ${num(view.unusedHours)} · lowest util ${lowUtil.id} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} increase in staffed imaging sessions`,
+      estimated: `About ${num(addedHours)} added staffed hours · ~${num(usable)} usable after workforce limit · up to ${num(extras)} feasible exams`,
+      assumptions: 'Extra sessions require staffing and equipment readiness. Capacity does not increase without workforce. Illustrative only.',
+      implications: 'Extend hours only after recovering unused staffed capacity on low-util scanners.',
+      followUp: 'Staffed Scanner Hours, Unused Hours, and Additional Exams',
+      owner: 'Imaging operations lead',
+    };
+  }
+
+  if (intent.kind === 'rad-report-tat-down') {
+    const nextTat = view.medianReportTatHours * (1 - intent.amount);
+    const cleared = Math.round(view.unsignedReports * intent.amount * 0.6);
+    return {
+      id: intent.kind,
+      title: 'Report turnaround improvement scenario',
+      current: `Median Report TAT ${num(view.medianReportTatHours, 1)} h · unsigned ${num(view.unsignedReports)} · over target ${num(view.reportsOverTarget)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible final-report turnaround`,
+      estimated: `Median TAT near ${num(nextTat, 1)} h · about ${num(cleared)} unsigned reports cleared if signature capacity rises`,
+      assumptions: 'Reporting backlog is separate from scanner capacity. Unsigned aging is not a completed TAT. Illustrative only.',
+      implications: 'Faster signing improves result availability without claiming extra scanner exams.',
+      followUp: 'Median Report TAT, Unsigned Reports, and Reports Over Target',
+      owner: 'Imaging quality lead',
+    };
+  }
+
+  if (intent.kind === 'rad-reallocate-slots') {
+    const moved = Math.round(view.staffedHours * 0.04);
+    return {
+      id: intent.kind,
+      title: 'Routine imaging slot reallocation scenario',
+      current: `Staffed hours ${num(view.staffedHours)} · longest wait ${hotWait.id} (${num(hotWait.medianWait, 1)} days) · largest backlog ${hotBacklog.id} (${view.periodLabel})`,
+      change: `Illustrative reallocation of about ${num(moved)} staffed hours toward higher-wait modalities where equipment is shared only if technically feasible`,
+      estimated: `Hospital staffed hours remain ${num(view.staffedHours)} · ${hotWait.id} access eases if openings move there — MRI slots do not become CT capacity without shared-resource modeling`,
+      assumptions: 'Total staffed capacity conserved unless extra staffing is added. Cross-modality conversion requires explicit shared resources. Illustrative only.',
+      implications: 'Reallocation improves access without claiming new scanners were installed.',
+      followUp: 'Wait Time by Modality, Imaging Backlog, and Utilization by Modality',
+      owner: 'Imaging services lead',
+    };
+  }
+
+  if (intent.kind === 'rad-prioritize-backlog') {
+    const targeted = Math.min(view.eligibleWaitlist, Math.round(view.additionalExams * (1 + intent.amount)));
+    const residual = Math.max(0, view.closingBacklog - targeted);
+    return {
+      id: intent.kind,
+      title: 'Eligible imaging backlog prioritization scenario',
+      current: `Closing backlog ${num(view.closingBacklog)} · eligible waitlist ${num(view.eligibleWaitlist)} · feasible additional exams ${num(view.additionalExams)} (${view.periodLabel})`,
+      change: `Illustrative prioritization of recovered capacity toward eligible waitlist cases (+${pct(intent.amount, 0)} emphasis)`,
+      estimated: `About ${num(targeted)} waitlist exams if recovered hours are booked · residual backlog near ${num(residual)}`,
+      assumptions: 'Does not automate clinical prioritization. Uses illustrative operational rules on eligible cohorts only. Not achieved throughput.',
+      implications: `Focus recovered openings on ${hotBacklog.id} overdue cases before expanding unstaffed sessions.`,
+      followUp: 'Imaging Backlog, Eligible Waitlist, and Additional Exams',
+      owner: 'Imaging access lead',
+    };
+  }
+
+  const mriExamMin = mri.examMin;
+  const savedMin = mriExamMin * intent.amount;
+  const mriUsed = mri.usedHours;
+  const recoveredHours = Math.round(mriUsed * intent.amount * 0.55 * 10) / 10;
+  const extras = Math.min(view.eligibleWaitlist, Math.floor(recoveredHours / Math.max(mriExamMin / 60, 0.3)));
+  return {
+    id: 'rad-mri-duration-down',
+    title: 'MRI exam duration reduction scenario',
+    current: `MRI median exam ${num(mriExamMin)} min · MRI used hours ${num(mriUsed)} · MRI backlog ${num(mri.backlog)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible MRI scan duration`,
+    estimated: `About ${num(savedMin, 1)} minutes median · ~${num(recoveredHours, 1)} hours recovered after prep/safety/turnover constraints · up to ${num(extras)} extra MRI exams if openings are staffed`,
+    assumptions: 'Prep, safety screening, staffing, and room turnover constrain conversion. Not all saved minutes become exams. Illustrative only.',
+    implications: `Shorter eligible MRI exams help ${mri.id} access without converting CT capacity.`,
+    followUp: 'Median Exam Time, MRI wait, and Additional Exams',
+    owner: 'Imaging operations lead',
   };
 }
 

@@ -6,6 +6,7 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
@@ -66,7 +67,7 @@ export function answerQuestion(
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
 
-  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments' || department === 'Surgery') {
+  if (department === 'Emergency' || department === 'Beds' || department === 'Inpatient' || department === 'Outpatient' || department === 'Appointments' || department === 'Surgery' || department === 'Radiology') {
     const intent = parseWhatIfIntent(q);
     if (intent) {
       const result = runWhatIf(department as WhatIfDomain, hospital, year, intent, period);
@@ -90,6 +91,7 @@ export function answerQuestion(
   if (department === 'Outpatient') return answerOutpatient(q, hospital, year, name, lang, period);
   if (department === 'Appointments') return answerAppointments(q, hospital, year, name, lang, period);
   if (department === 'Surgery') return answerSurgery(q, hospital, year, name, lang, period);
+  if (department === 'Radiology') return answerRadiology(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -794,6 +796,98 @@ function answerSurgery(
     action: tx(lang, topAlert?.action ?? `Review Command volume, OR hours, Access backlog (${hotBacklog.id}), then Capacity Optimization.`, topAlert?.action ?? `راجع الحجم وساعات غرف العمليات والطابور.`),
     role: tx(lang, 'Theatre lead', 'قائد غرف العمليات'),
     benefit: tx(lang, 'A sequenced Surgery review keeps volume, OR efficiency, access, quality, and capacity distinct.', 'مراجعة جراحية متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerRadiology(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildRadiologyView(hospital, year, period);
+  const hotWait = [...view.modalities].sort((a, b) => b.medianWait - a.medianWait)[0];
+  const hotBacklog = [...view.modalities].sort((a, b) => b.backlog - a.backlog)[0];
+  const hotTat = [...view.modalities].sort((a, b) => b.reportTatHours - a.reportTatHours)[0];
+  const hotRepeat = [...view.modalities].sort((a, b) => b.repeats - a.repeats)[0];
+  const lowUtil = [...view.scanners].sort((a, b) => a.utilization - b.utilization)[0];
+  const topDown = [...view.downtimeReasons].sort((a, b) => b.hours - a.hours)[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|appointment no-?show|slot fill|clinic wait|or util|surgical backlog|first.?case/.test(q)
+    && !/radiolog|imaging|scanner|mri|report tat|unsigned|repeat exam/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Radiology focus', 'خارج تركيز الأشعة'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Bed Occupancy stays in Beds. OR Utilization stays in Surgery. Appointment Slot Fill stays in Appointments. ED flow stays in Emergency.', 'إشغال الأسرة في الأسرة. استخدام غرف العمليات في الجراحة.'),
+      explanation: tx(lang, 'Radiology owns imaging demand, access waits, scanner utilization, report TAT, and feasible imaging capacity recovery.', 'الأشعة تملك الطلب والوصول واستخدام الأجهزة وتقارير الأشعة.'),
+      action: tx(lang, 'Stay on Radiology screens for imaging demand, access, scanners, reporting, and capacity questions.', 'ابقَ في شاشات الأشعة.'),
+      role: tx(lang, 'Imaging operations lead', 'قائد عمليات التصوير'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/access wait|longest wait|wait time by modality|overdue imaging|waitlist|backlog/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Imaging access & waitlist · ${name} · ${view.periodLabel}`, `وصول التصوير والطابور · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Closing imaging backlog ${view.closingBacklog.toLocaleString('en-US')} · median access wait ${view.medianAccessWaitDays.toFixed(1)} days · P90 ${view.p90AccessWaitDays.toFixed(1)} · overdue ${view.overdueImaging.toLocaleString('en-US')} · longest wait ${hotWait.id} (${hotWait.medianWait.toFixed(1)} days).`, `الطابور ${view.closingBacklog.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Opening ${view.openingBacklog.toLocaleString('en-US')} + added ${view.addedToWaitlist.toLocaleString('en-US')} − completed from waitlist ${view.completedFromWaitlist.toLocaleString('en-US')} − other exits ${view.otherExits.toLocaleString('en-US')} = closing. Largest backlog ${hotBacklog.id}. Access clock is request-to-exam — not report TAT.`, `أطول انتظار ${hotWait.id}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): routine demand above completed waitlist throughput and modality template imbalance. Waiting time alone is not clinical urgency.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Prioritize recovered openings for ${hotWait.id} overdue cases and review Access Wait bands on Imaging Access & Waitlist.`, `أعطِ أولوية لـ ${hotWait.id}.`),
+      role: tx(lang, 'Imaging access lead', 'قائد وصول التصوير'),
+      benefit: tx(lang, 'Clear backlog ownership focuses imaging capacity where waits accumulate.', 'ملكية الطابور الواضحة تركز سعة التصوير.'),
+    });
+  }
+
+  if (/utiliz|unused|downtime|scanner|exam duration|schedule adher/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Scanner utilization & scheduling · ${name} · ${view.periodLabel}`, `استخدام أجهزة التصوير · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Scanner Utilization ${((view.scannerUtilization) * 100).toFixed(1)}% (${view.usedHours.toLocaleString('en-US')} used of ${view.staffedHours.toLocaleString('en-US')} staffed) · unused ${view.unusedHours.toLocaleString('en-US')} h · downtime ${view.downtimeHours.toLocaleString('en-US')} h · lowest scanner ${lowUtil.id} at ${((lowUtil.utilization) * 100).toFixed(1)}%.`, `الاستخدام ${((view.scannerUtilization) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Median exam ${view.medianExamMin} min · schedule adherence ${((view.scheduleAdherence) * 100).toFixed(1)}% · top downtime reason ${topDown.name} (${topDown.hours.toLocaleString('en-US')} h). Staffed = in-session used + downtime + unused.`, `توقف ${topDown.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): downtime, late starts, and modality duration mix leave staffed hours unused. Scanner utilization is not staff utilization.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Start with downtime recovery on ${lowUtil.id} and ${topDown.name}, then review Recoverable Hours by Driver.`, `ابدأ باسترداد التوقف على ${lowUtil.id}.`),
+      role: tx(lang, 'Imaging operations lead', 'قائد عمليات التصوير'),
+      benefit: tx(lang, 'Recovering staffed scanner hours raises throughput without claiming new equipment.', 'استرداد ساعات الأجهزة يرفع الإنتاجية دون ادعاء أجهزة جديدة.'),
+    });
+  }
+
+  if (/report|unsigned|tat|turnaround|critical|repeat/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Reporting & imaging quality · ${name} · ${view.periodLabel}`, `التقارير وجودة التصوير · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median Report TAT ${view.medianReportTatHours.toFixed(1)} h · P90 ${view.p90ReportTatHours.toFixed(1)} h · unsigned ${view.unsignedReports.toLocaleString('en-US')} · repeat rate ${((view.repeatExamRate) * 100).toFixed(1)}% · critical ack ${((view.criticalAckRate) * 100).toFixed(1)}% · longest TAT ${hotTat.id}.`, `زمن التقرير ${view.medianReportTatHours.toFixed(1)} س.`),
+      evidence: tx(lang, `Final Report TAT = signature − exam completion. Unsigned reports are aged separately. Highest repeat modality ${hotRepeat.id} (${hotRepeat.repeats.toLocaleString('en-US')} repeats). Critical acknowledgement is distinct from signature.`, `أعلى تكرار ${hotRepeat.id}.`),
+      explanation: tx(lang, 'Illustrative synthetic quality signals — not diagnostic accuracy claims and not patient-level treatment advice. Not every repeat is a quality failure.', 'إشارات اصطناعية توضيحية — ليست دقة تشخيصية.'),
+      action: tx(lang, 'Clear oldest unsigned aging bands and pair Repeat Exams by Modality with protocol review before changing scanner schedules.', 'أغلق أقدم التقارير غير الموقعة وراجع التكرار.'),
+      role: tx(lang, 'Imaging quality lead', 'قائد جودة التصوير'),
+      benefit: tx(lang, 'Separating access wait from report TAT keeps management actions correctly targeted.', 'فصل انتظار الوصول عن زمن التقرير يوجه الإجراءات بشكل صحيح.'),
+    });
+  }
+
+  if (/additional|capacity|recoverable|feasible|optimization|priorit/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Imaging capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة التصوير · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Recoverable Hours ${view.recoverableHours.toLocaleString('en-US')} · feasible Additional Exams ${view.additionalExams.toLocaleString('en-US')} · eligible waitlist ${view.eligibleWaitlist.toLocaleString('en-US')} · access gain ${view.accessGainPct.toFixed(1)}% of staffed (illustrative).`, `ساعات قابلة للاسترداد ${view.recoverableHours.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `Bed haircut ${((view.bedConstrainedShare) * 100).toFixed(0)}% (${view.bedConstrainedHours.toLocaleString('en-US')} h) · bed occ context ${((view.bedOccupancyContext) * 100).toFixed(1)}% (Beds-owned). Exclusive drivers — bed applied once. Theoretical opportunity is not achieved capacity.`, `الطابور المؤهل ${view.eligibleWaitlist.toLocaleString('en-US')}.`),
+      explanation: tx(lang, 'Estimates are illustrative. Not all recovered hours become exams; staffing and bed constraints remain.', 'التقديرات توضيحية.'),
+      action: tx(lang, `Sequence downtime recovery, MRI duration discipline, and eligible backlog prioritization for ${hotBacklog.id} before extending unstaffed sessions.`, `رتّب استرداد التوقف ومدة MRI والطابور لـ ${hotBacklog.id}.`),
+      role: tx(lang, 'Imaging operations lead', 'قائد عمليات التصوير'),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating achievable imaging throughput.', 'السيناريوهات المقيدة تمنع المبالغة في الإنتاجية.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Radiology' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Radiology at ${name} · ${view.periodLabel}`, `الأشعة في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Requests ${view.requests.toLocaleString('en-US')} · completed ${view.completed.toLocaleString('en-US')} · backlog ${view.closingBacklog.toLocaleString('en-US')} · scanner util ${((view.scannerUtilization) * 100).toFixed(1)}%.`, topAlert ? topAlert.title : `الطلبات ${view.requests.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `Completed + Cancelled + No-show + Pending = Requests. ${view.methodology.accessClock} ${view.methodology.utilization}`, `المكتمل + الملغى + عدم الحضور + المعلق = الطلبات.`),
+    explanation: tx(lang, 'Potential reasons (not proven): access pressure, scanner downtime, and reporting backlog move together across Radiology screens.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command demand, Access backlog (${hotBacklog.id}), Utilization downtime, then Capacity Optimization.`, topAlert?.action ?? `راجع الطلب والطابور والتوقف.`),
+    role: tx(lang, 'Imaging operations lead', 'قائد عمليات التصوير'),
+    benefit: tx(lang, 'A sequenced Radiology review keeps demand, access, scanners, reporting, and capacity distinct.', 'مراجعة أشعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 
