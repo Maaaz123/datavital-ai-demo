@@ -11,6 +11,7 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
@@ -93,6 +94,28 @@ export function answerQuestion(
     }
   }
 
+  if (department === 'Revenue Cycle') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('rcm-')) {
+      const result = runWhatIf('Revenue Cycle', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not submit claims or write off balances alone. Modeled recovery is not collected cash.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يقدم المطالبات ولا يشطب الأرصدة وحده. الاسترداد المقدر ليس نقداً محصلاً.'),
+      };
+    }
+  }
+
   if (department === 'ICU') {
     const intent = parseWhatIfIntent(q);
     if (intent?.kind.startsWith('icu-')) {
@@ -162,6 +185,7 @@ export function answerQuestion(
   if (department === 'Pharmacy') return answerPharmacy(q, hospital, year, name, lang, period);
   if (department === 'ICU') return answerIcu(q, hospital, year, name, lang, period);
   if (department === 'Patient Experience') return answerPx(q, hospital, year, name, lang, period);
+  if (department === 'Revenue Cycle') return answerRcm(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1418,6 +1442,151 @@ function answerPx(
     action: tx(lang, topAlert?.action ?? `Review Command satisfaction, Journey (${weakestTp.name}), Complaints (${topComplaint.name}), then Optimization. Simulations are illustrative.`, topAlert?.action ?? 'راجع القيادة والرحلة والشكاوى.'),
     role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
     benefit: tx(lang, 'A sequenced PX review keeps survey, journey, complaints, voice, departments, and optimization distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerRcm(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildRcmView(hospital, year, period);
+  const n = (value: number) => value.toLocaleString('en-US');
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const sar = (value: number) => `SAR ${n(value)}`;
+  const topReason = [...view.denialReasonRows].sort((a, b) => b.amount - a.amount)[0];
+  const topPayer = [...view.payerRows].sort((a, b) => b.denialRate - a.denialRate)[0];
+  const topDriver = [...view.leakageDrivers].sort((a, b) => b.amount - a.amount)[0];
+  const weakDept = [...view.deptCaptureRows].sort((a, b) => a.captureRate - b.captureRate)[0];
+  const priorityOpp = [...view.opportunities].sort((a, b) => b.eligibleValue - a.eligibleValue)[0];
+  const modeledNote = 'Modeled recovery is illustrative — not collected cash — and the eight scenarios overlap, so they must not be added together.';
+
+  if (/\bed\b|emergency boarding|bed occupancy|icu transfer|staffed icu|medication order|stockout sku|analyzer util|or util|satisfaction score|complaint/.test(q)
+    && !/revenue|claim|denial|billing|collection|payer|charge|ar\b/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Revenue Cycle focus', 'خارج تركيز دورة الإيراد'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'ED volume stays in Emergency, bed occupancy in Beds, ICU flow in ICU, medication orders in Pharmacy, and satisfaction in Patient Experience.', 'كل دومين يملك مؤشراته.'),
+      explanation: tx(lang, 'Revenue Cycle owns eligibility and authorization, charge capture and billing, claims and denials, AR and collections, revenue leakage, and illustrative recovery scenarios.', 'دورة الإيراد تملك الأهلية والفوترة والمطالبات والتحصيل والتسرب.'),
+      action: tx(lang, 'Stay on Revenue Cycle screens for financial questions.', 'ابقَ في شاشات دورة الإيراد.'),
+      role: tx(lang, 'Revenue cycle director', 'مدير دورة الإيراد'),
+      benefit: tx(lang, 'Clear ownership prevents duplicating clinical dashboards inside Revenue Cycle.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/dose|dosing|prescrib|treat the patient|prognosis|diagnos|clinical care|clinical advice|medical necessity decision|deny care|withhold care/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside financial operations support', 'خارج دعم العمليات المالية'),
+      observation: tx(lang, 'Vital Assist does not give clinical care advice or decide whether a patient should receive treatment.', 'المساعد لا يقدم نصائح سريرية ولا يقرر تقديم العلاج.'),
+      evidence: tx(lang, `Revenue Cycle reports administrative financial signals only: net collection ${p(view.netCollectionRate)}, gross denial ${p(view.grossDenialRate)}, authorization approval ${p(view.preauthApprovalRate)} (${view.periodLabel}). Authorization queues are administrative — not care decisions.`, 'مؤشرات مالية إدارية فقط.'),
+      explanation: tx(lang, 'Clinical and coverage decisions stay with clinicians and payers. This demo uses synthetic illustrative data.', 'القرارات السريرية للأطباء والجهات الدافعة.'),
+      action: tx(lang, 'Ask about denials, collections, authorization backlog, charge capture, or leakage instead.', 'اسأل عن الرفض أو التحصيل أو التفويض أو التسرب.'),
+      role: tx(lang, 'Revenue cycle director', 'مدير دورة الإيراد'),
+      benefit: tx(lang, 'Keeps financial analytics separate from clinical decisions.', 'يفصل التحليل المالي عن القرارات السريرية.'),
+    });
+  }
+
+  if (/(submit|resubmit|send|file|transmit|push).*(claim|payer|clearinghouse|appeal)|(write.?off|adjust|post).*(balance|account|claim)|\b(auto.?)?(submit|write off)\b/.test(q)
+    && !/what if|what happens|what could/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Live submission and write-offs are not performed by AI', 'لا ينفذ الذكاء الاصطناعي التقديم الحي ولا الشطب'),
+      observation: tx(lang, `Vital Assist cannot submit claims to payers or clearinghouses and cannot write off balances. Observed facts for ${name}: ${n(view.uniqueClaims)} unique claims, ${n(view.deniedClaims)} denied, avoidable write-offs ${sar(view.avoidableWriteoffs)} (${view.periodLabel}).`, 'لا يمكن للمساعد تقديم المطالبات أو شطب الأرصدة.'),
+      evidence: tx(lang, 'This demo has no live payer, clearinghouse, or ERP connection. All figures are synthetic and illustrative.', 'لا اتصال حي بالجهات الدافعة. الأرقام تركيبية.'),
+      explanation: tx(lang, 'Submission, appeal, and write-off decisions require authorized human review under policy.', 'القرارات تتطلب مراجعة بشرية مخولة.'),
+      action: tx(lang, 'Use Claims & Denial Intelligence to review the work queue, then route items to the denials team for human action.', 'استخدم شاشة المطالبات ثم حوّل العناصر للفريق المختص.'),
+      role: tx(lang, 'Denials management lead', 'قائد إدارة الرفض'),
+      benefit: tx(lang, 'Human approval keeps financial actions auditable.', 'الاعتماد البشري يبقي الإجراءات قابلة للتدقيق.'),
+    });
+  }
+
+  if (/denial|denied|appeal|first.?pass|reject|claims?\b/.test(q) && !/leakage|underpay|write.?off/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Claims & denials · ${name} · ${view.periodLabel}`, `المطالبات والرفض · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: gross denial rate ${p(view.grossDenialRate)} (target ${p(RCM_TARGETS.grossDenialRate)}; ${n(view.deniedClaims)} of ${n(view.adjudicatedClaims)} adjudicated claims) · denied value rate ${p(view.denialRateByValue)} · first-pass acceptance ${p(view.firstPassAcceptance)} · appeal success ${p(view.appealSuccessRate)} · ${n(view.uniqueClaims)} unique claims from ${n(view.submissionAttempts)} submissions.`, `معدل الرفض ${p(view.grossDenialRate)}.`),
+      evidence: tx(lang, `${view.methodology.claims} Largest denial reason by value: ${topReason.name} (${sar(topReason.amount)}). Highest-denial payer: ${topPayer.name} (${p(topPayer.denialRate)}).`, view.methodology.claims),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): ${topReason.name.toLowerCase()} and payer mix concentrate denials. Modeled (illustrative): recoverable denial value ${sar(view.recoverableDenialValue)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة. القيمة المقدرة توضيحية.'),
+      action: tx(lang, `Recommendations: review preventable denial reasons and appeal queues with the denials team. Try the denial-reduction or first-pass what-ifs — illustrative only. AI does not submit claims or write off balances alone.`, 'راجع أسباب الرفض مع الفريق المختص.'),
+      role: tx(lang, 'Denials management lead', 'قائد إدارة الرفض'),
+      benefit: tx(lang, 'Separating clearinghouse rejects from payer denials keeps denial work accurate.', 'الفصل بين الرفض الفني ورفض الدافع يحسن الدقة.'),
+    });
+  }
+
+  if (/\bar\b|receivable|collect|cash|aging|aged|days in ar|payer pay/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `AR & collections · ${name} · ${view.periodLabel}`, `الذمم والتحصيل · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: net collection rate ${p(view.netCollectionRate)} (target ${p(RCM_TARGETS.netCollectionRate)}) · days in AR ${view.daysInAr} (target ${RCM_TARGETS.daysInAr}) · ending AR ${sar(view.closingAR)} · AR over 90 days ${sar(view.arOver90)} · cash applied ${sar(view.cashApplied)} · unapplied cash ${sar(view.unappliedCash)}.`, `التحصيل الصافي ${p(view.netCollectionRate)}.`),
+      evidence: tx(lang, `${view.methodology.arRollForward} AR roll-forward ${view.arRollForward.balanced ? 'balances' : 'does not balance'} (residual ${n(view.arRollForward.residual)}). Aging clock: ${view.agingClock}.`, view.methodology.arRollForward),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): aged balances and cash-application backlog. Modeled (illustrative): aged AR acceleration ${sar(view.cashAcceleration)} is a timing shift, not new revenue. ${modeledNote}`, 'أسباب محتملة وليست مثبتة. التسريع توقيت وليس إيراداً جديداً.'),
+      action: tx(lang, 'Recommendations: rank aged balances for collector follow-up and clear unapplied cash exceptions. Simulations: try the aged-AR what-if. AI does not write off balances alone.', 'رتّب الأرصدة المتقادمة للمتابعة.'),
+      role: tx(lang, 'Collections lead', 'قائد التحصيل'),
+      benefit: tx(lang, 'Applied cash, receipts, and ending AR stay distinct so collection claims are not overstated.', 'فصل النقد المطبق عن المستلم يمنع المبالغة.'),
+    });
+  }
+
+  if (/eligib|authori[sz]|pre-?auth|coverage|pending auth/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Eligibility & authorization · ${name} · ${view.periodLabel}`, `الأهلية والتفويض · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: eligibility verified ${p(view.eligibilityVerificationRate)} · coverage exceptions ${p(view.coverageExceptionRate)} · authorization approval ${p(view.preauthApprovalRate)} · pending ${n(view.authPending)} · turnaround ${view.authTurnaroundDays} days · authorization-related denial exposure ${sar(view.authDenialExposure)}.`, `الأهلية ${p(view.eligibilityVerificationRate)}.`),
+      evidence: tx(lang, `Authorization ledger: requested ${n(view.authRequested)} + opening pending ${n(view.authOpeningPending)} = decided ${n(view.authDecided)} + closing pending ${n(view.authPending)}. Pending requests are excluded from the approval rate.`, 'دفتر التفويض متوازن.'),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): payer decision delays and missing authorization. Modeled (illustrative): ${sar(view.opportunities.find((item) => item.id === 'rcm-auth-up')?.eligibleValue ?? 0)} of exposure is preventable. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: work the oldest pending authorizations and confirm eligibility before scheduling. This is an administrative queue — not a care decision.', 'اعمل على أقدم التفويضات المعلقة. هذا طابور إداري وليس قراراً سريرياً.'),
+      role: tx(lang, 'Pre-authorization desk lead', 'قائد مكتب التفويض'),
+      benefit: tx(lang, 'Front-end authorization quality reduces back-end denials.', 'جودة التفويض تقلل الرفض لاحقاً.'),
+    });
+  }
+
+  if (/charge|billing|coding|unbilled|capture|invoice|lag/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Charge capture & billing · ${name} · ${view.periodLabel}`, `التقاط الرسوم والفوترة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: charge capture ${p(view.chargeCaptureRate)} (target ${p(RCM_TARGETS.chargeCaptureRate)}) · unbilled encounters ${n(view.unbilledEncounters)} · unbilled value ${sar(view.unbilledValue)} · charge-to-bill lag ${view.chargeToBillLag} days · coding completion ${p(view.codingCompletionRate)} · billing exceptions ${p(view.billingExceptionRate)}.`, `التقاط الرسوم ${p(view.chargeCaptureRate)}.`),
+      evidence: tx(lang, `Lowest-capture department: ${weakDept.name} (${p(weakDept.captureRate)}; missed value ${sar(weakDept.missedValue)}). Eligible chargeable services only — nonbillable and bundled services are excluded.`, 'الأقسام المؤهلة فقط.'),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): documentation and charge-router gaps. Modeled (illustrative): missed charges recoverable ${sar(view.opportunities.find((item) => item.id === 'rcm-capture-up')?.eligibleValue ?? 0)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: review likely missed-charge patterns with human charge review and clear coding backlog in age order.', 'راجع أنماط الرسوم المفقودة بمراجعة بشرية.'),
+      role: tx(lang, 'Billing & coding operations lead', 'قائد عمليات الفوترة والترميز'),
+      benefit: tx(lang, 'Eligible-only capture avoids overstating leakage.', 'الالتقاط المؤهل فقط يمنع المبالغة في التسرب.'),
+    });
+  }
+
+  if (/leak|underpay|write.?off|integrity|missed/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Revenue leakage · ${name} · ${view.periodLabel}`, `تسرب الإيراد · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: confirmed leakage ${sar(view.confirmedLeakage)} = missed charges ${sar(view.missedChargeExposure)} + avoidable write-offs ${sar(view.avoidableWriteoffs)} + underpayments ${sar(view.underpaymentValue)} · potential leakage ${sar(view.potentialLeakage)} (not additive) · largest driver ${topDriver.name}.`, `التسرب المؤكد ${sar(view.confirmedLeakage)}.`),
+      evidence: tx(lang, `${view.methodology.leakage}`, view.methodology.leakage),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): contract variance and late escalation. Modeled (illustrative): preventable leakage ${sar(view.preventableLeakage)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: dispute underpayments by payer and escalate preventable write-offs earlier. Contractual allowances are not leakage. AI does not write off balances alone.', 'اعترض على النقص في الدفع وصعّد الشطب القابل للتجنب.'),
+      role: tx(lang, 'Revenue integrity lead', 'قائد سلامة الإيراد'),
+      benefit: tx(lang, 'Exclusive attribution prevents double-counting leakage.', 'الإسناد الحصري يمنع العد المزدوج.'),
+    });
+  }
+
+  if (/interven|priorit|first|improve|optim|what.?if|opportunit|recover|action/.test(q)) {
+    const sims = view.opportunities.slice(0, 4).map((item) => `${item.title} (~${sar(item.eligibleValue)})`).join('; ');
+    return pack(lang, {
+      title: tx(lang, `Revenue recovery priorities · ${name} · ${view.periodLabel}`, `أولويات استرداد الإيراد · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: net collection ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · confirmed leakage ${sar(view.confirmedLeakage)} · revenue at risk ${sar(view.revenueAtRisk)}. Largest modeled scenario: ${priorityOpp.title}.`, `الإيراد المعرض للخطر ${sar(view.revenueAtRisk)}.`),
+      evidence: tx(lang, `${view.methodology.optimization}`, view.methodology.optimization),
+      explanation: tx(lang, `Modeled (illustrative, not collected cash): recoverable opportunity ${sar(view.recoverableOpportunity)}; ${sims}. ${modeledNote}`, 'محاكاة توضيحية وليست نقداً محصلاً.'),
+      action: tx(lang, `Recommendations: sequence ${priorityOpp.title.toLowerCase()} with owner ${priorityOpp.owner}; monitor the follow-up KPI after the next reporting checkpoint. AI does not submit claims or write off balances alone.`, `نفّذ الأولوية وراقب المؤشر.`),
+      role: tx(lang, priorityOpp.owner, priorityOpp.owner),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating recoverable revenue.', 'السيناريوهات المقيدة تمنع المبالغة.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Revenue Cycle' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Revenue Cycle at ${name} · ${view.periodLabel}`, `دورة الإيراد في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Observed facts: net patient revenue ${sar(view.netPatientRevenue)} · net collection ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · days in AR ${view.daysInAr} · ending AR ${sar(view.closingAR)}.`, topAlert ? topAlert.title : `الإيراد الصافي ${sar(view.netPatientRevenue)}.`),
+    evidence: tx(lang, `${view.methodology.netRevenue} ${view.methodology.currency}`, view.methodology.netRevenue),
+    explanation: tx(lang, `Potential drivers / Hypotheses (not proven): denials, aged AR, and capture gaps move together across Revenue Cycle screens. Modeled recovery (illustrative): revenue at risk ${sar(view.revenueAtRisk)} is exposure, not lost or collected cash.`, 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? 'Review Command health, then Claims & denials, AR & collections, and Leakage. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم المطالبات والتحصيل والتسرب.'),
+    role: tx(lang, 'Revenue cycle director', 'مدير دورة الإيراد'),
+    benefit: tx(lang, 'A sequenced review keeps eligibility, billing, claims, collections, and leakage distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

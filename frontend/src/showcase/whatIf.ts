@@ -8,10 +8,11 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle';
 
 export type WhatIfResult = {
   id: string;
@@ -105,6 +106,16 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if repeated complaint categories decrease by 30%?',
     'What if low-scoring touchpoints improve by 15%?',
   ],
+  'Revenue Cycle': [
+    'What if preventable denials decrease by 20%?',
+    'What if first-pass claim acceptance improves by 5%?',
+    'What if aged AR over 90 days is collected 30% faster?',
+    'What if pre-authorization approval and turnaround improve by 15%?',
+    'What if charge capture gaps close by 50%?',
+    'What if contract underpayments are recovered by 40%?',
+    'What if avoidable write-offs decrease by 30%?',
+    'What if coding and billing workflow delays decrease by 20%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -124,6 +135,17 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Revenue Cycle intents first: finance keywords (denial, authorization, AR, write-off, underpayment, coding/billing) are domain-specific.
+  const rcmAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
+  if (/(pre-?auth|authori[sz])/.test(q) && /(approv|turnaround|improv|increas|speed|fell|decreas|reduc)/.test(q)) return { kind: 'rcm-auth-up', amount: rcmAmount(0.15) };
+  if (/first.?pass|clean claim|claim acceptance/.test(q) && /(improv|increas|rise|lift)/.test(q)) return { kind: 'rcm-first-pass-up', amount: rcmAmount(0.05) };
+  if (/underpay/.test(q) && /(recover|reduc|decreas|fell|improv)/.test(q)) return { kind: 'rcm-underpay-recover', amount: rcmAmount(0.4) };
+  if (/write-?off/.test(q) && /(fell|decreas|reduc|prevent|avoid)/.test(q)) return { kind: 'rcm-writeoff-down', amount: rcmAmount(0.3) };
+  if (/(charge capture|missed charge|capture gap)/.test(q) && /(improv|increas|clos|reduc|decreas|fell|recover)/.test(q)) return { kind: 'rcm-capture-up', amount: rcmAmount(0.5) };
+  if (/(coding|billing)/.test(q) && /(workflow|delay|exception|backlog|lag)/.test(q) && /(fell|decreas|reduc|improv|clear|streamlin)/.test(q)) return { kind: 'rcm-workflow-up', amount: rcmAmount(0.2) };
+  if (/(\bar\b|accounts receivable|aged|days in ar)/.test(q) && /(collect|accelerat|faster|fell|decreas|reduc)/.test(q)) return { kind: 'rcm-ar-accelerate', amount: rcmAmount(0.3) };
+  if (/denial|denied/.test(q) && /(fell|decreas|reduc|improv|prevent)/.test(q)) return { kind: 'rcm-denials-down', amount: rcmAmount(0.2) };
 
   // Patient Experience intents before ICU/beds generics that mention discharge, wait, or communication.
   if (/wait/.test(q) && /(dissatisf|experience|satisfaction|touchpoint)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'px-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -233,6 +255,7 @@ export function runWhatIf(
   if (domain === 'Pharmacy') return pharmacyWhatIf(hospital, year, period, resolved);
   if (domain === 'ICU') return icuWhatIf(hospital, year, period, resolved);
   if (domain === 'Patient Experience') return pxWhatIf(hospital, year, period, resolved);
+  if (domain === 'Revenue Cycle') return rcmWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -247,6 +270,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Pharmacy') return { kind: 'rx-tat-down', amount: 0.15 };
   if (domain === 'ICU') return { kind: 'icu-transfer-down', amount: 0.2 };
   if (domain === 'Patient Experience') return { kind: 'px-wait-down', amount: 0.2 };
+  if (domain === 'Revenue Cycle') return { kind: 'rcm-denials-down', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1310,6 +1334,136 @@ function pxWhatIf(
     implications: `Tighten check-in queue visibility for eligible clinics; operational waits stay owned by Access / ED — PX tracks experience scores.`,
     followUp: 'Waiting Score, Waiting-time complaints, and Overall Satisfaction',
     owner: waitOpt?.owner ?? 'Patient Access & Outpatient Operations',
+  };
+}
+
+const RCM_DEFAULT_AMOUNT: Record<string, number> = {
+  'rcm-denials-down': 0.2,
+  'rcm-first-pass-up': 0.05,
+  'rcm-ar-accelerate': 0.3,
+  'rcm-auth-up': 0.15,
+  'rcm-capture-up': 0.5,
+  'rcm-underpay-recover': 0.4,
+  'rcm-writeoff-down': 0.3,
+  'rcm-workflow-up': 0.2,
+};
+
+function rcmSar(value: number): string {
+  return `SAR ${num(value)}`;
+}
+
+/** Revenue Cycle what-ifs: modeled recovery is capped by documented recoverability and is never collected cash. */
+function rcmWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildRcmView(hospital, year, period);
+  const opp = view.opportunities.find((item) => item.id === intent.kind) ?? view.opportunities[0];
+  const kind = opp.id;
+  const amount = Math.min(Math.max(intent.amount, 0), 0.9);
+  const base = RCM_DEFAULT_AMOUNT[kind] ?? 0.2;
+  // Eligible value assumes the documented intervention at its default size; larger asks are capped there.
+  const scale = Math.min(1, base > 0 ? amount / base : 0);
+  const modeled = Math.round(opp.eligibleValue * scale);
+  const capNote = amount > base ? ` Requested ${pct(amount, 0)} exceeds the documented recoverability limit (${pct(base, 0)}); the estimate is capped.` : '';
+  const framing = `Illustrative modeled value — not collected cash and not additive to the other Revenue Cycle scenarios (they overlap). ${opp.assumption}${capNote}`;
+  const common = { id: kind, assumptions: framing, owner: opp.owner };
+
+  if (kind === 'rcm-first-pass-up') {
+    const next = Math.min(1, view.firstPassAcceptance + amount);
+    return {
+      ...common,
+      title: 'First-pass claim acceptance scenario',
+      current: `First-pass acceptance ${pct(view.firstPassAcceptance)} · ${num(view.clearinghouseRejects)} clearinghouse rejects of ${num(view.uniqueClaims)} unique claims (${view.periodLabel})`,
+      change: `Illustrative ${num(amount * 100, 0)}-point lift in first-pass acceptance`,
+      estimated: `Acceptance near ${pct(next)} · about ${rcmSar(modeled)} of claim value reaches payers earlier (timing acceleration, not new revenue)`,
+      implications: 'Flag claim-scrubber edits before submission. No live payer or clearinghouse submission is made by AI.',
+      followUp: 'First-Pass Acceptance Rate, Claims Submitted, and Denied Claims',
+    };
+  }
+  if (kind === 'rcm-ar-accelerate') {
+    const nextDays = view.closingAR > 0 ? Math.max(0, view.daysInAr * (1 - modeled / view.closingAR)) : view.daysInAr;
+    return {
+      ...common,
+      title: 'Aged AR acceleration scenario',
+      current: `Days in AR ${num(view.daysInAr, 1)} (target ${RCM_TARGETS.daysInAr}) · AR over 90 days ${rcmSar(view.arOver90)} of ending AR ${rcmSar(view.closingAR)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} of aged AR collected earlier`,
+      estimated: `About ${rcmSar(modeled)} collected sooner · Days in AR near ${num(nextDays, 1)} (timing shift, not new revenue)`,
+      implications: `Rank aged balances for collector follow-up using the ${view.agingClock} aging clock.`,
+      followUp: 'Days in AR, AR Over 90 Days, and Collection Effectiveness Index',
+    };
+  }
+  if (kind === 'rcm-auth-up') {
+    const next = Math.min(1, view.preauthApprovalRate + (1 - view.preauthApprovalRate) * amount);
+    return {
+      ...common,
+      title: 'Pre-authorization improvement scenario',
+      current: `Approval rate ${pct(view.preauthApprovalRate)} · pending ${num(view.authPending)} · turnaround ${num(view.authTurnaroundDays, 1)} days · authorization denial exposure ${rcmSar(view.authDenialExposure)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} improvement in authorization approval and turnaround`,
+      estimated: `Approval near ${pct(next)} · about ${rcmSar(modeled)} of authorization-related denial exposure avoided`,
+      implications: 'Surface authorization requests at risk of delay. This is an administrative queue — not a care or coverage decision.',
+      followUp: 'Pre-Authorization Approval Rate, Pending Authorizations, and Authorization Denial Exposure',
+    };
+  }
+  if (kind === 'rcm-capture-up') {
+    const next = Math.min(1, view.chargeCaptureRate + (1 - view.chargeCaptureRate) * Math.min(amount, 0.55));
+    return {
+      ...common,
+      title: 'Charge capture gap scenario',
+      current: `Charge capture ${pct(view.chargeCaptureRate)} (target ${pct(RCM_TARGETS.chargeCaptureRate, 0)}) · missed charge exposure ${rcmSar(view.missedChargeExposure)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} of capture gaps closed`,
+      estimated: `Capture near ${pct(next)} · about ${rcmSar(modeled)} of missed charge exposure captured`,
+      implications: 'Candidates need human charge review before posting; not every unmatched clinical event is billable.',
+      followUp: 'Charge Capture Rate, Missed Charge Exposure, and Confirmed Leakage',
+    };
+  }
+  if (kind === 'rcm-underpay-recover') {
+    return {
+      ...common,
+      title: 'Contract underpayment recovery scenario',
+      current: `Underpayments ${rcmSar(view.underpaymentValue)} of confirmed leakage ${rcmSar(view.confirmedLeakage)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} of contract variance recovered`,
+      estimated: `About ${rcmSar(modeled)} recoverable after payer dispute cycles · underpayments near ${rcmSar(Math.max(0, view.underpaymentValue - modeled))} if realized`,
+      implications: 'Compare paid and contracted allowed amounts by payer. Contractual adjustments are not leakage.',
+      followUp: 'Underpayment Value, Confirmed Leakage, and Contract Variance Trend',
+    };
+  }
+  if (kind === 'rcm-writeoff-down') {
+    return {
+      ...common,
+      title: 'Avoidable write-off prevention scenario',
+      current: `Avoidable write-offs ${rcmSar(view.avoidableWriteoffs)} of total write-offs ${rcmSar(view.writeOffs)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in avoidable write-offs`,
+      estimated: `About ${rcmSar(modeled)} of write-offs prevented · avoidable write-offs near ${rcmSar(Math.max(0, view.avoidableWriteoffs - modeled))} if realized`,
+      implications: 'Escalate preventable balances earlier. Bad debt and contractual adjustments are excluded; AI does not write off balances alone.',
+      followUp: 'Avoidable Write-offs, Confirmed Leakage, and Recovery Opportunities',
+    };
+  }
+  if (kind === 'rcm-workflow-up') {
+    const next = Math.min(1, view.codingCompletionRate + (1 - view.codingCompletionRate) * amount);
+    return {
+      ...common,
+      title: 'Coding and billing workflow scenario',
+      current: `Coding completion ${pct(view.codingCompletionRate)} (target ${pct(RCM_TARGETS.codingCompletionRate, 0)}) · charge-to-bill lag ${num(view.chargeToBillLag, 1)} days · unbilled value ${rcmSar(view.unbilledValue)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in coding and billing workflow delays`,
+      estimated: `Coding completion near ${pct(next)} · about ${rcmSar(modeled)} of unbilled service value released earlier (timing, not new revenue)`,
+      implications: 'Clear coding and billing exceptions in age order. Operational workflow only — not an audit or ERP change.',
+      followUp: 'Coding Completion Rate, Charge-to-Bill Lag, and Unbilled Service Value',
+    };
+  }
+  const preventableShare = view.deniedAmount > 0 ? view.preventableDeniedAmount / view.deniedAmount : 0;
+  const nextRate = view.grossDenialRate * (1 - amount * preventableShare);
+  return {
+    ...common,
+    id: 'rcm-denials-down',
+    title: 'Preventable denial reduction scenario',
+    current: `Gross denial rate ${pct(view.grossDenialRate)} (target ${pct(RCM_TARGETS.grossDenialRate, 0)}) · ${num(view.deniedClaims)} denied of ${num(view.adjudicatedClaims)} adjudicated claims · recoverable denial value ${rcmSar(view.recoverableDenialValue)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(amount, 0)} reduction in preventable denials`,
+    estimated: `Denial rate near ${pct(nextRate)} · about ${rcmSar(modeled)} of denied value recoverable through appeal and resubmission`,
+    implications: 'Prioritize preventable denial reasons and appealable value. Resubmission and appeal decisions stay with the denials team.',
+    followUp: 'Gross Denial Rate, Denied Claims, and Recoverable Denial Value',
   };
 }
 

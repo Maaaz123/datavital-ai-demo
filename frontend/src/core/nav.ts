@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak';
 };
 
 export type NavDomain = {
@@ -465,6 +465,64 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'rcm',
+    label: 'Revenue Cycle',
+    mark: 'RCM',
+    match: (path) => path === '/rcm' || path.startsWith('/rcm/'),
+    screens: [
+      {
+        to: '/rcm',
+        short: 'Command',
+        title: 'RCM Command Center',
+        purpose: 'Net revenue, collections, denials, and AR health',
+        end: true,
+        glyph: 'rcm',
+      },
+      {
+        to: '/rcm/eligibility',
+        short: 'Eligibility',
+        title: 'Eligibility & Pre-Authorization',
+        purpose: 'Coverage verification and authorization exposure',
+        glyph: 'rcm-elig',
+      },
+      {
+        to: '/rcm/billing',
+        short: 'Billing',
+        title: 'Charge Capture & Billing',
+        purpose: 'Charge capture, coding, and unbilled value',
+        glyph: 'rcm-bill',
+      },
+      {
+        to: '/rcm/claims',
+        short: 'Claims',
+        title: 'Claims & Denial Intelligence',
+        purpose: 'Submissions, denials, appeals, and recovery',
+        glyph: 'rcm-claims',
+      },
+      {
+        to: '/rcm/collections',
+        short: 'Collections',
+        title: 'Accounts Receivable & Collections',
+        purpose: 'AR aging, cash application, and payer delay',
+        glyph: 'rcm-collect',
+      },
+      {
+        to: '/rcm/leakage',
+        short: 'Leakage',
+        title: 'Revenue Leakage & Financial Integrity',
+        purpose: 'Underpayments, missed charges, and write-offs',
+        glyph: 'rcm-leak',
+      },
+      {
+        to: '/rcm/optimization',
+        short: 'Optimize',
+        title: 'RCM Optimization & What-If',
+        purpose: 'Illustrative recovery and cash acceleration',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -480,10 +538,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

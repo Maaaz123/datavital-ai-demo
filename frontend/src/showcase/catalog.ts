@@ -32,7 +32,7 @@ export const SCREENS: ScreenDef[] = [
   screen('experience', 'Patient Experience', 'تجربة المريض', 'Patient', 'How do satisfaction, complaints, surveys, and recovery move together?', ['Patient Experience', 'Experience']),
   screen('registry', 'Patient Registry', 'سجل المرضى', 'Patient', 'How many patients are in scope?', ['Patients']),
   screen('diagnoses', 'Diagnoses', 'التشخيصات', 'Patient', 'How complete is diagnosis documentation?', ['Diagnoses']),
-  screen('rcm', 'Revenue Cycle Management', 'دورة الإيراد', 'Finance', 'Where is revenue under pressure?', ['RCM']),
+  screen('rcm', 'Revenue Cycle Management', 'دورة الإيراد', 'Finance', 'Where is revenue under pressure?', ['RCM', 'Revenue Cycle']),
   screen('claims', 'Claims & Denials', 'المطالبات والرفض', 'Finance', 'Where are denials increasing this year?', ['RCM']),
   screen('workforce', 'Workforce & Staffing', 'القوى العاملة', 'Finance', 'Where is staffing pressure this year?', ['Workforce']),
   screen('access', 'Access & Role Administration', 'الصلاحيات', 'Trust', 'Who can review a simulated action?', ['Pipeline operations']),

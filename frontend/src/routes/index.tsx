@@ -11,10 +11,18 @@ import { PharmCommandPage, PharmCostPage, PharmDispensingPage, PharmInventoryPag
 import { LabAnalyzersPage, LabCommandPage, LabOptimizationPage, LabQualityPage, LabSamplesPage } from '@/core/laboratory';
 import { IcuCapacityPage, IcuCommandPage, IcuEquipmentPage, IcuFlowPage, IcuOptimizationPage, IcuQualityPage } from '@/core/icu';
 import { PxCommandPage, PxComplaintsPage, PxDepartmentsPage, PxJourneyPage, PxOptimizationPage, PxVoicePage } from '@/core/patientExperience';
+import {
+  RcmBillingPage,
+  RcmClaimsPage,
+  RcmCollectionsPage,
+  RcmCommandPage,
+  RcmEligibilityPage,
+  RcmLeakagePage,
+  RcmOptimizationPage,
+} from '@/core/rcm';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
-  '/rcm',
   '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
@@ -79,6 +87,13 @@ export const routes = [
       { path: 'patient-experience/voice', element: <PxVoicePage /> },
       { path: 'patient-experience/departments', element: <PxDepartmentsPage /> },
       { path: 'patient-experience/optimization', element: <PxOptimizationPage /> },
+      { path: 'rcm', element: <RcmCommandPage /> },
+      { path: 'rcm/eligibility', element: <RcmEligibilityPage /> },
+      { path: 'rcm/billing', element: <RcmBillingPage /> },
+      { path: 'rcm/claims', element: <RcmClaimsPage /> },
+      { path: 'rcm/collections', element: <RcmCollectionsPage /> },
+      { path: 'rcm/leakage', element: <RcmLeakagePage /> },
+      { path: 'rcm/optimization', element: <RcmOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

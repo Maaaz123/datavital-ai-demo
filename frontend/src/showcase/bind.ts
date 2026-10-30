@@ -5,6 +5,7 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildRcmView } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
@@ -211,8 +212,60 @@ function pxMapped(key: string, hospital: string, year: number): Raw | null {
   }
 }
 
+/** Revenue Cycle KPIs bound to the shared RCM view. Amounts are fictional SAR; modeled values are illustrative, not collected cash. */
+function rcmMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildRcmView(hospital, year, 'year');
+  const days = (value: number, better: Raw['better'], note: string) => duration(value, 'days', better, note);
+  switch (key) {
+    case 'kpi_rcm_net_patient_revenue': return money(v.netPatientRevenue, 'Gross charges − contractual allowances from the RCM Command view. Recognized net revenue, not cash.', 'up');
+    case 'kpi_rcm_net_collection_rate': return exactRate(v.cashApplied, v.netPatientRevenue, 'up', 'Cash applied ÷ net patient revenue from the RCM Command view. Applied cash, not remittance receipts alone.');
+    case 'kpi_rcm_gross_denial_rate': return exactRate(v.deniedClaims, v.adjudicatedClaims, 'down', 'Unique denied claims ÷ unique adjudicated claims (claim count) from the RCM Command view.');
+    case 'kpi_rcm_days_in_ar': return days(v.daysInAr, 'down', 'Ending AR ÷ (net patient revenue ÷ days in period) from the RCM Command view.');
+    case 'kpi_rcm_outstanding_ar': return money(v.closingAR, 'Period-end AR snapshot from the RCM Command view — not the sum of monthly balances.', 'down');
+    case 'kpi_rcm_revenue_at_risk': return money(v.revenueAtRisk, 'Recoverable denials + unbilled value + AR over 90 days from the RCM Command view. Illustrative exposure, not collected cash.', 'down');
+    case 'kpi_rcm_eligibility_verification_rate': return exactRate(v.eligibilityVerified, v.eligibilityRequired, 'up', 'Verified ÷ required eligibility checks from the RCM Eligibility view.');
+    case 'kpi_rcm_coverage_exception_rate': return exactRate(v.coverageExceptions, v.eligibilityVerified, 'down', 'Coverage exceptions ÷ verified eligibility responses from the RCM Eligibility view.');
+    case 'kpi_rcm_preauth_approval_rate': return exactRate(v.authApproved, v.authDecided, 'up', 'Approved ÷ decided authorization requests (pending excluded) from the RCM Eligibility view.');
+    case 'kpi_rcm_pending_authorizations': return count(v.authPending, 'down', 'Open authorization requests at observation from the RCM Eligibility view.', GRAIN, 'requests');
+    case 'kpi_rcm_auth_turnaround_days': return days(v.authTurnaroundDays, 'down', 'Volume-weighted days from authorization request to decision from the RCM Eligibility view.');
+    case 'kpi_rcm_auth_denial_exposure': return money(v.authDenialExposure, 'Denied claim value attributable to authorization reasons from the RCM Eligibility view. Exposure, not collected cash.', 'down');
+    case 'kpi_rcm_charge_capture_rate': return exactRate(v.capturedCharges, v.chargeableServices, 'up', 'Captured ÷ eligible chargeable services from the RCM Billing view.');
+    case 'kpi_rcm_unbilled_encounters': return count(v.unbilledEncounters, 'down', 'Eligible completed encounters without an invoice at observation from the RCM Billing view.', GRAIN, 'encounters');
+    case 'kpi_rcm_unbilled_service_value': return money(v.unbilledValue, 'Expected net value of eligible unbilled services from the RCM Billing view. Not gross charges as cash.', 'down');
+    case 'kpi_rcm_charge_to_bill_lag': return days(v.chargeToBillLag, 'down', 'Volume-weighted days from charge post to invoice from the RCM Billing view.');
+    case 'kpi_rcm_coding_completion_rate': return exactRate(v.codingComplete, v.codingReady, 'up', 'Coding complete ÷ encounters ready for coding from the RCM Billing view.');
+    case 'kpi_rcm_billing_exception_rate': return exactRate(v.billingExceptions, v.invoicesCreated, 'down', 'Billing exceptions ÷ invoices created from the RCM Billing view.');
+    case 'kpi_rcm_claims_submitted': return count(v.uniqueClaims, 'neutral', 'Unique claim IDs submitted from the RCM Claims view. Resubmissions are not new unique claims.', GRAIN, 'claims');
+    case 'kpi_rcm_first_pass_acceptance': return exactRate(v.firstPassAccepted, v.uniqueClaims, 'up', 'Claims accepted on first submission ÷ unique claims from the RCM Claims view. Clearinghouse reject ≠ payer denial.');
+    case 'kpi_rcm_denied_claims': return count(v.deniedClaims, 'down', 'Unique adjudicated claims with a denied line from the RCM Claims view.', GRAIN, 'claims');
+    case 'kpi_rcm_denial_rate_by_value': return exactRate(v.deniedAmount, v.adjudicatedAmount, 'down', 'Denied amount ÷ adjudicated claim amount from the RCM Claims view.');
+    case 'kpi_rcm_appeal_success_rate': return exactRate(v.appealWon, v.appealDecided, 'up', 'Successful ÷ decided appeals (pending excluded) from the RCM Claims view.');
+    case 'kpi_rcm_recoverable_denial_value': return money(v.recoverableDenialValue, 'Denied amount assessed recoverable from the RCM Claims view. Illustrative — not collected.', 'up');
+    case 'kpi_rcm_cash_applied': return money(v.cashApplied, 'Period cash applied to encounter AR from the RCM Collections view. A flow, distinct from receipts and ending AR.', 'up');
+    case 'kpi_rcm_ar_over_90': return money(v.arOver90, `AR aged over 90 days (${v.agingClock}) from the RCM Collections view.`, 'down');
+    case 'kpi_rcm_collection_effectiveness': return exactRate(v.cashApplied, v.openingAR + v.newReceivables - v.approvedAdjustments, 'up', 'Cash applied ÷ (opening AR + new receivables − approved adjustments) from the RCM Collections view.');
+    case 'kpi_rcm_unapplied_cash': return money(v.unappliedCash, 'Remittances received but not yet applied from the RCM Collections view. Cash received ≠ cash applied.', 'down');
+    case 'kpi_rcm_payer_payment_delay': return days(v.payerPaymentDelay, 'down', 'Volume-weighted days from submission to first payment for paid claims from the RCM Collections view.');
+    case 'kpi_rcm_patient_ar': return money(v.patientAR, 'Ending patient-responsibility AR from the RCM Collections view. Distinct from insurer AR.', 'down');
+    case 'kpi_rcm_confirmed_leakage': return money(v.confirmedLeakage, 'Missed charges + avoidable write-offs + underpayments with exclusive attribution from the RCM Leakage view. Contractual allowances excluded.', 'down');
+    case 'kpi_rcm_potential_leakage': return money(v.potentialLeakage, 'Suspected exposure under review from the RCM Leakage view. Not additive to confirmed leakage.', 'down');
+    case 'kpi_rcm_underpayment_value': return money(v.underpaymentValue, 'Allowed − paid on underpaid adjudicated lines from the RCM Leakage view.', 'down');
+    case 'kpi_rcm_missed_charge_exposure': return money(v.missedChargeExposure, 'Expected net of eligible chargeable services not captured from the RCM Leakage view.', 'down');
+    case 'kpi_rcm_avoidable_writeoffs': return money(v.avoidableWriteoffs, 'Preventable write-offs from the RCM Leakage view. Contractual adjustments and bad debt excluded.', 'down');
+    case 'kpi_rcm_recovery_opportunities': return count(v.recoveryOpportunities, 'neutral', 'Open recovery work items from the RCM Leakage view.', GRAIN, 'work items');
+    case 'kpi_rcm_recoverable_opportunity': return money(v.recoverableOpportunity, 'Illustrative feasible recovery from RCM Optimization. Not realized cash.', 'up');
+    case 'kpi_rcm_eligible_denial_recovery': return money(v.eligibleDenialRecovery, 'Modeled recoverable denial share from RCM Optimization. Illustrative — not collected.', 'up');
+    case 'kpi_rcm_collection_improvement': return money(v.collectionImprovement, 'Illustrative cash timing uplift from RCM Optimization. Not new recognized revenue.', 'up');
+    case 'kpi_rcm_preventable_leakage': return money(v.preventableLeakage, 'Confirmed leakage addressable by process interventions from RCM Optimization. Illustrative.', 'up');
+    case 'kpi_rcm_cash_acceleration': return money(v.cashAcceleration, 'Illustrative earlier application of eligible collections from RCM Optimization. A timing shift, not new revenue.', 'up');
+    default: return null;
+  }
+}
+
 function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): Raw | null {
   const key = kpi.key;
+  // Registry-origin kpi_rcm_* (legacy Revenue story, e.g. outstanding AR) keep their fact-ledger binding below.
+  if (key.startsWith('kpi_rcm_') && kpi.origin === 'demo_assumption') return rcmMapped(key, hospital, year);
   if (key.startsWith('kpi_px_')) return pxMapped(key, hospital, year);
   if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);
