@@ -137,9 +137,13 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
     }
     return count(fact.radOrders, 'neutral', 'Radiology orders.');
   }
-  if (key === 'kpi_radiology_result_volume' || key === 'kpi_rad_final_report_count' || key === 'kpi_rad_completed_exams') {
+  if (key === 'kpi_radiology_result_volume' || key === 'kpi_rad_final_report_count') {
     const view = buildRadiologyView(hospital, year, 'year');
-    return count(view.completed, 'neutral', 'Completed exams from Radiology Command view. Reported + cancelled + no-show + pending = requests.');
+    return count(view.signedReports, 'neutral', 'Final signed reports from Radiology Quality lifecycle. Distinct from completed exams.');
+  }
+  if (key === 'kpi_rad_completed_exams') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.completed, 'neutral', 'Completed exams (examination lifecycle) from Radiology Command view. Distinct from signed reports.');
   }
   if (key === 'kpi_rad_preliminary_report_count') return count(Math.round(fact.radReported * 0.22), 'neutral', 'Preliminary reports are 22% of final reports, not an extra order.');
   if (key === 'kpi_rad_pending_exams') {
@@ -284,9 +288,13 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_rad_modality_utilization' || key === 'kpi_rad_scanner_utilization') {
     if (key === 'kpi_rad_scanner_utilization') {
       const view = buildRadiologyView(hospital, year, 'year');
-      return exactRate(view.usedHours, view.staffedHours, 'up', 'Scanner Utilization = used exam hours ÷ staffed scanner hours from Radiology Utilization view. Uncapped; overtime is separate.');
+      return exactRate(view.inSessionUsed, view.staffedHours, 'up', 'Scanner Utilization = in-session used ÷ staffed hours from Radiology Utilization view. Overtime is separate.');
     }
     return ratio(fact.occupiedBeds, staffed, 'neutral', 'Utilization uses the same occupied ÷ staffed snapshot as bed occupancy. It is labelled as that capacity ratio.');
+  }
+  if (key === 'kpi_rad_ct_downtime') {
+    const view = buildRadiologyView(hospital, year, 'year');
+    return count(view.ctDowntimeHours, 'down', 'CT-specific downtime hours inside staffed CT sessions. Bound to Radiology Utilization view.', GRAIN, 'hours');
   }
   if (key === 'kpi_surg_or_utilization') {
     const view = buildSurgeryView(hospital, year, 'year');
@@ -356,10 +364,14 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
     const within = key.includes('breach') ? 0.08 + occ * 0.04 : 0.92 - occ * 0.04;
     return share(within, fact.radReported, key.includes('breach') ? 'down' : 'up', 'Report timing compliance uses reported exams as the denominator.');
   }
-  if (key === 'kpi_rad_critical_comm_compliance' || key === 'kpi_rad_critical_ack_rate') {
+  if (key === 'kpi_rad_critical_comm_compliance' || key === 'kpi_rad_critical_ack_rate' || key === 'kpi_rad_critical_delay_rate') {
     if (key === 'kpi_rad_critical_ack_rate') {
       const view = buildRadiologyView(hospital, year, 'year');
       return exactRate(view.criticalAcked, view.criticalResults || 1, 'up', 'Acknowledged critical results ÷ critical results. Bound to Radiology Quality view.');
+    }
+    if (key === 'kpi_rad_critical_delay_rate') {
+      const view = buildRadiologyView(hospital, year, 'year');
+      return exactRate(view.criticalPendingAck, view.criticalResults || 1, 'down', 'Pending critical acknowledgements ÷ critical results. Distinct from acknowledgement rate.');
     }
     return share(0.94, fact.radReported, 'up', 'Critical results communicated ÷ reported exams.');
   }

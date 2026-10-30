@@ -87,6 +87,8 @@ const ASSUMPTIONS: KpiDef[] = [
   assumption('kpi_rad_recoverable_hours', 'Potentially recoverable scanner hours', 'Radiology', 'hours', 'Exclusive recoverable scanner hours from Radiology Optimization.'),
   assumption('kpi_rad_additional_exams', 'Feasible additional imaging exams', 'Radiology', 'count', 'Feasible extra exams under capacity constraints.'),
   assumption('kpi_rad_eligible_waitlist', 'Eligible imaging waitlist cases', 'Radiology', 'count', 'Waitlist cases that could use recovered capacity.'),
+  assumption('kpi_rad_ct_downtime', 'CT scanner downtime hours', 'Radiology', 'hours', 'CT-specific downtime inside staffed CT sessions from Radiology Utilization view.'),
+  assumption('kpi_rad_critical_delay_rate', 'Critical result communication delay rate', 'Radiology', 'ratio', 'Pending critical acknowledgements ÷ critical results from Radiology Quality view.'),
 ];
 
 function assumption(key: string, name: string, domain: string, unit: string, note: string): KpiDef {

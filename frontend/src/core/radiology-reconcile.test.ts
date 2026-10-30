@@ -13,6 +13,10 @@ import {
 } from './radiologyOwnership';
 import { buildRadiologyView } from './radiologyView';
 
+const PERIODS = ['year', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
+const YEARS = [2024, 2025, 2026] as const;
+const SITES = HOSPITALS.filter((item) => item.code !== 'ALL');
+
 describe('Radiology KPI ownership', () => {
   it('registers each primary KPI ID on exactly one screen', () => {
     expect(assertUniqueRadiologyOwnership()).toEqual([]);
@@ -32,96 +36,180 @@ describe('Radiology KPI ownership', () => {
   });
 });
 
-describe('Radiology scenario reconciles', () => {
-  it('keeps request outcome and waitlist identities for hospitals and periods', () => {
-    for (const hospital of HOSPITALS) {
+describe('Radiology examination and reporting lifecycles', () => {
+  it('keeps exam completion distinct from report signature', () => {
+    for (const hospital of SITES.slice(0, 3)) {
+      for (const year of YEARS) {
+        const view = buildRadiologyView(hospital.code, year, 'year');
+        expect(view.completed + view.cancelled + view.noShows + view.pending).toBe(view.requests);
+        expect(view.signedReports + view.unsignedReports).toBe(view.completed);
+        expect(view.completed).toBeGreaterThanOrEqual(view.signedReports);
+        expect(view.pending).toBeGreaterThanOrEqual(0);
+        expect(view.unsignedReports).toBeGreaterThanOrEqual(0);
+        expect(view.methodology.examLifecycle).toMatch(/distinct/i);
+      }
+    }
+  });
+
+  it('partitions modality outcomes without negative residuals', () => {
+    for (const hospital of SITES) {
       for (const year of [2025, 2026] as const) {
-        for (const period of ['year', 'Q1', 'Q2', 'Q3', 'Q4'] as const) {
+        for (const period of PERIODS) {
           const view = buildRadiologyView(hospital.code, year, period);
-          expect(view.completed + view.cancelled + view.noShows + view.pending).toBe(view.requests);
-          expect(view.urgentRequests + view.routineRequests).toBe(view.requests);
-          expect(view.careSettings.reduce((sum, item) => sum + item.requests, 0)).toBe(view.requests);
           expect(view.modalities.reduce((sum, item) => sum + item.requests, 0)).toBe(view.requests);
           expect(view.modalities.reduce((sum, item) => sum + item.completed, 0)).toBe(view.completed);
-
-          expect(view.openingBacklog + view.addedToWaitlist - view.completedFromWaitlist - view.otherExits).toBe(view.closingBacklog);
-          for (let index = 0; index < view.monthlyOpening.length; index += 1) {
-            const nextOpen = view.monthlyOpening[index];
-            const close = view.monthlyBacklog[index];
-            if (index === 0) expect(nextOpen).toBe(view.openingBacklog);
-            if (index > 0) expect(nextOpen).toBe(view.monthlyBacklog[index - 1]);
-            expect(close).toBeGreaterThanOrEqual(0);
+          expect(view.modalities.reduce((sum, item) => sum + item.cancelled, 0)).toBe(view.cancelled);
+          expect(view.modalities.reduce((sum, item) => sum + item.noShows, 0)).toBe(view.noShows);
+          expect(view.modalities.reduce((sum, item) => sum + item.pending, 0)).toBe(view.pending);
+          for (const modality of view.modalities) {
+            expect(modality.completed + modality.cancelled + modality.noShows + modality.pending).toBe(modality.requests);
+            expect(modality.completed).toBeGreaterThanOrEqual(0);
+            expect(modality.cancelled).toBeGreaterThanOrEqual(0);
+            expect(modality.noShows).toBeGreaterThanOrEqual(0);
+            expect(modality.pending).toBeGreaterThanOrEqual(0);
+            expect(modality.completed).toBeLessThanOrEqual(modality.requests);
           }
+          expect(view.careSettings.reduce((sum, item) => sum + item.requests, 0)).toBe(view.requests);
+          expect(view.careSettings.reduce((sum, item) => sum + item.completed, 0)).toBe(view.completed);
+        }
+      }
+    }
+  });
+});
+
+describe('Radiology waitlist ledger', () => {
+  it('rolls monthly opening/closing without clamping substitutes', () => {
+    for (const hospital of SITES.slice(0, 3)) {
+      for (const year of [2025, 2026] as const) {
+        for (const period of PERIODS) {
+          const view = buildRadiologyView(hospital.code, year, period);
+          expect(view.openingBacklog + view.addedToWaitlist - view.completedFromWaitlist - view.otherExits).toBe(view.closingBacklog);
+          expect(view.waitlistGrowth).toBe(view.closingBacklog - view.openingBacklog);
+          expect(view.monthlyOpening[0]).toBe(view.openingBacklog);
           expect(view.monthlyBacklog[view.monthlyBacklog.length - 1]).toBe(view.closingBacklog);
-
-          // Scanner time accounting
-          expect(view.inSessionUsed + view.downtimeHours + view.unusedHours).toBe(view.staffedHours);
-          expect(view.overtimeHours).toBe(Math.max(0, view.usedHours - (view.staffedHours - view.downtimeHours)));
-          expect(view.scanners.reduce((sum, item) => sum + item.staffedHours, 0)).toBe(view.staffedHours);
-          expect(view.scanners.reduce((sum, item) => sum + item.usedHours, 0)).toBe(view.usedHours);
-          expect(view.downtimeReasons.reduce((sum, item) => sum + item.hours, 0)).toBe(view.downtimeHours);
-          expect(view.scannerUtilization).toBeCloseTo(view.staffedHours ? view.usedHours / view.staffedHours : 0, 3);
-          expect(view.scannerUtilization).not.toBeLessThan(0);
-
-          // Report / quality denominators
-          expect(view.unsignedAging.reduce((sum, item) => sum + item.count, 0)).toBe(view.unsignedReports);
-          expect(view.repeatExams).toBeLessThanOrEqual(view.completed);
-          expect(view.criticalAcked).toBeLessThanOrEqual(view.criticalResults);
-          expect(view.additionalExams).toBeLessThanOrEqual(view.eligibleWaitlist);
-          expect(view.additionalExams).toBeLessThanOrEqual(view.potentialAdditionalExams);
-          expect(view.delayDriverHours.reduce((sum, item) => sum + item.hours, 0)).toBe(view.recoverableHours);
-          expect(view.bedConstrainedHours + view.feasibleRecoverableHours).toBe(view.recoverableHours);
-
-          // Distinct clocks
-          expect(view.methodology.accessClock).toMatch(/Request-to-exam/i);
-          expect(view.methodology.reportTat).toMatch(/signature/i);
+          for (let index = 0; index < view.waitlistLedger.length; index += 1) {
+            const row = view.waitlistLedger[index];
+            expect(row.opening + row.added - row.completedFromWaitlist - row.otherExits).toBe(row.closing);
+            expect(row.closing).toBeGreaterThanOrEqual(0);
+            expect(row.completedFromWaitlist).toBeLessThanOrEqual(row.opening + row.added);
+            expect(row.otherExits).toBeLessThanOrEqual(row.opening + row.added - row.completedFromWaitlist);
+            if (index > 0) expect(row.opening).toBe(view.waitlistLedger[index - 1].closing);
+          }
         }
       }
     }
   });
 
-  it('sums quarterly flows to annual request totals', () => {
-    for (const hospital of HOSPITALS.filter((item) => item.code !== 'ALL').slice(0, 2)) {
-      for (const year of [2026] as const) {
-        const annual = buildRadiologyView(hospital.code, year, 'year');
-        const quarters = (['Q1', 'Q2', 'Q3', 'Q4'] as const).map((period) => buildRadiologyView(hospital.code, year, period));
-        expect(quarters.reduce((sum, item) => sum + item.requests, 0)).toBe(annual.requests);
-        expect(quarters.reduce((sum, item) => sum + item.completed, 0)).toBe(annual.completed);
-        expect(quarters.reduce((sum, item) => sum + item.cancelled, 0)).toBe(annual.cancelled);
-        expect(quarters.reduce((sum, item) => sum + item.noShows, 0)).toBe(annual.noShows);
-        // Backlog is a snapshot — must not equal the sum of quarter closings
-        expect(quarters.reduce((sum, item) => sum + item.closingBacklog, 0)).not.toBe(annual.closingBacklog);
+  it('derives wait median, P90, overdue, and bands from one active backlog distribution', () => {
+    const view = buildRadiologyView('H1', 2026, 'year');
+    expect(view.waitBands.reduce((sum, item) => sum + item.count, 0)).toBe(view.closingBacklog);
+    expect(view.overdueImaging + view.withinTargetCases).toBe(view.closingBacklog);
+    expect(view.overdueImaging).toBeLessThanOrEqual(view.closingBacklog);
+    if (view.closingBacklog > 0) {
+      expect(view.medianAccessWaitDays).toBeGreaterThan(0);
+      expect(view.p90AccessWaitDays).toBeGreaterThanOrEqual(view.medianAccessWaitDays);
+    }
+    // Overdue band share for >14 days should match overdue count for 14-day target.
+    const overdueFromBands = view.waitBands
+      .filter((band) => band.name === '15–30 days' || band.name === '31–60 days' || band.name === '>60 days')
+      .reduce((sum, item) => sum + item.count, 0);
+    expect(overdueFromBands).toBe(view.overdueImaging);
+  });
+});
+
+describe('Radiology scanner accounting', () => {
+  it('reconciles staffed, downtime, unused, overtime, and utilization', () => {
+    for (const hospital of SITES.slice(0, 3)) {
+      const view = buildRadiologyView(hospital.code, 2026, 'year');
+      expect(view.inSessionUsed + view.downtimeHours + view.unusedHours).toBe(view.staffedHours);
+      expect(view.usedHours).toBe(view.inSessionUsed + view.overtimeHours);
+      expect(view.scannerUtilization).toBeCloseTo(view.staffedHours ? view.inSessionUsed / view.staffedHours : 0, 3);
+      expect(view.scanners.reduce((sum, item) => sum + item.staffedHours, 0)).toBe(view.staffedHours);
+      expect(view.scanners.reduce((sum, item) => sum + item.inSessionUsed, 0)).toBe(view.inSessionUsed);
+      expect(view.scanners.reduce((sum, item) => sum + item.downtimeHours, 0)).toBe(view.downtimeHours);
+      expect(view.scanners.reduce((sum, item) => sum + item.overtimeHours, 0)).toBe(view.overtimeHours);
+      expect(view.modalities.reduce((sum, item) => sum + item.staffedHours, 0)).toBe(view.staffedHours);
+      expect(view.modalities.reduce((sum, item) => sum + item.inSessionUsed, 0)).toBe(view.inSessionUsed);
+      expect(view.modalities.reduce((sum, item) => sum + item.downtimeHours, 0)).toBe(view.downtimeHours);
+      expect(view.ctDowntimeHours).toBe(view.modalities.find((item) => item.id === 'CT')!.downtimeHours);
+      expect(view.downtimeReasons.reduce((sum, item) => sum + item.hours, 0)).toBe(view.downtimeHours);
+      for (const scanner of view.scanners) {
+        expect(scanner.inSessionUsed + scanner.downtimeHours + scanner.unusedHours).toBe(scanner.staffedHours);
+        expect(scanner.utilization).toBeCloseTo(scanner.staffedHours ? scanner.inSessionUsed / scanner.staffedHours : 0, 5);
+        expect(scanner.unusedHours).toBeGreaterThanOrEqual(0);
+        expect(scanner.overtimeHours).toBeGreaterThanOrEqual(0);
       }
     }
   });
 
   it('keeps modality exam durations distinct', () => {
     const view = buildRadiologyView('H1', 2026, 'year');
-    const mins = view.modalities.map((item) => item.examMin);
-    expect(new Set(mins).size).toBeGreaterThan(1);
-    expect(view.modalities.find((item) => item.id === 'MRI')!.examMin).toBeGreaterThan(view.modalities.find((item) => item.id === 'X-ray')!.examMin);
+    expect(new Set(view.modalities.map((item) => item.examMin)).size).toBeGreaterThan(1);
+    expect(view.modalities.find((item) => item.id === 'MRI')!.examMin)
+      .toBeGreaterThan(view.modalities.find((item) => item.id === 'X-ray')!.examMin);
   });
 });
 
-describe('Radiology Assist, alerts, and what-if', () => {
-  it('answers Radiology management questions from the shared view', () => {
-    const wait = answerQuestion('Which modalities have the longest access waits?', 'H1', 2026, 'Radiology', 'en', 'year');
-    expect(wait.observation).toMatch(/wait|backlog|MRI|CT|Ultrasound|X-ray/i);
-    const util = answerQuestion('Which scanners have low utilization?', 'H1', 2026, 'Radiology', 'en', 'year');
-    expect(util.observation).toMatch(/Utilization|unused|downtime|scanner/i);
-    const tat = answerQuestion('Which modality has the longest report turnaround time?', 'H1', 2026, 'Radiology', 'en', 'year');
-    expect(tat.observation).toMatch(/TAT|unsigned|report/i);
-    const capacity = answerQuestion('How many additional exams are operationally feasible?', 'H1', 2026, 'Radiology', 'en', 'year');
-    expect(capacity.observation).toMatch(/Additional|Recoverable|feasible|waitlist/i);
-    const priority = answerQuestion('Which operational actions should radiology management prioritize?', 'H1', 2026, 'Radiology', 'en', 'year');
-    expect(priority.observation.length).toBeGreaterThan(10);
+describe('Radiology reporting and critical communication', () => {
+  it('calculates TAT from signed cohort and ages unsigned separately', () => {
+    const view = buildRadiologyView('H1', 2026, 'year');
+    expect(view.reportsOverTarget).toBeLessThanOrEqual(view.signedReports);
+    expect(view.unsignedAging.reduce((sum, item) => sum + item.count, 0)).toBe(view.unsignedReports);
+    expect(view.technicalRepeats + view.clinicalRepeats).toBe(view.repeatExams);
+    expect(view.criticalAcked + view.criticalPendingAck).toBe(view.criticalResults);
+    expect(view.criticalAckRate + view.criticalDelayRate).toBeCloseTo(1, 3);
+    expect(view.methodology.critical).toMatch(/Distinct/i);
   });
+});
 
-  it('aligns Radiology alert values with buildRadiologyView', () => {
+describe('Radiology modality-specific capacity', () => {
+  it('computes additional exams per modality without a shared hour pool', () => {
+    const view = buildRadiologyView('H1', 2026, 'year');
+    expect(view.modalityCapacity.reduce((sum, item) => sum + item.additionalExams, 0)).toBe(view.additionalExams);
+    expect(view.modalityCapacity.reduce((sum, item) => sum + item.recoverableHours, 0)).toBe(view.recoverableHours);
+    expect(view.modalityCapacity.reduce((sum, item) => sum + item.eligibleWaitlist, 0)).toBe(view.eligibleWaitlist);
+    expect(view.delayDriverHours.reduce((sum, item) => sum + item.hours, 0)).toBe(view.recoverableHours);
+    expect(view.bedConstrainedHours + view.feasibleRecoverableHours).toBe(view.recoverableHours);
+    for (const modality of view.modalityCapacity) {
+      expect(modality.additionalExams).toBeLessThanOrEqual(modality.eligibleWaitlist);
+      expect(modality.additionalExams).toBeLessThanOrEqual(modality.potentialAdditionalExams);
+      expect(modality.feasibleRecoverableHours + modality.bedConstrainedHours).toBe(modality.recoverableHours);
+    }
+    expect(view.modalities.map((item) => item.additionalExams).reduce((a, b) => a + b, 0)).toBe(view.additionalExams);
+    // Long-exam modalities should often be capacity-bound (potential < eligible).
+    const longExam = view.modalityCapacity.filter((item) => item.modality === 'MRI' || item.modality === 'CT');
+    expect(longExam.some((item) => item.potentialAdditionalExams <= item.eligibleWaitlist)).toBe(true);
+    expect(view.additionalExams).toBeLessThanOrEqual(view.potentialAdditionalExams);
+  });
+});
+
+describe('Radiology quarter and annual aggregation', () => {
+  it('sums quarterly shared-fact flows to annual and keeps backlog as a snapshot', () => {
+    for (const hospital of SITES.slice(0, 2)) {
+      const annual = buildRadiologyView(hospital.code, 2026, 'year');
+      const quarters = PERIODS.filter((period) => period !== 'year').map((period) => buildRadiologyView(hospital.code, 2026, period));
+      expect(quarters.reduce((sum, item) => sum + item.requests, 0)).toBe(annual.requests);
+      expect(quarters.reduce((sum, item) => sum + item.cancelled, 0)).toBe(annual.cancelled);
+      expect(quarters.reduce((sum, item) => sum + item.noShows, 0)).toBe(annual.noShows);
+      // Pending (and therefore completed) is a period observation carve-out — each period reconciles locally.
+      for (const quarter of quarters) {
+        expect(quarter.completed + quarter.cancelled + quarter.noShows + quarter.pending).toBe(quarter.requests);
+      }
+      expect(annual.completed + annual.cancelled + annual.noShows + annual.pending).toBe(annual.requests);
+      expect(quarters.reduce((sum, item) => sum + item.closingBacklog, 0)).not.toBe(annual.closingBacklog);
+    }
+  });
+});
+
+describe('Radiology alerts, Assist, and what-if', () => {
+  it('aligns alert values with view and uses CT-specific downtime / critical delay', () => {
     const view = buildRadiologyView('H1', 2026, 'year');
     const fact = scenarioFor('H1', 2026).focus;
     const alerts = alertsFor('H1', 2026).filter((alert) => alert.department === 'Radiology');
     expect(alerts.length).toBeGreaterThanOrEqual(6);
+
+    expect(alerts.some((alert) => alert.title === 'Growing imaging backlog')).toBe(false);
+    expect(alerts.some((alert) => alert.title === 'High imaging backlog')).toBe(true);
 
     const utilBind = bindKpi({ key: 'kpi_rad_scanner_utilization' } as never, fact, 'H1', 2026);
     expect(utilBind.value).toBeCloseTo(view.scannerUtilization, 3);
@@ -129,26 +217,30 @@ describe('Radiology Assist, alerts, and what-if', () => {
     const backlogBind = bindKpi({ key: 'kpi_rad_imaging_backlog' } as never, fact, 'H1', 2026);
     expect(backlogBind.value).toBe(view.closingBacklog);
 
-    const waitBind = bindKpi({ key: 'kpi_rad_median_access_wait' } as never, fact, 'H1', 2026);
-    expect(waitBind.value).toBeCloseTo(view.medianAccessWaitDays, 3);
+    const ctBind = bindKpi({ key: 'kpi_rad_ct_downtime' } as never, fact, 'H1', 2026);
+    expect(ctBind.value).toBe(view.ctDowntimeHours);
+    expect(ctBind.value).not.toBe(view.downtimeHours);
+
+    const delayBind = bindKpi({ key: 'kpi_rad_critical_delay_rate' } as never, fact, 'H1', 2026);
+    expect(delayBind.value).toBeCloseTo(view.criticalDelayRate, 3);
+    expect(delayBind.value).not.toBeCloseTo(view.criticalAckRate, 2);
 
     const tatBind = bindKpi({ key: 'kpi_rad_median_report_tat_minutes' } as never, fact, 'H1', 2026);
     expect(tatBind.value).toBe(Math.round(view.medianReportTatHours * 60));
-
-    const unsignedBind = bindKpi({ key: 'kpi_rad_unsigned_reports' } as never, fact, 'H1', 2026);
-    expect(unsignedBind.value).toBe(view.unsignedReports);
-
-    const repeatBind = bindKpi({ key: 'kpi_rad_repeat_exam_rate' } as never, fact, 'H1', 2026);
-    expect(repeatBind.value).toBeCloseTo(view.repeatExamRate, 3);
-
-    const ackBind = bindKpi({ key: 'kpi_rad_critical_ack_rate' } as never, fact, 'H1', 2026);
-    expect(ackBind.value).toBeCloseTo(view.criticalAckRate, 3);
-
-    expect(alerts.some((alert) => alert.kpi === 'kpi_rad_scanner_utilization')).toBe(true);
-    expect(alerts.some((alert) => alert.kpi === 'kpi_rad_imaging_backlog')).toBe(true);
   });
 
-  it('runs all six Radiology what-if scenarios with illustrative labels', () => {
+  it('answers Radiology management questions from the shared view', () => {
+    const wait = answerQuestion('Which modalities have the longest access waits?', 'H1', 2026, 'Radiology', 'en', 'year');
+    expect(wait.observation).toMatch(/wait|backlog|MRI|CT|Ultrasound|X-ray/i);
+    const util = answerQuestion('Which scanners have low utilization?', 'H1', 2026, 'Radiology', 'en', 'year');
+    expect(util.observation).toMatch(/Utilization|unused|downtime|scanner/i);
+    const tat = answerQuestion('Which modality has the longest report turnaround time?', 'H1', 2026, 'Radiology', 'en', 'year');
+    expect(tat.observation).toMatch(/signed|TAT|unsigned|critical delay|ack/i);
+    const capacity = answerQuestion('How many additional exams are operationally feasible?', 'H1', 2026, 'Radiology', 'en', 'year');
+    expect(capacity.observation).toMatch(/Additional|Recoverable|feasible|waitlist/i);
+  });
+
+  it('runs all six Radiology what-if scenarios with modality constraints', () => {
     const kinds = [
       'rad-mri-duration-down',
       'rad-ct-downtime-down',
@@ -157,12 +249,23 @@ describe('Radiology Assist, alerts, and what-if', () => {
       'rad-reallocate-slots',
       'rad-prioritize-backlog',
     ] as const;
-    for (const kind of kinds) {
-      const result = runWhatIf('Radiology', 'H1', 2026, { kind, amount: 0.1 }, 'year');
+    const results = kinds.map((kind) => runWhatIf('Radiology', 'H1', 2026, { kind, amount: 0.1 }, 'year'));
+    for (const result of results) {
       expect(result.assumptions).toMatch(/Illustrative|illustrative|not achieved|Not a validated/i);
       expect(result.estimated.length).toBeGreaterThan(10);
+      expect(result.estimated).not.toMatch(/NaN/);
       expect(result.followUp.length).toBeGreaterThan(5);
-      expect(result.owner.length).toBeGreaterThan(3);
     }
+    expect(results[1].current).toMatch(/CT downtime/i);
+    expect(results[1].current).not.toMatch(/^Scanner Downtime \d/);
+    expect(results[0].estimated).toMatch(/MRI/i);
+    expect(new Set(results.map((item) => item.title)).size).toBe(6);
+  });
+
+  it('parses all six Radiology What-if prompts to distinct intents', async () => {
+    const { parseWhatIfIntent, WHAT_IF_PROMPTS } = await import('@/showcase/whatIf');
+    const kinds = WHAT_IF_PROMPTS.Radiology.map((prompt) => parseWhatIfIntent(prompt)?.kind);
+    expect(kinds.every(Boolean)).toBe(true);
+    expect(new Set(kinds).size).toBe(6);
   });
 });

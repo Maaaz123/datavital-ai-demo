@@ -670,19 +670,20 @@ function radiologyWhatIf(
   const lowUtil = [...view.scanners].sort((a, b) => a.utilization - b.utilization)[0];
 
   if (intent.kind === 'rad-ct-downtime-down') {
-    const ctShare = ct.scanners / Math.max(view.totalScanners, 1);
-    const ctDown = Math.round(view.downtimeHours * ctShare);
+    const ctDown = view.ctDowntimeHours;
     const recovered = Math.round(ctDown * intent.amount * 0.7);
-    const extras = Math.min(view.eligibleWaitlist, Math.floor(recovered / Math.max(view.avgExamHours, 0.2)));
+    const ctExamHours = Math.max((ct.examMin || 28) / 60, 0.3);
+    const ctEligible = ct.eligibleWaitlist ?? Math.min(ct.backlog, view.eligibleWaitlist);
+    const extras = Math.min(ctEligible, Math.floor(recovered / ctExamHours));
     return {
       id: intent.kind,
       title: 'CT scanner downtime reduction scenario',
-      current: `Scanner Downtime ${num(view.downtimeHours)} h · CT share ~${num(ctDown)} h · CT util context via ${ct.scanners} scanner(s) (${view.periodLabel})`,
-      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible CT downtime`,
-      estimated: `About ${num(recovered)} genuinely recoverable hours · up to ${num(extras)} extra exams if openings are staffed and scheduled`,
-      assumptions: 'Only a share of downtime is recoverable. Maintenance windows and parts lead time remain. Illustrative — not achieved capacity.',
-      implications: `Recovered CT hours help ${hotBacklog.id} backlog first if openings are released deliberately.`,
-      followUp: 'Scanner Downtime, Recoverable Hours, and Additional Exams',
+      current: `CT downtime ${num(ctDown)} h (not hospital-wide ${num(view.downtimeHours)} h) · CT scanners ${ct.scanners} · CT backlog ${num(ct.backlog)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible CT downtime only`,
+      estimated: `About ${num(recovered)} recoverable CT hours · up to ${num(extras)} extra CT exams if openings are staffed — MRI capacity unchanged`,
+      assumptions: 'Only a share of CT downtime is recoverable. Does not reduce non-CT downtime. Maintenance windows remain. Illustrative — not achieved capacity.',
+      implications: `Recovered CT hours help CT backlog first; they do not convert into MRI or Ultrasound exams.`,
+      followUp: 'CT downtime, CT Additional Exams, and Recoverable Hours',
       owner: 'Imaging operations lead',
     };
   }
@@ -754,18 +755,19 @@ function radiologyWhatIf(
 
   const mriExamMin = mri.examMin;
   const savedMin = mriExamMin * intent.amount;
-  const mriUsed = mri.usedHours;
-  const recoveredHours = Math.round(mriUsed * intent.amount * 0.55 * 10) / 10;
-  const extras = Math.min(view.eligibleWaitlist, Math.floor(recoveredHours / Math.max(mriExamMin / 60, 0.3)));
+  const mriInSession = mri.inSessionUsed ?? mri.usedHours;
+  const recoveredHours = Math.round(mriInSession * intent.amount * 0.55 * 10) / 10;
+  const mriEligible = mri.eligibleWaitlist ?? Math.min(mri.backlog, view.eligibleWaitlist);
+  const extras = Math.min(mriEligible, Math.floor(recoveredHours / Math.max(mriExamMin / 60, 0.3)));
   return {
     id: 'rad-mri-duration-down',
     title: 'MRI exam duration reduction scenario',
-    current: `MRI median exam ${num(mriExamMin)} min · MRI used hours ${num(mriUsed)} · MRI backlog ${num(mri.backlog)} (${view.periodLabel})`,
+    current: `MRI median exam ${num(mriExamMin)} min · MRI in-session ${num(mriInSession)} h · MRI backlog ${num(mri.backlog)} (${view.periodLabel})`,
     change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible MRI scan duration`,
     estimated: `About ${num(savedMin, 1)} minutes median · ~${num(recoveredHours, 1)} hours recovered after prep/safety/turnover constraints · up to ${num(extras)} extra MRI exams if openings are staffed`,
-    assumptions: 'Prep, safety screening, staffing, and room turnover constrain conversion. Not all saved minutes become exams. Illustrative only.',
-    implications: `Shorter eligible MRI exams help ${mri.id} access without converting CT capacity.`,
-    followUp: 'Median Exam Time, MRI wait, and Additional Exams',
+    assumptions: 'Prep, safety screening, staffing, and room turnover constrain conversion. Not all saved minutes become exams. Does not create CT capacity. Illustrative only.',
+    implications: `Shorter eligible MRI exams help MRI access without converting CT capacity.`,
+    followUp: 'Median Exam Time, MRI wait, and MRI Additional Exams',
     owner: 'Imaging operations lead',
   };
 }

@@ -27,28 +27,28 @@ function blank(domain: string, name: string, method: string): Indicator {
 export function radiologyIndicatorsFor(view: RadiologyView): Indicator[] {
   return [
     row('Imaging Activity', 'Diagnostic Imaging Requests', num(view.requests), 'scenario', 'Orders in period. Completed + Cancelled + No-show (+ Pending) = Requests.'),
-    row('Imaging Activity', 'Completed Diagnostic Exams', num(view.completed), 'scenario', 'Reported/completed exams in the period.'),
+    row('Imaging Activity', 'Completed Diagnostic Exams', num(view.completed), 'constructed', view.methodology.examLifecycle),
     row('Imaging Activity', 'Imaging Exam Completion Rate', pct(view.completionRate), 'constructed', 'Completed ÷ Requests.'),
     row('Imaging Activity', 'Urgent Imaging Exam Share', pct(view.urgentShare), 'constructed', 'Illustrative urgent share of requests (18%).'),
-    row('Imaging Activity', 'Pending Imaging Examinations', num(view.pending), 'constructed', 'Requests not yet completed, cancelled, or no-show at observation.'),
+    row('Imaging Activity', 'Pending Imaging Examinations', num(view.pending), 'constructed', 'Examination-lifecycle pending at observation — not unsigned reports.'),
 
     row('Imaging Access', 'Active Diagnostic Imaging Backlog', num(view.closingBacklog), 'constructed', 'Month-end waitlist from monthly ledger. Urgent may bypass.'),
     row('Imaging Access', 'Median Request-to-Exam Wait', `${num(view.medianAccessWaitDays, 1)} days`, 'constructed', view.methodology.accessClock),
-    row('Imaging Access', 'P90 Request-to-Exam Wait', `${num(view.p90AccessWaitDays, 1)} days`, 'constructed', 'Illustrative P90 access wait.'),
-    row('Imaging Access', 'Imaging Cases Beyond Access Target', num(view.overdueImaging), 'constructed', `Beyond illustrative ${view.waitTargetDays}-day access target.`),
+    row('Imaging Access', 'P90 Request-to-Exam Wait', `${num(view.p90AccessWaitDays, 1)} days`, 'constructed', 'P90 of active backlog wait ages (same population as median/bands).'),
+    row('Imaging Access', 'Imaging Cases Beyond Access Target', num(view.overdueImaging), 'constructed', `Active wait age > ${view.waitTargetDays} days from the same distribution.`),
 
     row('Scanner Efficiency', 'Diagnostic Scanner Utilization', pct(view.scannerUtilization), 'constructed', view.methodology.utilization),
     row('Scanner Efficiency', 'Unused Staffed Scanner Hours', num(view.unusedHours), 'constructed', 'Staffed − in-session used − downtime.'),
     row('Scanner Efficiency', 'Median Examination Duration', `${num(view.medianExamMin)} min`, 'constructed', 'Volume-weighted median across modalities.'),
-    row('Scanner Efficiency', 'Diagnostic Scanner Downtime', num(view.downtimeHours), 'constructed', 'Inside staffed denominator; not double-subtracted from unused.'),
+    row('Scanner Efficiency', 'Diagnostic Scanner Downtime', num(view.downtimeHours), 'constructed', 'Inside staffed denominator; CT-specific downtime is separate.'),
 
     row('Reporting Quality', 'Median Final Report TAT', `${num(view.medianReportTatHours, 1)} h`, 'constructed', view.methodology.reportTat),
-    row('Reporting Quality', 'P90 Final Report TAT', `${num(view.p90ReportTatHours, 1)} h`, 'constructed', 'Illustrative P90 final report turnaround.'),
-    row('Reporting Quality', 'Unsigned Diagnostic Reports', num(view.unsignedReports), 'constructed', 'Open unsigned at observation — aging bands, not completed TAT.'),
+    row('Reporting Quality', 'P90 Final Report TAT', `${num(view.p90ReportTatHours, 1)} h`, 'constructed', 'P90 of signed-report TAT hours.'),
+    row('Reporting Quality', 'Unsigned Diagnostic Reports', num(view.unsignedReports), 'constructed', 'Completed exams − signed reports at observation.'),
     row('Reporting Quality', 'Diagnostic Exam Repeat Rate', pct(view.repeatExamRate), 'constructed', 'Repeat exams ÷ completed. Not every repeat is a quality failure.'),
 
     row('Capacity Optimization', 'Recoverable Scanner Hours', num(view.recoverableHours), 'constructed', view.methodology.capacity),
-    row('Capacity Optimization', 'Feasible Additional Imaging Exams', num(view.additionalExams), 'constructed', 'min(hour-feasible, eligible waitlist). Modeled — not achieved.'),
+    row('Capacity Optimization', 'Feasible Additional Imaging Exams', num(view.additionalExams), 'constructed', 'Σ modality-feasible extras. Modeled — not achieved.'),
 
     blank('Cross-domain context', 'Bed Occupancy', 'Owned by Beds & Capacity. Radiology references occupancy only as a capacity constraint.'),
     blank('Cross-domain context', 'OR Utilization', 'Owned by Surgery. Preoperative imaging demand is contextual only.'),

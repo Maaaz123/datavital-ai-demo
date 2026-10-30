@@ -70,7 +70,7 @@ describe('synthetic scenario', () => {
       return !Number.isFinite(item.value) || item.note.includes('UNMAPPED');
     }).map((kpi) => kpi.key);
     expect(missing).toEqual([]);
-    expect(KPIS).toHaveLength(415);
+    expect(KPIS).toHaveLength(417);
   });
 
   it('matches catalog volumes to the workspace facts for every hospital and year', () => {

@@ -258,9 +258,9 @@ export function RadCommandPage() {
         `${num(view.requests)} requests · ${view.periodLabel}.`,
         { formula: 'Completed + Cancelled + No-show + Pending = Requests', testId: 'value-kpi_rad_requests', tone: 'neutral' }),
       score('Completed Exams', num(view.completed), compare(view, prior, (item) => item.completed), 'Completed Diagnostic Exams',
-        'Reported/completed exams in the period.',
-        `${num(view.completed)} completed.`,
-        { formula: 'Completed exams (scenario)', tone: 'good' }),
+        'Examinations completed in the period. Distinct from final report signature.',
+        `${num(view.completed)} exams completed · ${num(view.signedReports)} final reports signed.`,
+        { formula: 'Exam completed (lifecycle). Signed reports are a separate reporting KPI.', tone: 'good', limitations: 'Completed Exams ≠ Signed Reports. Unsigned reports age separately.' }),
       score('Completion Rate', pct(view.completionRate), compare(view, prior, (item) => item.completionRate, true), 'Imaging Exam Completion Rate',
         'Completed exams as a share of requests.',
         `${num(view.completed)} of ${num(view.requests)}.`,
@@ -270,9 +270,9 @@ export function RadCommandPage() {
         `${num(view.urgentRequests)} urgent · ${num(view.routineRequests)} routine.`,
         { formula: 'Urgent requests ÷ Requests', limitations: 'Illustrative 18% urgent share — not a clinical triage system.' }),
       score('Pending Exams', num(view.pending), compare(view, prior, (item) => item.pending), 'Pending Imaging Examinations',
-        'Requests not yet completed, cancelled, or recorded as no-show.',
-        `${num(view.pending)} pending at ${view.observationDate}.`,
-        { formula: 'Requests − Completed − Cancelled − No-show', tone: view.pending > 0 ? 'watch' : 'good' }),
+        'Examination-lifecycle requests not yet completed, cancelled, or no-show at observation.',
+        `${num(view.pending)} pending exams at ${view.observationDate}.`,
+        { formula: 'Requests − Completed − Cancelled − No-show', tone: view.pending > 0 ? 'watch' : 'good', limitations: 'Pending exams are not unsigned reports.' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
@@ -317,21 +317,21 @@ export function RadAccessPage() {
         `Closing ${num(view.closingBacklog)} · ${view.observationDate}.`,
         { formula: 'Opening + Added − Completed from waitlist − Other exits', testId: 'value-kpi_rad_backlog', tone: view.closingBacklog > 200 ? 'watch' : 'neutral' }),
       score('Median Access Wait', `${num(view.medianAccessWaitDays, 1)} days`, compare(view, prior, (item) => item.medianAccessWaitDays), 'Median Request-to-Exam Wait Time',
-        'Median request-to-exam wait for eligible waitlist cases.',
+        'Median active waitlist age at observation — same population as wait bands and overdue.',
         `${num(view.medianAccessWaitDays, 1)} days · target ${view.waitTargetDays} days.`,
-        { formula: 'Median request → exam (eligible waitlist)', tone: view.medianAccessWaitDays >= view.waitTargetDays ? 'alert' : view.medianAccessWaitDays >= 10 ? 'watch' : 'good', limitations: 'Not appointment booking lead time and not report TAT.' }),
+        { formula: 'Median of active backlog wait ages', tone: view.medianAccessWaitDays >= view.waitTargetDays ? 'alert' : view.medianAccessWaitDays >= 10 ? 'watch' : 'good', limitations: 'Active backlog age — not historical completed-exam wait and not report TAT.' }),
       score('P90 Access Wait', `${num(view.p90AccessWaitDays, 1)} days`, compare(view, prior, (item) => item.p90AccessWaitDays), 'P90 Request-to-Exam Wait Time',
-        '90th-percentile request-to-exam wait.',
+        '90th-percentile active waitlist age at observation.',
         `P90 ${num(view.p90AccessWaitDays, 1)} days.`,
-        { formula: 'Illustrative P90 access wait', tone: 'watch' }),
+        { formula: 'P90 of active backlog wait ages', tone: 'watch' }),
       score('Overdue Imaging', num(view.overdueImaging), compare(view, prior, (item) => item.overdueImaging), 'Imaging Cases Beyond Access Target',
-        `Waitlist cases beyond the illustrative ${view.waitTargetDays}-day access target.`,
+        `Active backlog cases with wait age > ${view.waitTargetDays} days (same distribution as median/P90/bands).`,
         `${num(view.overdueImaging)} of ${num(view.closingBacklog)} backlog.`,
-        { formula: `Backlog with wait > ${view.waitTargetDays} days`, tone: view.overdueImaging > 40 ? 'alert' : 'watch', limitations: 'Illustrative management target — not a verified national standard.' }),
+        { formula: `Count(active wait age > ${view.waitTargetDays})`, tone: view.overdueImaging > 40 ? 'alert' : 'watch', limitations: 'Illustrative management target — not a verified national standard.' }),
       score('Waitlist Growth', num(view.waitlistGrowth), compare(view, prior, (item) => item.waitlistGrowth), 'Imaging Waitlist Growth',
-        'Net change in imaging backlog during the period.',
+        'Net change in imaging backlog during the period (closing − opening).',
         `Opening ${num(view.openingBacklog)} → closing ${num(view.closingBacklog)}.`,
-        { formula: 'Closing − Opening', tone: view.waitlistGrowth > 0 ? 'watch' : 'good' }),
+        { formula: 'Closing − Opening', tone: view.waitlistGrowth > 0 ? 'watch' : 'good', limitations: 'Growth can be negative while closing backlog remains positive.' }),
       score('Within Access Target', pct(view.withinAccessTarget), compare(view, prior, (item) => item.withinAccessTarget, true), 'Imaging Cases Within Access Target',
         'Share of backlog inside the illustrative access target.',
         `${num(view.withinTargetCases)} within target.`,
@@ -372,9 +372,9 @@ export function RadUtilizationPage() {
   return (
     <Page title="Modality Utilization & Scheduling" kpis={[
       score('Scanner Utilization', pct(view.scannerUtilization), compare(view, prior, (item) => item.scannerUtilization, true), 'Diagnostic Scanner Utilization',
-        'Used exam hours ÷ staffed scanner hours. Uncapped — overtime reported separately.',
-        `${num(view.usedHours)} used / ${num(view.staffedHours)} staffed · downtime ${num(view.downtimeHours)} h.`,
-        { formula: 'Used exam hours ÷ Staffed scanner hours', testId: 'value-kpi_rad_util', tone: rateTone(view.scannerUtilization, 0.75, 0.65, false) }),
+        'In-session used hours ÷ staffed scanner hours. Overtime reported separately.',
+        `${num(view.inSessionUsed)} in-session / ${num(view.staffedHours)} staffed · OT ${num(view.overtimeHours)} h · downtime ${num(view.downtimeHours)} h.`,
+        { formula: 'In-session used hours ÷ Staffed scanner hours (overtime separate)', testId: 'value-kpi_rad_util', tone: rateTone(view.scannerUtilization, 0.75, 0.65, false) }),
       score('Unused Hours', `${num(view.unusedHours)} h`, compare(view, prior, (item) => item.unusedHours), 'Unused Staffed Scanner Hours',
         'Staffed hours neither used for exams nor counted as downtime.',
         `${num(view.unusedHours)} unused of ${num(view.staffedHours)} staffed.`,
@@ -394,15 +394,15 @@ export function RadUtilizationPage() {
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Utilization by Scanner', view.scanners.map((item) => item.id), [{ name: 'Utilization %', values: view.scanners.map((item) => Math.round(item.utilization * 1000) / 10) }], '%', `Scanner used ÷ staffed. Hospital util ${pct(view.scannerUtilization)}.`)} />
+          <Slot span={false} figure={fig('bars', 'Utilization by Scanner', view.scanners.map((item) => item.id), [{ name: 'Utilization %', values: view.scanners.map((item) => Math.round(item.utilization * 1000) / 10) }], '%', `In-session ÷ staffed per scanner. Hospital util ${pct(view.scannerUtilization)}.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Staffed vs Used Hours', ['Allocated', 'Staffed', 'Used', 'Downtime', 'Unused', 'Overtime'], [{ name: 'Hours', values: [view.allocatedHours, view.staffedHours, view.usedHours, view.downtimeHours, view.unusedHours, view.overtimeHours] }], 'hours', 'Staffed = in-session used + downtime + unused. Overtime is used beyond eligible staffed remainder.')} />
+          <Slot span={false} figure={fig('bars', 'Staffed vs Used Hours', ['Allocated', 'Staffed', 'In-session', 'Downtime', 'Unused', 'Overtime'], [{ name: 'Hours', values: [view.allocatedHours, view.staffedHours, view.inSessionUsed, view.downtimeHours, view.unusedHours, view.overtimeHours] }], 'hours', 'Staffed = in-session + downtime + unused. Total used = in-session + overtime.')} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Utilization by Modality', view.modalities.map((item) => item.id), [{ name: 'Used hours', values: view.modalities.map((item) => item.usedHours) }], 'hours', 'Modality used hours sum to hospital used hours. Durations differ by modality.')} />
+          <Slot span={false} figure={fig('bars', 'Utilization by Modality', view.modalities.map((item) => item.id), [{ name: 'In-session hours', values: view.modalities.map((item) => item.inSessionUsed) }], 'hours', 'Modality in-session hours sum to hospital in-session used. Durations differ by modality.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Downtime Reasons', view.downtimeReasons.map((item) => item.name), [{ name: 'Hours', values: view.downtimeReasons.map((item) => item.hours) }], 'hours', `Downtime reasons sum to ${num(view.downtimeHours)} h.`)} />
@@ -427,29 +427,29 @@ export function RadQualityPage() {
   return (
     <Page title="Reporting & Imaging Quality" kpis={[
       score('Median Report TAT', `${num(view.medianReportTatHours, 1)} h`, compare(view, prior, (item) => item.medianReportTatHours), 'Median Final Report Turnaround Time',
-        'Median final signature minus exam completion.',
-        `${num(view.medianReportTatHours, 1)} h · target ${view.reportTatTargetHours} h.`,
-        { formula: 'Final signature − Exam completion', testId: 'value-kpi_rad_tat', tone: view.medianReportTatHours > view.reportTatTargetHours ? 'alert' : view.medianReportTatHours > 18 ? 'watch' : 'good', limitations: 'Unsigned reports are aged separately — they do not have a completed TAT.' }),
+        'Median final signature minus exam completion for signed reports only.',
+        `${num(view.medianReportTatHours, 1)} h · ${num(view.signedReports)} signed · target ${view.reportTatTargetHours} h.`,
+        { formula: 'Final signature − Exam completion (signed cohort)', testId: 'value-kpi_rad_tat', tone: view.medianReportTatHours > view.reportTatTargetHours ? 'alert' : view.medianReportTatHours > 18 ? 'watch' : 'good', limitations: 'Unsigned reports are aged separately — they do not have a completed TAT.' }),
       score('P90 Report TAT', `${num(view.p90ReportTatHours, 1)} h`, compare(view, prior, (item) => item.p90ReportTatHours), 'P90 Final Report Turnaround Time',
-        '90th-percentile final report turnaround.',
+        '90th-percentile final report turnaround for signed reports.',
         `P90 ${num(view.p90ReportTatHours, 1)} h.`,
-        { formula: 'Illustrative P90 final report TAT', tone: 'watch' }),
+        { formula: 'P90 of signed-report TAT hours', tone: 'watch' }),
       score('Reports Over Target', num(view.reportsOverTarget), compare(view, prior, (item) => item.reportsOverTarget), 'Final Reports Over TAT Target',
-        `Completed reports with TAT above the illustrative ${view.reportTatTargetHours}-hour target.`,
-        `${num(view.reportsOverTarget)} of ${num(view.completed)}.`,
-        { formula: `Reports with TAT > ${view.reportTatTargetHours} h`, tone: view.reportsOverTarget > completedWatch(view.completed) ? 'alert' : 'watch' }),
+        `Signed reports with TAT above the illustrative ${view.reportTatTargetHours}-hour target.`,
+        `${num(view.reportsOverTarget)} of ${num(view.signedReports)} signed.`,
+        { formula: `Signed reports with TAT > ${view.reportTatTargetHours} h`, tone: view.reportsOverTarget > completedWatch(view.signedReports) ? 'alert' : 'watch' }),
       score('Unsigned Reports', num(view.unsignedReports), compare(view, prior, (item) => item.unsignedReports), 'Unsigned Diagnostic Reports',
-        'Open unsigned reports at observation.',
-        `${num(view.unsignedReports)} unsigned.`,
-        { formula: 'Open unsigned at observation timestamp', tone: view.unsignedReports > 40 ? 'alert' : 'watch' }),
+        'Open unsigned reports at observation (exam completed, signature pending).',
+        `${num(view.unsignedReports)} unsigned of ${num(view.completed)} completed exams.`,
+        { formula: 'Completed exams − Signed reports at observation', tone: view.unsignedReports > 40 ? 'alert' : 'watch' }),
       score('Repeat Exam Rate', pct(view.repeatExamRate), compare(view, prior, (item) => item.repeatExamRate, true), 'Diagnostic Exam Repeat Rate',
-        'Repeat exams ÷ completed. Not every repeat is a quality failure.',
-        `${num(view.repeatExams)} repeats.`,
-        { formula: 'Repeat exams ÷ Completed', tone: rateTone(view.repeatExamRate, 0.035, 0.05), limitations: 'Protocol/clinical repeats may be appropriate — illustrative flag only.' }),
+        'Repeat exams ÷ completed. Technical and clinically justified repeats are both counted.',
+        `${num(view.repeatExams)} repeats (${num(view.technicalRepeats)} technical · ${num(view.clinicalRepeats)} clinical/protocol).`,
+        { formula: 'Repeat exams ÷ Completed', tone: rateTone(view.repeatExamRate, 0.035, 0.05), limitations: 'Not every repeat is an avoidable quality failure.' }),
       score('Critical Ack. Rate', pct(view.criticalAckRate), compare(view, prior, (item) => item.criticalAckRate, true), 'Critical Result Acknowledgement Rate',
-        'Acknowledged critical results ÷ critical results communicated.',
-        `${num(view.criticalAcked)} of ${num(view.criticalResults)}.`,
-        { formula: 'Acknowledged ÷ Critical results', tone: rateTone(view.criticalAckRate, 0.92, 0.88, false), limitations: 'Distinct from final report signature.' }),
+        'Acknowledged critical results ÷ critical results. Distinct from delay rate.',
+        `${num(view.criticalAcked)} ack · ${num(view.criticalPendingAck)} pending (${pct(view.criticalDelayRate)} delay rate).`,
+        { formula: 'Acknowledged ÷ Critical results', tone: rateTone(view.criticalAckRate, 0.92, 0.88, false), limitations: 'Ack. rate is not a delay rate. Delay rate = pending ack ÷ critical results.' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
@@ -469,10 +469,10 @@ export function RadQualityPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Reporting Workload by Care Setting', view.careSettings.map((item) => item.name), [{ name: 'Requests', values: view.careSettings.map((item) => item.requests) }], 'requests', 'Reporting demand proxy by originating care setting. Inpatient LOS stays in Inpatient.')} />
+          <Slot span={false} figure={fig('bars', 'Completed Exams by Care Setting', view.careSettings.map((item) => item.name), [{ name: 'Completed exams', values: view.careSettings.map((item) => item.completed) }], 'exams', 'Report-eligible completed exams by originating care setting. Not request volume. Inpatient LOS stays in Inpatient.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Critical Result Communication', ['Critical results', 'Acknowledged', 'Pending ack'], [{ name: 'Events', values: [view.criticalResults, view.criticalAcked, Math.max(0, view.criticalResults - view.criticalAcked)] }], 'events', 'Critical communication is distinct from final report signature.')} />
+          <Slot span={false} figure={fig('bars', 'Critical Result Communication', ['Critical results', 'Acknowledged', 'Pending ack'], [{ name: 'Events', values: [view.criticalResults, view.criticalAcked, view.criticalPendingAck] }], 'events', `Ack rate ${pct(view.criticalAckRate)} · delay rate ${pct(view.criticalDelayRate)}. Distinct from final report signature.`)} />
         </div>
       </div>
       <IndicatorIndex indicators={radiologyIndicatorsFor(view)} domains={['Reporting Quality', 'Cross-domain context']} />
@@ -490,28 +490,28 @@ export function RadOptimizationPage() {
   return (
     <Page title="Imaging Capacity Optimization" kpis={[
       score('Recoverable Hours', `${num(view.recoverableHours)} h`, compare(view, prior, (item) => item.recoverableHours), 'Potentially Recoverable Scanner Hours',
-        'Hours from exclusive delay drivers. Access-gain % of staffed lives in Details — not a second headline.',
+        'Sum of modality-specific exclusive delay drivers. Access-gain % of staffed lives in Details.',
         `${num(view.recoverableHours)} h · modeled uplift ${num(view.accessGainPct, 1)}% of staffed.`,
-        { formula: 'Sum of exclusive delay-driver hours', testId: 'value-kpi_rad_recoverable', tone: view.recoverableHours > 80 ? 'watch' : 'neutral' }),
+        { formula: 'Σ modality exclusive drivers', testId: 'value-kpi_rad_recoverable', tone: view.recoverableHours > 80 ? 'watch' : 'neutral', limitations: 'Modeled opportunity — not achieved capacity. Modalities are not interchangeable.' }),
       score('Additional Exams', num(view.additionalExams), compare(view, prior, (item) => item.additionalExams), 'Feasible Additional Imaging Exams',
-        'Feasible extra exams under scanner, staffing, bed, and waitlist constraints.',
-        `${num(view.additionalExams)} of ${num(view.potentialAdditionalExams)} hour-feasible · capped by eligible waitlist.`,
-        { formula: 'min(floor(feasible recovered hours ÷ avg exam hours), eligible waitlist)', tone: 'watch', limitations: 'Illustrative — not an achieved result. Bed haircut applied once.' }),
+        'Sum of modality-feasible extras (modality duration × modality recovered hours × modality demand).',
+        `${num(view.additionalExams)} of ${num(view.potentialAdditionalExams)} hour-feasible · capped by modality-eligible waitlist.`,
+        { formula: 'Σ_m min(floor(feasible_m ÷ examHours_m), eligible_m)', tone: 'watch', limitations: 'Illustrative — not an achieved result. MRI hours do not become CT exams.' }),
       score('Eligible Waitlist', num(view.eligibleWaitlist), compare(view, prior, (item) => item.eligibleWaitlist), 'Eligible Imaging Waitlist Cases',
-        'Waitlist cases that could use recovered capacity under illustrative operational rules.',
+        'Sum of modality-eligible waitlist cases that could use recovered capacity.',
         `${num(view.eligibleWaitlist)} of ${num(view.closingBacklog)} backlog.`,
-        { formula: 'Schedulable share of backlog + overdue priority' }),
+        { formula: 'Σ modality eligible demand' }),
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Recoverable Hours by Driver', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Exclusive drivers — sum equals Recoverable Hours. Bed is a haircut, not a driver.')} />
+          <Slot span={false} figure={fig('bars', 'Recoverable Hours by Driver', view.delayDriverHours.map((item) => item.name), [{ name: 'Hours', values: view.delayDriverHours.map((item) => item.hours) }], 'hours', 'Exclusive drivers rolled up from modality calculations — sum equals Recoverable Hours. Bed is a haircut on inpatient-eligible share only.')} />
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel gc-insight">
             <h2>Management decisions</h2>
             <div className="gc-exception-list">
               <div className="gc-exception gc-tone-watch"><strong>Reduce MRI exam duration</strong><span>Median {num(view.modalities.find((item) => item.id === 'MRI')?.examMin ?? 0)} min</span></div>
-              <div className="gc-exception gc-tone-alert"><strong>Cut CT downtime</strong><span>{num(view.downtimeHours)} h hospital downtime</span></div>
+              <div className="gc-exception gc-tone-alert"><strong>Cut CT downtime</strong><span>{num(view.ctDowntimeHours)} h CT downtime</span></div>
               <div className="gc-exception gc-tone-neutral"><strong>Extend staffed hours</strong><span>{num(view.staffedHours)} staffed h</span></div>
               <div className="gc-exception gc-tone-watch"><strong>Improve report TAT</strong><span>Median {num(view.medianReportTatHours, 1)} h</span></div>
               <div className="gc-exception gc-tone-neutral"><strong>Reallocate routine slots</strong><span>{view.totalScanners} scanners</span></div>
@@ -523,15 +523,15 @@ export function RadOptimizationPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Current vs Scenario Capacity', ['Staffed hours', 'Used hours', 'Recoverable', 'Scenario used'], [{ name: 'Hours', values: [
+          <Slot span={false} figure={fig('bars', 'Current vs Scenario Capacity', ['Staffed hours', 'In-session', 'Recoverable', 'Scenario in-session'], [{ name: 'Hours', values: [
             view.staffedHours,
-            view.usedHours,
+            view.inSessionUsed,
             view.recoverableHours,
-            Math.min(view.staffedHours, view.usedHours + view.capacityGainHours),
-          ] }], 'hours', 'Baseline vs illustrative scenario used hours. Scenario is not achieved capacity.')} />
+            Math.min(view.staffedHours, view.inSessionUsed + view.capacityGainHours),
+          ] }], 'hours', 'Baseline vs illustrative scenario in-session hours. Scenario is not achieved capacity.')} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Additional Exams by Modality', view.modalities.map((item) => item.id), [{ name: 'Feasible extras', values: splitExtras(view.additionalExams, view.modalities.map((item) => item.backlog)) }], 'exams', `Modality extras sum to ${num(view.additionalExams)}. Weighted by backlog.`)} />
+          <Slot span={false} figure={fig('bars', 'Additional Exams by Modality', view.modalities.map((item) => item.id), [{ name: 'Feasible extras', values: view.modalities.map((item) => item.additionalExams) }], 'exams', `Modality extras sum to ${num(view.additionalExams)}. Computed per modality — not a shared hour pool.`)} />
         </div>
       </div>
       <div className="gc-ed-pack">
@@ -541,31 +541,18 @@ export function RadOptimizationPage() {
             view.eligibleWaitlist,
             view.additionalExams,
             Math.max(0, view.closingBacklog - view.additionalExams),
-          ] }], 'cases', 'Illustrative backlog draw-down if feasible additional exams are scheduled.')} />
+          ] }], 'cases', 'Illustrative backlog draw-down if feasible modality-compatible exams are scheduled.')} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Capacity Constraints', ['Recoverable hours', 'Bed-constrained hours', 'Usable recovered hours'], [{ name: 'Hours', values: [
             view.recoverableHours,
             view.bedConstrainedHours,
             view.feasibleRecoverableHours,
-          ] }], 'hours', `Bed haircut ${(view.bedConstrainedShare * 100).toFixed(0)}% from occupancy context ${pct(view.bedOccupancyContext)} (illustrative). Eligible waitlist cap ${num(view.eligibleWaitlist)}. Bed Occupancy stays in Beds.`)} />
+          ] }], 'hours', `Inpatient-eligible bed haircut ${(view.bedConstrainedShare * 100).toFixed(0)}% · occ context ${pct(view.bedOccupancyContext)}. Does not constrain all outpatient imaging. Bed Occupancy stays in Beds.`)} />
         </div>
       </div>
       <IndicatorIndex indicators={radiologyIndicatorsFor(view)} domains={['Capacity Optimization', 'Cross-domain context']} />
       <AiIndex />
     </Page>
   );
-}
-
-function splitExtras(total: number, weights: number[]): number[] {
-  const sum = weights.reduce((a, b) => a + b, 0) || 1;
-  const scaled = weights.map((value) => (value / sum) * total);
-  const base = scaled.map((value) => Math.floor(value));
-  let left = Math.round(total) - base.reduce((a, b) => a + b, 0);
-  const order = scaled.map((value, index) => ({ index, frac: value - Math.floor(value) })).sort((a, b) => b.frac - a.frac);
-  for (let step = 0; left > 0 && step < order.length; step += 1) {
-    base[order[step].index] += 1;
-    left -= 1;
-  }
-  return base;
 }

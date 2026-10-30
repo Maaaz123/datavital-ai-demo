@@ -17,7 +17,7 @@ describe('catalog coverage', () => {
     expect(USE_CASES).toHaveLength(37);
     expect(KPIS.filter((item) => item.origin === 'catalog')).toHaveLength(192);
     expect(KPIS.filter((item) => item.origin === 'registry')).toHaveLength(188);
-    expect(KPIS.filter((item) => item.origin === 'demo_assumption')).toHaveLength(35);
+    expect(KPIS.filter((item) => item.origin === 'demo_assumption')).toHaveLength(37);
     expect(TOUR).toHaveLength(10);
     for (const item of [...SCREENS, ...EXTENSIONS]) {
       for (const key of featuredKpis(item.id)) expect(findKpi(key)?.key).toBe(key);

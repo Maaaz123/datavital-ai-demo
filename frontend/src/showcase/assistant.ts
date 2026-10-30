@@ -855,12 +855,12 @@ function answerRadiology(
   if (/report|unsigned|tat|turnaround|critical|repeat/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Reporting & imaging quality · ${name} · ${view.periodLabel}`, `التقارير وجودة التصوير · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Median Report TAT ${view.medianReportTatHours.toFixed(1)} h · P90 ${view.p90ReportTatHours.toFixed(1)} h · unsigned ${view.unsignedReports.toLocaleString('en-US')} · repeat rate ${((view.repeatExamRate) * 100).toFixed(1)}% · critical ack ${((view.criticalAckRate) * 100).toFixed(1)}% · longest TAT ${hotTat.id}.`, `زمن التقرير ${view.medianReportTatHours.toFixed(1)} س.`),
-      evidence: tx(lang, `Final Report TAT = signature − exam completion. Unsigned reports are aged separately. Highest repeat modality ${hotRepeat.id} (${hotRepeat.repeats.toLocaleString('en-US')} repeats). Critical acknowledgement is distinct from signature.`, `أعلى تكرار ${hotRepeat.id}.`),
-      explanation: tx(lang, 'Illustrative synthetic quality signals — not diagnostic accuracy claims and not patient-level treatment advice. Not every repeat is a quality failure.', 'إشارات اصطناعية توضيحية — ليست دقة تشخيصية.'),
-      action: tx(lang, 'Clear oldest unsigned aging bands and pair Repeat Exams by Modality with protocol review before changing scanner schedules.', 'أغلق أقدم التقارير غير الموقعة وراجع التكرار.'),
+      observation: tx(lang, `Completed exams ${view.completed.toLocaleString('en-US')} · signed reports ${view.signedReports.toLocaleString('en-US')} · Median Report TAT ${view.medianReportTatHours.toFixed(1)} h · unsigned ${view.unsignedReports.toLocaleString('en-US')} · critical ack ${((view.criticalAckRate) * 100).toFixed(1)}% · critical delay ${((view.criticalDelayRate) * 100).toFixed(1)}% (${view.criticalPendingAck.toLocaleString('en-US')} pending) · longest TAT ${hotTat.id}.`, `زمن التقرير ${view.medianReportTatHours.toFixed(1)} س.`),
+      evidence: tx(lang, `${view.methodology.reportTat} ${view.methodology.critical} Highest repeat modality ${hotRepeat.id} (${hotRepeat.repeats.toLocaleString('en-US')} repeats; technical ${view.technicalRepeats.toLocaleString('en-US')} · clinical/protocol ${view.clinicalRepeats.toLocaleString('en-US')}).`, `أعلى تكرار ${hotRepeat.id}.`),
+      explanation: tx(lang, 'Illustrative synthetic quality signals — not diagnostic accuracy claims and not patient-level treatment advice. Not every repeat is a quality failure. Ack rate is not a delay rate.', 'إشارات اصطناعية توضيحية — ليست دقة تشخيصية.'),
+      action: tx(lang, 'Clear oldest unsigned aging bands, close pending critical acknowledgements, and pair Repeat Exams by Modality with protocol review before changing scanner schedules.', 'أغلق أقدم التقارير غير الموقعة وراجع التكرار.'),
       role: tx(lang, 'Imaging quality lead', 'قائد جودة التصوير'),
-      benefit: tx(lang, 'Separating access wait from report TAT keeps management actions correctly targeted.', 'فصل انتظار الوصول عن زمن التقرير يوجه الإجراءات بشكل صحيح.'),
+      benefit: tx(lang, 'Separating exam completion, report signature, and critical acknowledgement keeps management actions correctly targeted.', 'فصل إكمال الفحص وتوقيع التقرير والإقرار الحرج يوجه الإجراءات بشكل صحيح.'),
     });
   }
 
