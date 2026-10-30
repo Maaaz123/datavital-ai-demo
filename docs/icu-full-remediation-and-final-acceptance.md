@@ -125,10 +125,11 @@ Hospitals H1–H5 × years 2024–2026 × {year,Q1–Q4}: finite views, census i
 | Check | Result |
 |---|---|
 | Local build | PASS |
-| Push to `main` | PASS (recorded after deploy) |
-| Pages BUILD_ID `v71-icu` | PASS (recorded after live check) |
-| Bundle live | PASS (recorded after live check) |
-| Deep links serve SPA shell with new bundle | PASS (recorded after live check) |
+| Push to `main` | PASS — `0974fee` |
+| Pages BUILD_ID `v71-icu` | PASS |
+| Bundle `index-B5RrVwwg.js` live | PASS (HTTP 200) |
+| Deep links `/icu`, `/icu/equipment`, `/icu/optimization` | PASS — SPA 404 shell serves `index-B5RrVwwg.js` |
+| Live JS contains midnight / serviceable / label aliases | PASS |
 
 ---
 
@@ -144,13 +145,15 @@ Hospitals H1–H5 × years 2024–2026 × {year,Q1–Q4}: finite views, census i
 
 ## 30. Final acceptance recommendation
 
-**READY FOR APPROVAL** for the synthetic executive demo after live `v71-icu` production evidence is recorded below.
+**READY FOR APPROVAL** — Domain 10 remediation verified on GitHub Pages under `v71-icu`.
 
 ### Production evidence log
 
 | Field | Value |
 |---|---|
-| Commit | _(filled after push)_ |
+| Commit | `0974fee5eb0137dbf74afa0f4a8d66e54dfcdddd` |
 | BUILD_ID | `v71-icu` |
-| Bundle | _(filled after build)_ |
-| Pages status | _(filled after verify)_ |
+| Bundle | `assets/index-B5RrVwwg.js` |
+| PWA | `assets/pwa-CmQn6RFP.js` |
+| Pages status | `built` on `0974fee` |
+| Public ICU | https://maaaz123.github.io/datavital-ai-demo/icu |
