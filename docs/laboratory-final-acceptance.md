@@ -277,17 +277,34 @@ Emergency, Beds, Inpatient, Outpatient, Appointments, Surgery, Radiology — lay
 | Item | Value | Status |
 |---|---|---|
 | BUILD_ID | `v67-laboratory` | **PASS** |
-| Bundle | `assets/index-DWbsy6vZ.js` | **PASS** (local build synced to Pages root) |
+| Bundle | `assets/index-DWbsy6vZ.js` | **PASS** |
 | PWA helper | `assets/pwa-DtPz1IbE.js` | **PASS** |
 | Automated tests | 208/208 | **PASS** |
-| Commit | _(filled after commit)_ | pending push |
-| Production deploy | GitHub Pages `main` | pending verification |
+| Commit | `8e53889` | **PASS** |
+| Production deploy | GitHub Pages `main` | **PASS** (browser verified 2026-10-30) |
+
+### Production verification checklist
+
+| Check | Status |
+|---|---|
+| Published `index.html` references `index-DWbsy6vZ.js` | **PASS** |
+| Bundle HTTP 200 on Pages | **PASS** |
+| `localStorage` BUILD_ID `v67-laboratory` | **PASS** |
+| `/laboratory` Command Center KPIs + charts + alerts | **PASS** |
+| `/laboratory/samples` | **PASS** |
+| `/laboratory/analyzers` (Chemistry downtime 356 h on H2 / 373 h on H1) | **PASS** |
+| `/laboratory/quality` | **PASS** |
+| `/laboratory/optimization` | **PASS** |
+| Hospital filter H2→H1 changes Recoverable Hours 1,797→1,872 and Additional Tests→6,033 | **PASS** |
+| Vital Assist · Laboratory Decision Support | **PASS** |
+| Forecast six Laboratory what-if chips | **PASS** |
+| Radiology Command still intact (Imaging Requests 33,117) | **PASS** |
 
 ### Release gate checklist
 
 | Gate | Status |
 |---|---|
-| Every Laboratory page functions | **PASS** (local + routes wired) |
+| Every Laboratory page functions | **PASS** (prod browser) |
 | Each KPI one primary owner | **PASS** |
 | No unnecessary chart duplication | **PASS** |
 | Correct grains (orders/specimens/tests/results) | **PASS** |
@@ -307,11 +324,11 @@ Emergency, Beds, Inpatient, Outpatient, Appointments, Surgery, Radiology — lay
 | Decision workflow | **PASS** |
 | Filters hospital/year/quarter | **PASS** |
 | Domains 1–7 unchanged | **PASS** |
-| Production build verified | **PENDING** → update after Pages deploy |
-| Acceptance report complete | **PASS** (this document) |
+| Production build verified | **PASS** (`v67-laboratory` / `index-DWbsy6vZ.js`) |
+| Acceptance report complete | **PASS** |
 
 ---
 
 ## Verdict
 
-**CONDITIONAL PASS** pending production browser verification of `v67-laboratory` / `index-DWbsy6vZ.js` on all five Laboratory deep links after push to GitHub Pages. Local automated + build gate is complete.
+**PASS** — Domain 8 Laboratory & Pathology Intelligence is ready for product-owner review. Production Pages serves `v67-laboratory` / `index-DWbsy6vZ.js` on all five Laboratory routes with Vital Assist, filters, and what-if chips confirmed; Domains 1–7 remain unchanged.
