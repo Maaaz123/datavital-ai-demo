@@ -199,6 +199,9 @@ const RX_AXIS: Record<string, string> = {
   'Purchase price variance': 'Price var.',
   'Expired stock': 'Expired',
   'Discards & returns': 'Discards',
+  'Recoverable hours': 'Recoverable',
+  'Rework recoverable hours': 'Rework hrs',
+  'Usable recovered hours': 'Usable hrs',
 };
 
 function axis(labels: string[]): string[] {

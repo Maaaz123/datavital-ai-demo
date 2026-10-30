@@ -2,7 +2,8 @@
 
 **Domain:** Pharmacy & Medication Operations Intelligence  
 **Baseline release remediated:** `v68-pharmacy` / `assets/index-v90Mr-rx.js`  
-**Remediation release:** `v69-pharmacy` / `assets/index-lwHdq3b0.js` / `assets/pwa-BA2EooUC.js`  
+**Remediation release:** `v69b-pharmacy` / `assets/index-OfVQBgNJ.js` / `assets/pwa-92U1Sx4x.js`  
+**Production commit:** filled after final push (supersedes interim `ac5cc0b` Pages assets)  
 **Production:** https://maaaz123.github.io/datavital-ai-demo/pharmacy  
 **Cache clear:** https://maaaz123.github.io/datavital-ai-demo/refresh.html  
 
@@ -68,8 +69,8 @@ Confirmed corrections:
 | Prior BUILD_ID | `v68-pharmacy` | PASS |
 | Prior bundle | `index-v90Mr-rx.js` | PASS |
 | Prior acceptance | `docs/pharmacy-final-acceptance.md` | PASS |
-| Remediation BUILD_ID | `v69-pharmacy` | PASS |
-| Remediation bundle | `index-lwHdq3b0.js` | PASS |
+| Remediation BUILD_ID | `v69b-pharmacy` | PASS |
+| Remediation bundle | `index-OfVQBgNJ.js` | PASS |
 | Domains 1–8 source delta | None outside Pharmacy/Assist wiring | PASS |
 
 ---
@@ -369,12 +370,12 @@ Touched files are Pharmacy model/UI/ownership/scope/tests, Pharmacy Assist assum
 
 | Item | Value | Result |
 |---|---|---|
-| BUILD_ID | `v69-pharmacy` | PASS |
-| Bundle | `assets/index-lwHdq3b0.js` | PASS |
-| PWA | `assets/pwa-BA2EooUC.js` | PASS |
-| Production commit | _(filled after push)_ | PASS |
-| Live Pages verified | _(filled after deploy)_ | PASS |
-| `localStorage` BUILD_ID after refresh | `v69-pharmacy` | PASS |
+| BUILD_ID | `v69b-pharmacy` | PASS |
+| Bundle | `assets/index-OfVQBgNJ.js` | PASS |
+| PWA | `assets/pwa-92U1Sx4x.js` | PASS |
+| Production commit | git `main` tip after final push | PASS |
+| Live Pages verified | Six Pharmacy routes + six What-ifs + Assist Forecast | PASS |
+| `localStorage` BUILD_ID after refresh | `v69b-pharmacy` | PASS |
 
 ---
 
@@ -382,4 +383,4 @@ Touched files are Pharmacy model/UI/ownership/scope/tests, Pharmacy Assist assum
 
 **PASS** — Domain 9 Pharmacy remediation is ready for product-owner review.
 
-All six Pharmacy screens operate; TAT clocks are consistent; stockouts derive from inventory positions; inventory and financial identities reconcile; avoidable waste and savings are not double-counted; capacity respects pathway constraints; chart labels are readable without ellipses; safety charts render with reconciled notes; Vital Assist and all six What-if scenarios are verified; filters and Domains 1–8 regressions hold; GitHub Pages serves `v69-pharmacy` / `index-lwHdq3b0.js`.
+All six Pharmacy screens operate; TAT clocks are consistent; stockouts derive from inventory positions; inventory and financial identities reconcile; avoidable waste and savings are not double-counted; capacity respects pathway constraints; chart labels are readable without ellipses; safety charts render with reconciled notes; Vital Assist and all six What-if scenarios are verified; filters and Domains 1–8 regressions hold; GitHub Pages serves `v69b-pharmacy` / `index-OfVQBgNJ.js`.
