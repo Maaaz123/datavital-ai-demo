@@ -6,11 +6,12 @@ import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
+import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience';
 
 export type WhatIfResult = {
   id: string;
@@ -96,6 +97,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if ICU staffing is reallocated across shifts by 10%?',
     'What if ICU flow coordination improves by 15%?',
   ],
+  'Patient Experience': [
+    'What if waiting-time dissatisfaction decreases by 20%?',
+    'What if staff communication scores improve by 15%?',
+    'What if complaint resolution time decreases by 25%?',
+    'What if discharge communication improves by 20%?',
+    'What if repeated complaint categories decrease by 30%?',
+    'What if low-scoring touchpoints improve by 15%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -115,6 +124,14 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Patient Experience intents before ICU/beds generics that mention discharge, wait, or communication.
+  if (/wait/.test(q) && /(dissatisf|experience|satisfaction|touchpoint)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'px-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/discharge/.test(q) && /communication/.test(q) && /(improv|increas)/.test(q)) return { kind: 'px-discharge-up', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/communication/.test(q) && /(improv|increas)/.test(q)) return { kind: 'px-communication-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/(complaint.?resolution|resolution.?time)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'px-resolution-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/repeated.?complaint/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'px-repeated-down', amount: percent ? Number(percent[1]) / 100 : 0.3 };
+  if (/(touchpoint|low.?scoring)/.test(q) && /(improv|increas|lift)/.test(q)) return { kind: 'px-touchpoint-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
 
   // ICU intents before beds/pharmacy generics that mention staffed, transfer, discharge, or downtime.
   if (/icu/.test(q) && /transfer/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'icu-transfer-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -183,6 +200,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/prolong|long.?stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/delay.*discharge|ready but|discharge delay/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'ipd-delay-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
   if (/length of stay|los|average stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-los-down', amount: days ? Number(days[1]) : 0.5 };
+  if (/patient experience|satisfaction|complaint|survey|sentiment|voice of patient/.test(q)) return { kind: 'px-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
@@ -214,6 +232,7 @@ export function runWhatIf(
   if (domain === 'Laboratory') return laboratoryWhatIf(hospital, year, period, resolved);
   if (domain === 'Pharmacy') return pharmacyWhatIf(hospital, year, period, resolved);
   if (domain === 'ICU') return icuWhatIf(hospital, year, period, resolved);
+  if (domain === 'Patient Experience') return pxWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -227,6 +246,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Laboratory') return { kind: 'lab-reject-down', amount: 0.2 };
   if (domain === 'Pharmacy') return { kind: 'rx-tat-down', amount: 0.15 };
   if (domain === 'ICU') return { kind: 'icu-transfer-down', amount: 0.2 };
+  if (domain === 'Patient Experience') return { kind: 'px-wait-down', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1171,6 +1191,130 @@ function icuWhatIf(
     followUp: 'Median ICU Transfer Delay, Avoidable Transfer Delay Hours, and Available Staffed Capacity',
     owner: 'Patient flow lead',
   };
+}
+
+function pxWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildPxView(hospital, year, period);
+  const amount = Math.min(Math.max(intent.amount, 0), 0.9);
+  const waitOpt = view.opportunities.find((item) => item.theme === 'wait');
+  const communicationOpt = view.opportunities.find((item) => item.theme === 'communication');
+  const resolutionOpt = view.opportunities.find((item) => item.theme === 'resolution_time');
+  const dischargeOpt = view.opportunities.find((item) => item.theme === 'discharge');
+  const repeatedOpt = view.opportunities.find((item) => item.theme === 'repeated_complaints');
+  const touchpointOpt = view.opportunities.find((item) => item.theme === 'low_touchpoints');
+  const weakest = [...view.touchpointRows].sort((a, b) => a.score - b.score)[0];
+  const hotDept = [...view.departmentRows].filter((item) => item.adequateSample).sort((a, b) => a.score - b.score)[0];
+  const topComplaint = [...view.complaintByCategory].sort((a, b) => b.count - a.count)[0];
+
+  if (intent.kind === 'px-communication-up') {
+    const uplift = r2(Math.min(view.addressableGap, (communicationOpt?.modeledUpliftPoints ?? 0.2) * (amount / 0.15)));
+    const nextScore = Math.min(10, view.communicationScore + uplift);
+    const complaintsAvoided = Math.round((communicationOpt?.complaintReduction ?? 0) * (amount / 0.15));
+    return {
+      id: intent.kind,
+      title: 'Staff communication improvement scenario',
+      current: `Communication score ${num(view.communicationScore, 1)}/10 · overall ${num(view.overallSatisfaction, 1)} · gap to target ${num(view.addressableGap, 1)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} improvement in staff communication scores on DV-PX-Internal-v1`,
+      estimated: `Communication near ${num(nextScore, 1)}/10 · about ${num(uplift, 2)} overall points modeled · ~${num(complaintsAvoided)} fewer communication-category complaints`,
+      assumptions: 'Internal survey items only — not HCAHPS. Correlation is not causation. Illustrative process adherence uplift — not a guaranteed satisfaction outcome.',
+      implications: `Standardize explanation checklists where ${hotDept?.name ?? 'low-scoring departments'} trail the target.`,
+      followUp: 'Communication Score, Overall Satisfaction, and Staff Communication complaints',
+      owner: communicationOpt?.owner ?? 'Nursing & Ambulatory Leadership',
+    };
+  }
+
+  if (intent.kind === 'px-resolution-down') {
+    const nextMedian = Math.max(1, view.medianResolutionDays * (1 - amount));
+    const overdueCut = Math.round(view.overdueComplaints * amount);
+    return {
+      id: intent.kind,
+      title: 'Complaint resolution time reduction scenario',
+      current: `Median resolution ${num(view.medianResolutionDays, 1)} days · overdue open ${num(view.overdueComplaints)} · open ${num(view.complaintsOpen)} · target ${num(view.resolutionTargetDays)} days (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in complaint resolution time`,
+      estimated: `Median near ${num(nextMedian, 1)} days · about ${num(overdueCut)} fewer overdue open cases if assignment queues clear`,
+      assumptions: 'Faster closure reduces overdue stock; closed status is not proof of patient satisfaction. Illustrative — not achieved recovery.',
+      implications: `Escalate aging ${topComplaint?.name ?? 'top-category'} cases before day ${view.resolutionTargetDays}.`,
+      followUp: 'Median Resolution Days, Overdue Complaints, and Complaint Aging',
+      owner: resolutionOpt?.owner ?? 'Patient Relations',
+    };
+  }
+
+  if (intent.kind === 'px-discharge-up') {
+    const uplift = r2(Math.min(view.addressableGap, (dischargeOpt?.modeledUpliftPoints ?? 0.2) * (amount / 0.2)));
+    const nextScore = Math.min(10, view.dischargeScore + uplift);
+    const complaintsAvoided = Math.round((dischargeOpt?.complaintReduction ?? 0) * (amount / 0.2));
+    return {
+      id: intent.kind,
+      title: 'Discharge communication improvement scenario',
+      current: `Discharge score ${num(view.dischargeScore, 1)}/10 on ${num(view.dimensionRows.find((row) => row.name === 'Discharge')?.n ?? 0)} answers · overall ${num(view.overallSatisfaction, 1)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} improvement in discharge communication`,
+      estimated: `Discharge near ${num(nextScore, 1)}/10 · about ${num(uplift, 2)} overall points modeled · ~${num(complaintsAvoided)} fewer discharge-planning complaints`,
+      assumptions: 'Process improvement only — not a clinical outcome claim. Supporting discharge volume is context, not a PX headline. Illustrative.',
+      implications: 'Strengthen teach-back and medication / follow-up clarity at discharge for eligible cohorts.',
+      followUp: 'Discharge Score, Discharge Planning complaints, and Overall Satisfaction',
+      owner: dischargeOpt?.owner ?? 'Care Transitions',
+    };
+  }
+
+  if (intent.kind === 'px-repeated-down') {
+    const eligible = repeatedOpt?.eligiblePopulation ?? Math.round(view.complaintsTotal * 0.2);
+    const avoided = Math.round(eligible * amount);
+    const nextReopen = view.reopenRate * (1 - amount * 0.5);
+    return {
+      id: intent.kind,
+      title: 'Repeated complaint category reduction scenario',
+      current: `Complaints ${num(view.complaintsTotal)} · reopen rate ${pct(view.reopenRate)} · top category ${topComplaint?.name ?? 'n/a'} (${num(topComplaint?.count ?? 0)}) (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} reduction in repeated complaint categories`,
+      estimated: `About ${num(avoided)} fewer repeatable complaints · reopen rate near ${pct(nextReopen)} if root-cause actions stick`,
+      assumptions: 'Eligible preventable share only — not every complaint is preventable. Illustrative prevention on repeatable process failures.',
+      implications: `Root-cause ${topComplaint?.name ?? 'the top category'} with department owners and follow-up audits.`,
+      followUp: 'Reopen Rate, Complaint Categories, and Priority Opportunity Coverage',
+      owner: repeatedOpt?.owner ?? 'Quality & Patient Relations',
+    };
+  }
+
+  if (intent.kind === 'px-touchpoint-up') {
+    const uplift = r2(Math.min(view.addressableGap, (touchpointOpt?.modeledUpliftPoints ?? 0.25) * (amount / 0.15)));
+    const nextNeg = Math.max(0, view.negativeTouchpointShare * (1 - amount));
+    const nextWeak = Math.min(10, (weakest?.score ?? view.journeySatisfaction) + uplift);
+    return {
+      id: intent.kind,
+      title: 'Low-scoring touchpoint improvement scenario',
+      current: `Negative touchpoint share ${pct(view.negativeTouchpointShare)} · weakest ${weakest?.name ?? 'n/a'} ${num(weakest?.score ?? 0, 1)}/10 · linkage ${pct(view.journeyLinkageCoverage)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(amount, 0)} lift in low-scoring journey touchpoints`,
+      estimated: `Negative share near ${pct(nextNeg)} · ${weakest?.name ?? 'weakest touchpoint'} near ${num(nextWeak, 1)}/10 · about ${num(uplift, 2)} overall points modeled`,
+      assumptions: 'Constrained by linked journey coverage. Unlinked responses stay in aggregates without fabricated joins. Illustrative — not achieved.',
+      implications: `Target the three weakest eligible touchpoints starting with ${weakest?.name ?? 'Waiting'} under local service standards.`,
+      followUp: 'Negative Touchpoint Share, Touchpoint Scores, and Journey Linkage Coverage',
+      owner: touchpointOpt?.owner ?? 'Experience Improvement Office',
+    };
+  }
+
+  const waitEligible = waitOpt?.eligiblePopulation ?? 0;
+  const avoidedNeg = Math.round(waitEligible * amount);
+  const uplift = r2(Math.min(view.addressableGap, (waitOpt?.modeledUpliftPoints ?? 0.3) * (amount / 0.2)));
+  const nextWait = Math.min(10, view.waitingScore + uplift);
+  const complaintsAvoided = Math.round((waitOpt?.complaintReduction ?? 0) * (amount / 0.2));
+  return {
+    id: 'px-wait-down',
+    title: 'Waiting-time dissatisfaction reduction scenario',
+    current: `Waiting score ${num(view.waitingScore, 1)}/10 · overall ${num(view.overallSatisfaction, 1)} · waiting complaints ${num(view.complaintByCategory.find((item) => item.name === 'Waiting time')?.count ?? 0)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(amount, 0)} reduction in waiting-time dissatisfaction`,
+    estimated: `Waiting near ${num(nextWait, 1)}/10 · about ${num(avoidedNeg)} fewer negative waiting ratings · ~${num(complaintsAvoided)} fewer waiting complaints · ${num(uplift, 2)} overall points modeled`,
+    assumptions: 'Illustrative — assumes wait communication improves without claiming causation from survey correlation. ED/OPD wait minutes are supporting context only. Not HCAHPS.',
+    implications: `Tighten check-in queue visibility for eligible clinics; operational waits stay owned by Access / ED — PX tracks experience scores.`,
+    followUp: 'Waiting Score, Waiting-time complaints, and Overall Satisfaction',
+    owner: waitOpt?.owner ?? 'Patient Access & Outpatient Operations',
+  };
+}
+
+function r2(value: number): number {
+  return Math.round(value * 100) / 100;
 }
 
 export function formatWhatIfAnswer(result: WhatIfResult): {

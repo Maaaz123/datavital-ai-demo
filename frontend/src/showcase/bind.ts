@@ -3,6 +3,7 @@ import { longStayRateFromP90 } from '@/core/ipdScope';
 import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
+import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
@@ -170,8 +171,49 @@ function icuMapped(key: string, hospital: string, year: number): Raw | null {
   }
 }
 
+function pxMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildPxView(hospital, year, 'year');
+  switch (key) {
+    case 'kpi_px_overall_satisfaction': return { value: v.overallSatisfaction, kind: 'index', unit: 'score', numerator: Math.round(v.overallSatisfaction * v.overallCount), denominator: Math.max(1, v.overallCount), grain: RATE_GRAIN, better: 'up', note: 'Weighted mean of eligible Q_OVERALL answers (0–10) from the Patient Experience Command view. Internal instrument — not official HCAHPS.' };
+    case 'kpi_px_response_rate': return exactRate(v.eligibleCompleted, v.eligibleInvitations, 'up', 'Eligible completed ÷ eligible invitations from the Patient Experience Command view.');
+    case 'kpi_px_positive_share': return exactRate(v.topBox, v.overallCount, 'up', 'Top-box (9–10) ÷ eligible overall ratings from the Patient Experience Command view.');
+    case 'kpi_px_negative_share': return exactRate(v.bottomBox, v.overallCount, 'down', 'Bottom-box (0–6) ÷ eligible overall ratings from the Patient Experience Command view.');
+    case 'kpi_px_recommendation': return { value: v.recommendationScore, kind: 'index', unit: 'score', numerator: Math.round(v.recommendationScore * 10), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Patient Recommendation Score = %promoters − %detractors on Q_RECOMMEND (0–10). Not an official NPS product.' };
+    case 'kpi_px_unresolved_issues': return count(v.unresolvedIssues, 'down', 'Open complaints + high-priority unreviewed comments from the Patient Experience Command view.', GRAIN, 'issues');
+    case 'kpi_px_journey_satisfaction': return { value: v.journeySatisfaction, kind: 'index', unit: 'score', numerator: Math.round(v.journeySatisfaction * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Weighted mean of linked journey touchpoint scores from the Journey view.' };
+    case 'kpi_px_waiting_score': return { value: v.waitingScore, kind: 'index', unit: 'score', numerator: Math.round(v.waitingScore * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Mean waiting-dimension score (0–10) from the Journey view.' };
+    case 'kpi_px_communication_score': return { value: v.communicationScore, kind: 'index', unit: 'score', numerator: Math.round(v.communicationScore * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Mean communication-dimension score from the Journey view.' };
+    case 'kpi_px_coordination_score': return { value: v.coordinationScore, kind: 'index', unit: 'score', numerator: Math.round(v.coordinationScore * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Mean coordination-dimension score from the Journey view.' };
+    case 'kpi_px_discharge_score': return { value: v.dischargeScore, kind: 'index', unit: 'score', numerator: Math.round(v.dischargeScore * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Mean discharge-dimension score from the Journey view.' };
+    case 'kpi_px_negative_touchpoint_share': return exactRate(v.touchpointNegative, Math.max(1, v.touchpointRatings), 'down', 'Touchpoint ratings ≤6 ÷ linked touchpoint ratings from the Journey view.');
+    case 'kpi_px_complaints_total': return count(v.complaintsTotal, 'down', 'Complaints received in period from the Complaints view.', GRAIN, 'complaints');
+    case 'kpi_px_complaints_open': return count(v.complaintsOpen, 'down', 'Open complaints at observation from the Complaints view.', GRAIN, 'complaints');
+    case 'kpi_px_median_resolution': return duration(v.medianResolutionDays, 'days', 'down', 'Median days received→resolved for closed resolutions from the Complaints view.');
+    case 'kpi_px_overdue_complaints': return count(v.overdueComplaints, 'down', 'Open complaints past the illustrative target from the Complaints view.', GRAIN, 'complaints');
+    case 'kpi_px_first_contact_resolution': return { value: v.firstContactResolution, kind: 'rate', unit: '%', numerator: Math.round(v.firstContactResolution * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Closed without reopen ÷ closed complaints from the Complaints view.' };
+    case 'kpi_px_reopen_rate': return { value: v.reopenRate, kind: 'rate', unit: '%', numerator: Math.round(v.reopenRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: 'Reopened ÷ previously closed cases from the Complaints view.' };
+    case 'kpi_px_comments_analyzed': return count(v.commentsAnalyzed, 'neutral', 'Analyzed free-text comments from the Voice view.', GRAIN, 'comments');
+    case 'kpi_px_negative_feedback_share': return { value: v.negativeFeedbackShare, kind: 'rate', unit: '%', numerator: Math.round(v.negativeFeedbackShare * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: 'Negative-sentiment ÷ analyzed comments from the Voice view.' };
+    case 'kpi_px_emerging_themes': return count(v.emergingThemes, 'down', 'Rising negative themes vs prior period from the Voice view.', GRAIN, 'themes');
+    case 'kpi_px_high_priority_feedback': return count(v.highPriorityFeedback, 'down', 'High-priority / safety-flagged comments from the Voice view.', GRAIN, 'comments');
+    case 'kpi_px_theme_review_coverage': return { value: v.themeReviewCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.themeReviewCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Human-reviewed classifications ÷ analyzed comments from the Voice view.' };
+    case 'kpi_px_depts_meeting_target': return count(v.deptsMeetingTarget, 'up', 'Departments meeting experience target with adequate sample from the Departments view.', GRAIN, 'departments');
+    case 'kpi_px_lowest_dimension': return { value: v.lowestDimensionScore, kind: 'index', unit: 'score', numerator: Math.round(v.lowestDimensionScore * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: `Lowest dimension (${v.lowestDimension}) mean from the Departments view.` };
+    case 'kpi_px_coverage_gap': return count(v.coverageGap, 'down', 'Departments below minimum eligible response coverage from the Departments view.', GRAIN, 'departments');
+    case 'kpi_px_material_variance': return { value: v.materialVariance, kind: 'index', unit: 'points', numerator: Math.round(v.materialVariance * 100), denominator: 100, grain: RATE_GRAIN, better: 'down', note: 'Max−min overall score among adequately sampled departments from the Departments view.' };
+    case 'kpi_px_depts_requiring_review': return count(v.deptsRequiringReview, 'down', 'Departments requiring experience review from the Departments view.', GRAIN, 'departments');
+    case 'kpi_px_addressable_gap': return { value: v.addressableGap, kind: 'index', unit: 'points', numerator: Math.round(v.addressableGap * 100), denominator: 100, grain: RATE_GRAIN, better: 'down', note: 'Points between current overall and illustrative target from Optimization.' };
+    case 'kpi_px_improvement_opportunities': return count(v.improvementOpportunities, 'neutral', 'Eligible improvement opportunities from Optimization.', GRAIN, 'actions');
+    case 'kpi_px_modeled_uplift': return { value: v.modeledUplift, kind: 'index', unit: 'points', numerator: Math.round(v.modeledUplift * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Illustrative overall-score uplift under documented assumptions from Optimization.' };
+    case 'kpi_px_complaint_reduction': return count(v.complaintReduction, 'up', 'Potential preventable complaints under assumptions from Optimization.', GRAIN, 'complaints');
+    case 'kpi_px_priority_coverage': return { value: v.priorityCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.priorityCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Priority actions with owner ÷ priority opportunities from Optimization.' };
+    default: return null;
+  }
+}
+
 function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): Raw | null {
   const key = kpi.key;
+  if (key.startsWith('kpi_px_')) return pxMapped(key, hospital, year);
   if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);
   const admissions = fact.admissions;

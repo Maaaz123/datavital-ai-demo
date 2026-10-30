@@ -9,6 +9,7 @@ import { buildAppointmentView } from '@/core/appointmentView';
 import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
+import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -69,6 +70,28 @@ export function answerQuestion(
   const waitNow = current.edWaitMedianMin;
   const waitThen = prior.edWaitMedianMin;
   const periodLabel = period === 'year' ? `Full year ${year}` : `${period} ${year}`;
+
+  if (department === 'Patient Experience') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('px-')) {
+      const result = runWhatIf('Patient Experience', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not close complaints or change clinical care alone.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يغلق الشكاوى ولا يغيّر الرعاية السريرية وحده.'),
+      };
+    }
+  }
 
   if (department === 'ICU') {
     const intent = parseWhatIfIntent(q);
@@ -138,6 +161,7 @@ export function answerQuestion(
   if (department === 'Laboratory') return answerLaboratory(q, hospital, year, name, lang, period);
   if (department === 'Pharmacy') return answerPharmacy(q, hospital, year, name, lang, period);
   if (department === 'ICU') return answerIcu(q, hospital, year, name, lang, period);
+  if (department === 'Patient Experience') return answerPx(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1263,6 +1287,137 @@ function answerIcu(
     action: tx(lang, topAlert?.action ?? `Review Command demand, Flow delays (${hotUnit.name}), Capacity staffing, then Optimization.`, topAlert?.action ?? 'راجع الطلب والتدفق والسعة.'),
     role: tx(lang, 'ICU operations lead', 'قائد عمليات العناية المركزة'),
     benefit: tx(lang, 'A sequenced ICU review keeps demand, flow, staffing, equipment, quality, and capacity distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerPx(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildPxView(hospital, year, period);
+  const n = (value: number) => value.toLocaleString('en-US');
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const hotDept = [...view.departmentRows].filter((item) => item.adequateSample).sort((a, b) => a.score - b.score)[0]
+    ?? view.departmentRows[0];
+  const topComplaint = [...view.complaintByCategory].sort((a, b) => b.count - a.count)[0];
+  const weakestTp = [...view.touchpointRows].sort((a, b) => a.score - b.score)[0];
+  const topNegTheme = view.topNegativeTopics[0];
+  const priorityOpt = view.opportunities.find((item) => item.priority) ?? view.opportunities[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|icu transfer|staffed icu|medication order|stockout sku|analyzer util|or util/.test(q)
+    && !/patient experience|satisfaction|complaint|survey|sentiment|touchpoint|voice of patient|service recovery/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Patient Experience focus', 'خارج تركيز تجربة المريض'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'ED boarding stays in Emergency. Hospital Bed Occupancy stays in Beds. ICU transfer delays stay in ICU. Medication Orders stay in Pharmacy.', 'الطوارئ والأسرة والعناية المركزة والصيدلية تملك مؤشراتها.'),
+      explanation: tx(lang, 'Patient Experience owns internal survey scores, journey touchpoints, complaints/service recovery, voice themes, department experience, and illustrative improvement scenarios.', 'تجربة المريض تملك الاستبيان والرحلة والشكاوى والصوت والتحسين.'),
+      action: tx(lang, 'Stay on Patient Experience screens for satisfaction, complaints, voice, departments, and optimization questions.', 'ابقَ في شاشات تجربة المريض.'),
+      role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
+      benefit: tx(lang, 'Clear ownership prevents duplicating ED wait or bed occupancy dashboards inside Experience.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/dose|dosing|prescribe|treat the patient|prognosis|mortality risk|ventilator setting|clinical harm|diagnose/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside operational experience support', 'خارج الدعم التشغيلي لتجربة المريض'),
+      observation: tx(lang, 'Vital Assist does not give clinical treatment advice or claim clinical harm from survey scores.', 'المساعد لا يقدم نصائح علاجية ولا يدّعي ضرراً سريرياً من درجات الاستبيان.'),
+      evidence: tx(lang, `PX screens report internal survey and service-recovery signals only: overall ${view.overallSatisfaction}/10, response rate ${p(view.responseRate)}, open complaints ${n(view.complaintsOpen)}. Instrument ${view.instrument.id} — not HCAHPS.`, 'مؤشرات استبيان داخلي واستعادة خدمة فقط.'),
+      explanation: tx(lang, 'Clinical decisions stay with clinicians. Correlation in survey themes is not causation. This demo uses synthetic illustrative data.', 'القرارات السريرية للأطباء. الارتباط ليس سببية.'),
+      action: tx(lang, 'Ask about satisfaction, complaints, touchpoints, voice themes, or improvement opportunities instead.', 'اسأل عن الرضا أو الشكاوى أو نقاط الاتصال.'),
+      role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
+      benefit: tx(lang, 'Keeps experience analytics separate from clinical treatment decisions.', 'يفصل تحليل التجربة عن العلاج.'),
+    });
+  }
+
+  if (/satisf|falling|declin|overall rating|recommendation score|response rate/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Satisfaction & survey coverage · ${name} · ${view.periodLabel}`, `الرضا وتغطية الاستبيان · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: overall ${view.overallSatisfaction}/10 (target ${view.overallTarget}) · response rate ${p(view.responseRate)} · positive ${p(view.positiveShare)} · negative ${p(view.negativeShare)} · ${view.recommendationLabel} ${view.recommendationScore} · unresolved issues ${n(view.unresolvedIssues)}.`, `الرضا ${view.overallSatisfaction}/10.`),
+      evidence: tx(lang, `${view.methodology.instrument} Eligible completed ${n(view.eligibleCompleted)} of ${n(view.eligibleInvitations)} invitations. Lowest dimension ${view.lowestDimension} (${view.lowestDimensionScore}/10).`, view.methodology.instrument),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): waiting (${view.waitingScore}/10), communication (${view.communicationScore}/10), and discharge (${view.dischargeScore}/10) trail together under occupancy pressure. Correlation is not causation.`, 'أسباب محتملة وليست مثبتة. الارتباط ليس سببية.'),
+      action: tx(lang, `Recommendations: review Command KPIs, then Journey (${view.lowestDimension}), then Optimization opportunities. Simulations: try waiting-time or communication what-ifs — illustrative only.`, `راجع القيادة ثم الرحلة ثم التحسين.`),
+      role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
+      benefit: tx(lang, 'Separating survey grains (invitations ≠ completions ≠ answers) prevents false response-rate claims.', 'فصل الحبوب يمنع معدلات استجابة زائفة.'),
+    });
+  }
+
+  if (/department|service line|coverage gap|variance|below target/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Department experience · ${name} · ${view.periodLabel}`, `تجربة الأقسام · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: ${n(view.deptsMeetingTarget)} departments meet target · ${n(view.deptsRequiringReview)} need review · coverage gap ${n(view.coverageGap)} · material variance ${view.materialVariance} · lowest adequate ${hotDept.name} ${hotDept.score}/10 (n=${n(hotDept.responses)}).`, `أقل قسم ${hotDept.name}.`),
+      evidence: tx(lang, `Minimum sample ${view.minDeptSample}. Departments below sample are flagged, not ranked as poor experience. ${view.methodology.scoring}`, `حد العينة ${view.minDeptSample}.`),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): sample coverage gaps and service-mix differences can move department means without proving local care failure.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Recommendations: prioritize ${hotDept.name} only when sample is adequate; lift coverage before comparing thin samples. Simulations remain illustrative.`, `أعطِ الأولوية لـ ${hotDept.name} عند كفاية العينة.`),
+      role: tx(lang, 'Experience improvement office', 'مكتب تحسين التجربة'),
+      benefit: tx(lang, 'Adequate-sample gates stop unfair department ranking.', 'بوابات العينة تمنع الترتيب غير العادل.'),
+    });
+  }
+
+  if (/complaint|overdue|resolution|service recovery|aging|reopen/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Complaints & service recovery · ${name} · ${view.periodLabel}`, `الشكاوى واستعادة الخدمة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: new ${n(view.complaintsNew)} · open ${n(view.complaintsOpen)} · closed ${n(view.complaintsClosed)} · overdue ${n(view.overdueComplaints)} · median resolution ${view.medianResolutionDays} days · reopen ${p(view.reopenRate)} · top driver ${topComplaint.name} (${n(topComplaint.count)}).`, `شكاوى مفتوحة ${n(view.complaintsOpen)}.`),
+      evidence: tx(lang, `Ledger balanced: ${view.complaintLedgerBalanced ? 'yes' : 'no'} (opening ${n(view.complaintOpeningOpen)} + new + reopened − closed − withdrawn = closing ${n(view.complaintClosingOpen)}). ${view.methodology.complaints}`, 'هوية دفتر الشكاوى.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): assignment backlog and repeat categories (not every complaint is preventable). Closed ≠ patient satisfied.', 'أسباب محتملة وليست مثبتة. الإغلاق ≠ رضا.'),
+      action: tx(lang, `Recommendations: clear overdue open cases past ${view.resolutionTargetDays} days; root-cause ${topComplaint.name}. Simulations: resolution-time or repeated-complaint what-ifs — illustrative only. AI does not close complaints alone.`, `أغلق المتأخرات وحلّل ${topComplaint.name}.`),
+      role: tx(lang, 'Patient relations lead', 'قائد علاقات المرضى'),
+      benefit: tx(lang, 'Balanced complaint ledgers keep recovery actions auditable.', 'دفتر متوازن يبقي الإجراءات قابلة للتدقيق.'),
+    });
+  }
+
+  if (/touchpoint|journey|waiting comment|wait(ing)? score|discharge score|linkage/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Journey & touchpoints · ${name} · ${view.periodLabel}`, `الرحلة ونقاط الاتصال · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: journey satisfaction ${view.journeySatisfaction}/10 · waiting ${view.waitingScore} · communication ${view.communicationScore} · discharge ${view.dischargeScore} · negative touchpoint share ${p(view.negativeTouchpointShare)} · weakest ${weakestTp.name} ${weakestTp.score}/10 · linkage ${p(view.journeyLinkageCoverage)}.`, `أضعف نقطة ${weakestTp.name}.`),
+      evidence: tx(lang, `Linked ${n(view.linkedJourneyResponses)} · unlinked ${n(view.unlinkedJourneyResponses)} retained without fabricated joins. ${view.methodology.journey}`, 'التغطية دون ربط مفتعل.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): waiting and discharge concentrate negative linked ratings. Operational ED/OPD waits are supporting context only — not PX headlines.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Recommendations: lift ${weakestTp.name} and Waiting with local service standards. Simulations: waiting-time or low-touchpoint what-ifs. No real patient quotes are shown.`, `حسّن ${weakestTp.name}.`),
+      role: tx(lang, 'Patient access & experience lead', 'قائد الوصول والتجربة'),
+      benefit: tx(lang, 'Keeping unlinked responses avoids inventing operational joins.', 'الاحتفاظ بغير المربوط يمنع الربط المختلق.'),
+    });
+  }
+
+  if (/voice|sentiment|theme|comment|recurring|emerging|feedback/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Voice of patient · ${name} · ${view.periodLabel}`, `صوت المريض · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: comments analyzed ${n(view.commentsAnalyzed)} · negative share ${p(view.negativeFeedbackShare)} · emerging themes ${n(view.emergingThemes)} · high-priority feedback ${n(view.highPriorityFeedback)} · review coverage ${p(view.themeReviewCoverage)} · top negative ${topNegTheme?.name ?? 'n/a'} (${n(topNegTheme?.negative ?? 0)}).`, `مواضيع ناشئة ${n(view.emergingThemes)}.`),
+      evidence: tx(lang, `${view.methodology.voice} Sample rows are clearly labeled [SYNTHETIC] — not real patient quotes.`, 'تعليقات تركيبية فقط.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): recurring negative themes may align with complaint categories, but theme co-occurrence is not causal proof.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: human-review safety-flagged and pending items; monitor emerging themes without treating auto-sentiment as clinical harm. Simulations stay illustrative.', 'راجع العناصر ذات الأولوية بشرياً.'),
+      role: tx(lang, 'Patient experience analytics lead', 'قائد تحليلات تجربة المريض'),
+      benefit: tx(lang, 'Synthetic comments and review-status fields keep voice analytics honest.', 'التعليقات التركيبية تبقي التحليل صادقاً.'),
+    });
+  }
+
+  if (/interven|priorit|first|improve|optim|what.?if|action|monitor|opportunity/.test(q)) {
+    const sims = view.opportunities.slice(0, 3).map((item) => `${item.title} (~${item.modeledUpliftPoints} pts)`).join('; ');
+    return pack(lang, {
+      title: tx(lang, `Experience improvement · ${name} · ${view.periodLabel}`, `تحسين التجربة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: addressable gap ${view.addressableGap} pts · opportunities ${n(view.improvementOpportunities)} · modeled uplift ${view.modeledUplift} · complaint reduction sketch ${n(view.complaintReduction)} · priority coverage ${p(view.priorityCoverage)}. First intervene: ${priorityOpt?.title ?? 'waiting dissatisfaction'}.`, `الفجوة ${view.addressableGap}.`),
+      evidence: tx(lang, `${priorityOpt?.evidence ?? view.methodology.optimization} Owner ${priorityOpt?.owner ?? 'Experience Improvement Office'}.`, view.methodology.optimization),
+      explanation: tx(lang, `Hypotheses / Simulations (illustrative, not achieved): ${sims}. Impacts are assumed — not guaranteed. No causal claim from survey correlation.`, 'محاكاة توضيحية وليست محققة.'),
+      action: tx(lang, `Recommendations: sequence ${priorityOpt?.title ?? 'priority opportunity'} with named owner; monitor ${priorityOpt?.followUpMeasure ?? 'kpi_px_overall_satisfaction'} after the next reporting checkpoint. AI does not close complaints or change clinical care alone.`, `نفّذ الفرصة ذات الأولوية وراقب المؤشر.`),
+      role: tx(lang, priorityOpt?.owner ?? 'Experience Improvement Office', priorityOpt?.owner ?? 'مكتب تحسين التجربة'),
+      benefit: tx(lang, 'Constraint-aware opportunities prevent overstating achievable experience uplift.', 'الفرص المقيدة تمنع المبالغة.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Patient Experience' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Patient Experience at ${name} · ${view.periodLabel}`, `تجربة المريض في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Observed facts: overall ${view.overallSatisfaction}/10 · response ${p(view.responseRate)} · open complaints ${n(view.complaintsOpen)} · overdue ${n(view.overdueComplaints)} · negative feedback ${p(view.negativeFeedbackShare)}.`, topAlert ? topAlert.title : `الرضا ${view.overallSatisfaction}/10.`),
+    evidence: tx(lang, `${view.methodology.grains} Instrument ${view.instrument.id} (internal — not HCAHPS).`, 'استبيان داخلي وليس HCAHPS.'),
+    explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): waiting, communication, and recovery backlog move together across PX screens. Correlation is not causation. Operational analytics only — not clinical advice.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command satisfaction, Journey (${weakestTp.name}), Complaints (${topComplaint.name}), then Optimization. Simulations are illustrative.`, topAlert?.action ?? 'راجع القيادة والرحلة والشكاوى.'),
+    role: tx(lang, 'Patient experience lead', 'قائد تجربة المريض'),
+    benefit: tx(lang, 'A sequenced PX review keeps survey, journey, complaints, voice, departments, and optimization distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

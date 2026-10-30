@@ -166,6 +166,21 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
       values: c.scenario.months.map((month) => Math.round(month.admissions * 0.1)),
     }], 'admissions', 0, 'Illustrative monthly ICU admissions derived from hospital admissions. Full ICU ledger lives on /icu.'),
   ],
+  'patient-experience': (c) => [
+    fig(c.domain, ['px-satisfaction'], 'line', 'Satisfaction through the year', c.months, [{
+      name: 'Index',
+      values: monthSeries(c.scenario, 'satisfaction'),
+    }], 'index', 1, 'Scenario satisfaction proxy. Full Patient Experience ledger lives on /patient-experience. Internal instrument — not HCAHPS.'),
+    fig(c.domain, ['px-recovery'], 'bars', 'Surveys and complaints snapshot', ['Surveys sent', 'Surveys returned', 'Complaints opened', 'Complaints closed'], [{
+      name: 'Count',
+      values: [
+        c.scenario.focus.surveysSent,
+        c.scenario.focus.surveysReturned,
+        c.scenario.focus.complaintsOpened,
+        c.scenario.focus.complaintsClosed,
+      ],
+    }], 'events', 0, 'Scenario survey and complaint volumes. Full invitation, complaint, and voice ledgers live on /patient-experience.'),
+  ],
   rcm: ledger,
   revenue: ledger,
   'billing-collections': ledger,
@@ -179,7 +194,6 @@ const BUILDERS: Record<string, (ctx: Ctx) => Figure[]> = {
     fig(c.domain, ['overtime'], 'line', 'Overtime hours', c.months, [{ name: 'Overtime', values: monthSeries(c.scenario, 'overtimeHours') }], 'hours', 0, 'Monthly overtime. This is not a bed chart.'),
   ],
   experience: experience,
-  'patient-experience': experience,
   journey: (c) => [
     fig(c.domain, ['journey-minutes'], 'flow', 'Waiting points, in minutes', ['Door to provider', 'ED stay', 'Clinic wait'], [{
       name: 'Median minutes',

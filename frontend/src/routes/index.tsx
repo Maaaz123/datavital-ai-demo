@@ -10,6 +10,7 @@ import { RadAccessPage, RadCommandPage, RadOptimizationPage, RadQualityPage, Rad
 import { PharmCommandPage, PharmCostPage, PharmDispensingPage, PharmInventoryPage, PharmOptimizationPage, PharmSafetyPage } from '@/core/pharmacy';
 import { LabAnalyzersPage, LabCommandPage, LabOptimizationPage, LabQualityPage, LabSamplesPage } from '@/core/laboratory';
 import { IcuCapacityPage, IcuCommandPage, IcuEquipmentPage, IcuFlowPage, IcuOptimizationPage, IcuQualityPage } from '@/core/icu';
+import { PxCommandPage, PxComplaintsPage, PxDepartmentsPage, PxJourneyPage, PxOptimizationPage, PxVoicePage } from '@/core/patientExperience';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
@@ -72,6 +73,12 @@ export const routes = [
       { path: 'icu/equipment', element: <IcuEquipmentPage /> },
       { path: 'icu/quality', element: <IcuQualityPage /> },
       { path: 'icu/optimization', element: <IcuOptimizationPage /> },
+      { path: 'patient-experience', element: <PxCommandPage /> },
+      { path: 'patient-experience/journey', element: <PxJourneyPage /> },
+      { path: 'patient-experience/complaints', element: <PxComplaintsPage /> },
+      { path: 'patient-experience/voice', element: <PxVoicePage /> },
+      { path: 'patient-experience/departments', element: <PxDepartmentsPage /> },
+      { path: 'patient-experience/optimization', element: <PxOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

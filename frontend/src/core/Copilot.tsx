@@ -81,7 +81,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
-type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU';
+type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience';
 
 function domainCount(hospital: string, year: number, department: DomainName, statuses: Record<string, AlertStatus>): number {
   return alertsFor(hospital, year).filter((alert) => {
@@ -91,7 +91,7 @@ function domainCount(hospital: string, year: number, department: DomainName, sta
   }).length;
 }
 
-function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu'; department: DomainName; page: string; askScope: string } {
+function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience'; department: DomainName; page: string; askScope: string } {
   if (path.startsWith('/beds')) {
     const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
       : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
@@ -158,6 +158,15 @@ function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpat
             : path.startsWith('/icu/optimization') ? 'ICU Capacity Optimization'
               : 'ICU Command Center';
     return { screenId: 'icu', department: 'ICU', page, askScope: 'ICU & Critical Care' };
+  }
+  if (path.startsWith('/patient-experience')) {
+    const page = path.startsWith('/patient-experience/journey') ? 'Patient Journey & Touchpoints'
+      : path.startsWith('/patient-experience/complaints') ? 'Complaints & Service Recovery'
+        : path.startsWith('/patient-experience/voice') ? 'Voice of Patient & Sentiment AI'
+          : path.startsWith('/patient-experience/departments') ? 'Department & Service Experience'
+            : path.startsWith('/patient-experience/optimization') ? 'Experience Improvement & What-If'
+              : 'Patient Experience Command Center';
+    return { screenId: 'patient-experience', department: 'Patient Experience', page, askScope: 'Patient Experience' };
   }
   const page = path.startsWith('/emergency/flow') ? 'Waiting & Patient Flow'
     : path.startsWith('/emergency/quality') ? 'Safety & Return Visits'
@@ -253,6 +262,7 @@ export function CopilotPanel() {
                           : domain.department === 'Laboratory' ? 'Laboratory Decision Support'
                             : domain.department === 'Pharmacy' ? 'Pharmacy Decision Support'
                               : domain.department === 'ICU' ? 'ICU Decision Support'
+                                : domain.department === 'Patient Experience' ? 'Patient Experience Decision Support'
                               : 'Emergency decision support'}
             </p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
@@ -468,7 +478,7 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
         <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
         <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : ''}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : department === 'Patient Experience' ? ' AI does not close complaints or change clinical care alone.' : ''}</p>
       </section>
       <div className="gc-inline">
         {mode === 'decide' ? null : (
@@ -495,6 +505,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
               : department === 'Laboratory' ? 'kpi_lab_testing_backlog'
                 : department === 'Pharmacy' ? 'kpi_rx_median_tat'
                   : department === 'ICU' ? 'kpi_icu_admission_wait'
+                    : department === 'Patient Experience' ? 'kpi_px_overall_satisfaction'
                   : 'kpi_ed_door_to_provider_median_minutes';
   const key = decisionKey(lead?.kpi ?? defaultKpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
@@ -507,7 +518,8 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const lab = department === 'Laboratory';
   const rx = department === 'Pharmacy';
   const icu = department === 'ICU';
-  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : 'emergency';
+  const px = department === 'Patient Experience';
+  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : px ? 'patient-experience' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
       : opd ? 'Median clinic arrival-to-provider · selected hospital and year'
@@ -517,6 +529,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
               : lab ? 'Laboratory testing backlog · selected hospital and year'
                 : rx ? 'Median dispensing turnaround · selected hospital and year'
                   : icu ? 'Median ICU admission wait · selected hospital and year'
+                    : px ? 'Overall patient experience score · selected hospital and year'
                     : 'Door-to-provider time · selected hospital and year';
   const boxTone = decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch';
   return (
@@ -542,7 +555,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
         ) : null}
         {step === 1 ? (
           <p>
-            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : rad ? 'Imaging backlog and scanner delays reduce diagnostic access.' : lab ? 'Testing backlog and analyzer delays reduce laboratory throughput.' : rx ? 'Verification backlog, stockouts, and rework slow medication dispensing.' : 'Waiting time affects ED flow.')}
+            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : rad ? 'Imaging backlog and scanner delays reduce diagnostic access.' : lab ? 'Testing backlog and analyzer delays reduce laboratory throughput.' : rx ? 'Verification backlog, stockouts, and rework slow medication dispensing.' : icu ? 'ICU admission delays and staffed capacity affect critical-care flow.' : px ? 'Satisfaction, complaints, and recovery backlog affect patient experience.' : 'Waiting time affects ED flow.')}
             {' '}Potential drivers: {lead?.drivers ?? lead?.investigation ?? 'Review domain evidence together.'} These are not proven causes.
           </p>
         ) : null}
@@ -564,13 +577,17 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                           ? 'Analyzer recovery and backlog sketches are illustrative. Not a validated laboratory forecast.'
                           : rx
                             ? 'Dispensing, stock, and capacity sketches are illustrative. Not a validated pharmacy forecast or clinical guidance.'
+                            : icu
+                              ? 'Transfer, staffing, and equipment sketches are illustrative. Not a validated critical-care forecast.'
+                              : px
+                                ? 'Satisfaction and complaint-recovery sketches are illustrative. Not a validated experience forecast or HCAHPS claim.'
                             : 'Continued demand is not converted into a predicted wait. Not a validated model.'}
           </p>
         ) : null}
         {step === 3 ? (
           <p>
-            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : rad ? 'Recover scanner downtime and prioritize eligible imaging waitlist before adding unstaffed sessions.' : lab ? 'Recover analyzer downtime and prioritize eligible testing backlog before adding unstaffed sessions.' : rx ? 'Clear verification backlog and rework before adding unstaffed pharmacy sessions; review stockout SKUs with the supply lead.' : 'Review the peak arrival hours against the door-to-provider median.')}
-            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : rad ? ' AI does not change imaging schedules alone.' : lab ? ' AI does not change laboratory schedules alone.' : rx ? ' AI does not change pharmacy schedules alone.' : ''}
+            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : rad ? 'Recover scanner downtime and prioritize eligible imaging waitlist before adding unstaffed sessions.' : lab ? 'Recover analyzer downtime and prioritize eligible testing backlog before adding unstaffed sessions.' : rx ? 'Clear verification backlog and rework before adding unstaffed pharmacy sessions; review stockout SKUs with the supply lead.' : icu ? 'Clear pending ICU transfers and staffing gaps before adding unstaffed physical beds.' : px ? 'Prioritize waiting-time dissatisfaction and overdue complaint recovery with named owners.' : 'Review the peak arrival hours against the door-to-provider median.')}
+            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : rad ? ' AI does not change imaging schedules alone.' : lab ? ' AI does not change laboratory schedules alone.' : rx ? ' AI does not change pharmacy schedules alone.' : icu ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : px ? ' AI does not close complaints or change clinical care alone.' : ''}
             {lead?.period ? ` Alert evidence period: ${lead.period}.` : ''}
           </p>
         ) : null}
@@ -620,6 +637,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
   const lab = department === 'Laboratory';
   const rx = department === 'Pharmacy';
   const icu = department === 'ICU';
+  const px = department === 'Patient Experience';
   const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const prompts = beds
     ? page === 'Bed Assignment'
@@ -701,6 +719,18 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                             : page === 'ICU Capacity Optimization'
                               ? ['How many ICU bed hours could be recovered?', 'What operational improvements are feasible?', ...WHAT_IF_PROMPTS.ICU.slice(5, 6)]
                               : ['What is driving ICU demand?', 'Which ICU unit has the greatest transfer backlog?', ...WHAT_IF_PROMPTS.ICU.slice(0, 1)]
+                    : px
+                      ? page === 'Patient Journey & Touchpoints'
+                        ? ['Which journey touchpoints score lowest?', 'How is waiting experience trending?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(0, 2)]
+                        : page === 'Complaints & Service Recovery'
+                          ? ['What is driving complaint volume?', 'How many complaints are overdue?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(2, 4)]
+                          : page === 'Voice of Patient & Sentiment AI'
+                            ? ['Which feedback themes are emerging?', 'What share of comments is negative?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(4, 5)]
+                            : page === 'Department & Service Experience'
+                              ? ['Which departments fall below the experience target?', 'Where is survey coverage thin?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(1, 2)]
+                              : page === 'Experience Improvement & What-If'
+                                ? ['Which experience actions should we intervene on first?', 'What operational improvements are feasible?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(5, 6)]
+                                : ['Is overall satisfaction falling?', 'What should experience leadership prioritize?', ...WHAT_IF_PROMPTS['Patient Experience'].slice(0, 1)]
                 : page === 'Waiting & Patient Flow'
                   ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
                   : page === 'Safety & Return Visits'
@@ -784,6 +814,30 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                                 : page === 'Pharmacy Capacity Optimization'
                                   ? 'Ask about recoverable hours, additional lines, eligible pending lines, or capacity what-if scenarios on this screen.'
                                   : 'Ask about medication orders, verified orders, dispensed lines, completion rate, or pending orders on this screen.'
+                        : icu
+                          ? page === 'ICU Patient Flow & Throughput'
+                            ? 'Ask about admission waits, transfer delays, length of stay, or pending transfers on this screen.'
+                            : page === 'Critical Care Capacity & Staffing'
+                              ? 'Ask about staffed beds, coverage gaps, or available staffed capacity on this screen.'
+                              : page === 'Ventilation & Equipment Intelligence'
+                                ? 'Ask about ventilator availability, downtime, or equipment readiness on this screen.'
+                                : page === 'ICU Quality & Safety Intelligence'
+                                  ? 'Ask about safety review backlog or surveillance completeness on this screen.'
+                                  : page === 'ICU Capacity Optimization'
+                                    ? 'Ask about recoverable bed hours, feasible capacity, or flow what-if scenarios on this screen.'
+                                    : 'Ask about ICU demand, census, or unit transfer backlog on this screen.'
+                          : px
+                            ? page === 'Patient Journey & Touchpoints'
+                              ? 'Ask about touchpoint scores, waiting experience, discharge communication, or journey linkage on this screen.'
+                              : page === 'Complaints & Service Recovery'
+                                ? 'Ask about complaint drivers, overdue cases, resolution time, or reopen rate on this screen.'
+                                : page === 'Voice of Patient & Sentiment AI'
+                                  ? 'Ask about emerging themes, negative feedback share, or review coverage on this screen. Comments are synthetic — not real patient quotes.'
+                                  : page === 'Department & Service Experience'
+                                    ? 'Ask about departments below target, coverage gaps, or service-line scores on this screen.'
+                                    : page === 'Experience Improvement & What-If'
+                                      ? 'Ask about priority interventions, modeled uplift, or experience what-if scenarios on this screen.'
+                                      : 'Ask about overall satisfaction, response rate, unresolved issues, or recommendation score on this screen. Internal survey — not HCAHPS.'
                       : page === 'Waiting & Patient Flow'
                         ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
                         : page === 'Safety & Return Visits'
@@ -792,7 +846,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
-  }, [askScope, appt, beds, ipd, lab, opd, rad, rx, surg, label, page, periodLabel]);
+  }, [askScope, appt, beds, icu, ipd, lab, opd, px, rad, rx, surg, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -862,7 +916,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : 'Ask the Emergency Director view…'}
+          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : px ? 'Ask the Patient Experience view…' : 'Ask the Emergency Director view…'}
           aria-label="Message Vital Assist"
           disabled={typing}
         />
