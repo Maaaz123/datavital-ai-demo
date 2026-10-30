@@ -49,7 +49,13 @@ export function formatMeasure(item: Measure, lang: 'en' | 'ar' = 'en'): string {
     }
     return `${digits.format(pct)}%`;
   }
-  if (item.kind === 'index') return `${digits.format(item.value)} / 100`;
+  if (item.kind === 'index') {
+    // Unit-aware index formatting: PX survey scores are 0–10; classic demo indexes stay /100.
+    if (item.unit === 'score') return `${digits.format(item.value)} / 10`;
+    if (item.unit === 'points') return `${digits.format(item.value)} pts`;
+    if (item.unit === 'ratio') return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value);
+    return `${digits.format(item.value)} / 100`;
+  }
   if (item.kind === 'multiplier') return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value)}×`;
   if (item.kind === 'currency') return `${CURRENCY} ${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(item.value)}`;
   if (item.kind === 'fte') return `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(item.value)} FTE`;

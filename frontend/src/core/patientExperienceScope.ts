@@ -52,15 +52,21 @@ export function pxIndicatorsFor(view: PxView): Indicator[] {
       aggregation: 'Ratio', scope: view.periodLabel, classification: 'constructed',
       limitations: 'Internal instrument scale — not official HCAHPS top-box reporting.', method: 'Top-box share.',
     }),
-    row('Survey', 'Negative Experience Share', {
-      unit: 'rate', formula: 'Bottom-box (0–6) ÷ eligible overall ratings', cohort: 'Eligible overall ratings',
+    row('Survey', 'Negative Survey Rating Share', {
+      unit: 'rate', formula: 'Bottom-box (0–6) ÷ eligible overall survey ratings', cohort: 'Eligible overall survey ratings',
       aggregation: 'Ratio', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Bottom-box uses 0–6 on the internal 0–10 scale.', method: 'Bottom-box share.',
+      limitations: 'Survey rating distribution — distinct from Negative Comment Sentiment Share on Voice.', method: 'Negative Survey Rating Share (bottom-box).',
     }),
     row('Survey', 'Patient Recommendation Score', {
-      unit: 'index', formula: '(% promoters 9–10 − % detractors 0–6) × 100 on Q_RECOMMEND', cohort: 'Recommendation answers',
-      aggregation: 'Promoter−detractor index', scope: view.periodLabel, classification: 'constructed',
+      unit: 'points', formula: '(% promoters 9–10 − % detractors 0–6) × 100 on Q_RECOMMEND', cohort: 'Recommendation answers',
+      aggregation: 'Promoter−detractor points index', scope: view.periodLabel, classification: 'constructed',
       limitations: m.recommendation, method: m.recommendation,
+    }),
+    row('Survey', 'Survey Response Denominators', {
+      unit: 'count', formula: 'Invitations / raw completions / duplicates / eligible completed', cohort: 'Invitation-based survey protocol',
+      aggregation: 'Count by grain', scope: view.periodLabel, classification: 'constructed',
+      limitations: m.grains,
+      method: `Invitations ${view.eligibleInvitations} · raw ${view.completionsRaw} · duplicates ${view.duplicateCompletions} · eligible ${view.eligibleCompleted} · instrument ${view.instrument.id} v${view.instrument.version}.`,
     }),
     row('Survey', 'Unresolved Experience Issues', {
       unit: 'issues', formula: 'Open complaints + high-priority unreviewed comments', cohort: 'Complaints + voice flags',
@@ -135,10 +141,10 @@ export function pxIndicatorsFor(view: PxView): Indicator[] {
       aggregation: 'Count', scope: view.periodLabel, classification: 'constructed',
       limitations: m.voice, method: m.voice,
     }),
-    row('Voice', 'Negative Feedback Share', {
-      unit: 'rate', formula: 'Negative-sentiment comments ÷ analyzed comments', cohort: 'Analyzed comments',
+    row('Voice', 'Negative Comment Sentiment Share', {
+      unit: 'rate', formula: 'Negative-sentiment comments ÷ analyzed comments', cohort: 'Analyzed free-text comments',
       aggregation: 'Ratio', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Synthetic bilingual templates labeled [SYNTHETIC].', method: 'Negative sentiment share.',
+      limitations: 'Comment cohort — distinct from Negative Survey Rating Share. Synthetic EN/AR [SYNTHETIC] templates.', method: 'Negative Comment Sentiment Share.',
     }),
     row('Voice', 'Emerging Issue Themes', {
       unit: 'themes', formula: 'Themes with rising frequency vs baseline and negative polarity', cohort: 'Theme ledger',

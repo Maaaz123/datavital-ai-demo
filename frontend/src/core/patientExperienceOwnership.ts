@@ -22,8 +22,8 @@ export const PX_KPI_OWNERS: PxKpiOwner[] = [
   { id: 'kpi_px_overall_satisfaction', fullName: 'Overall Patient Satisfaction', display: 'Overall Satisfaction', screen: 'command', route: '/patient-experience', decision: 'Weighted mean of eligible overall-rating answers (0–10 instrument scale)' },
   { id: 'kpi_px_response_rate', fullName: 'Survey Response Rate', display: 'Response Rate', screen: 'command', route: '/patient-experience', decision: 'Eligible completed responses ÷ eligible invitations' },
   { id: 'kpi_px_positive_share', fullName: 'Positive Experience Share', display: 'Positive Share', screen: 'command', route: '/patient-experience', decision: 'Top-box (9–10) overall ratings ÷ eligible overall ratings' },
-  { id: 'kpi_px_negative_share', fullName: 'Negative Experience Share', display: 'Negative Share', screen: 'command', route: '/patient-experience', decision: 'Bottom-box (0–6) overall ratings ÷ eligible overall ratings' },
-  { id: 'kpi_px_recommendation', fullName: 'Patient Recommendation Score', display: 'Recommendation', screen: 'command', route: '/patient-experience', decision: '% promoters (9–10) − % detractors (0–6) on the recommendation question (0–10)' },
+  { id: 'kpi_px_negative_share', fullName: 'Negative Survey Rating Share', display: 'Neg. Survey Share', screen: 'command', route: '/patient-experience', decision: 'Bottom-box (0–6) eligible overall survey ratings ÷ eligible overall ratings — survey cohort, not comment sentiment' },
+  { id: 'kpi_px_recommendation', fullName: 'Patient Recommendation Score', display: 'Recommendation', screen: 'command', route: '/patient-experience', decision: '(% promoters 9–10 − % detractors 0–6) × 100 on Q_RECOMMEND — points index, not official NPS' },
   { id: 'kpi_px_unresolved_issues', fullName: 'Unresolved Experience Issues', display: 'Unresolved Issues', screen: 'command', route: '/patient-experience', decision: 'Open complaints + high-priority unreviewed comments at observation' },
 
   // Journey — touchpoint experience
@@ -44,7 +44,7 @@ export const PX_KPI_OWNERS: PxKpiOwner[] = [
 
   // Voice — sentiment / themes (synthetic, auditable)
   { id: 'kpi_px_comments_analyzed', fullName: 'Comments Analyzed', display: 'Comments Analyzed', screen: 'voice', route: '/patient-experience/voice', decision: 'Free-text comments with deterministic theme/sentiment labels' },
-  { id: 'kpi_px_negative_feedback_share', fullName: 'Negative Feedback Share', display: 'Negative Feedback', screen: 'voice', route: '/patient-experience/voice', decision: 'Negative-sentiment comments ÷ analyzed comments' },
+  { id: 'kpi_px_negative_feedback_share', fullName: 'Negative Comment Sentiment Share', display: 'Neg. Comment Sent.', screen: 'voice', route: '/patient-experience/voice', decision: 'Negative-sentiment free-text comments ÷ analyzed comments — comment cohort, not survey bottom-box' },
   { id: 'kpi_px_emerging_themes', fullName: 'Emerging Issue Themes', display: 'Emerging Themes', screen: 'voice', route: '/patient-experience/voice', decision: 'Themes with rising frequency vs prior period and negative polarity' },
   { id: 'kpi_px_high_priority_feedback', fullName: 'High-Priority Feedback', display: 'High-Priority', screen: 'voice', route: '/patient-experience/voice', decision: 'Comments flagged for human review (severity or safety cue)' },
   { id: 'kpi_px_theme_review_coverage', fullName: 'Theme Review Coverage', display: 'Theme Review', screen: 'voice', route: '/patient-experience/voice', decision: 'Human-reviewed classifications ÷ analyzed comments' },

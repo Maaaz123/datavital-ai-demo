@@ -21,6 +21,7 @@ import {
 import { answerQuestion } from '@/showcase/assistant';
 import { bindKpi } from '@/showcase/bind';
 import { findKpi } from '@/showcase/engine';
+import { formatMeasure, measure } from '@/showcase/measures';
 import { parseWhatIfIntent, runWhatIf, WHAT_IF_PROMPTS } from '@/showcase/whatIf';
 import type { ReportPeriod } from './period';
 
@@ -214,6 +215,62 @@ describe('Patient Experience alerts and binding', () => {
       const raw = bindKpi(kpi as never, { admissions: 0 } as never, 'H1', 2026);
       expect(Number.isFinite(raw.value), owner.id).toBe(true);
     }
+  });
+
+  it('formats 0–10 survey scores as /10 and never as /100 in alerts', () => {
+    const view = buildPxView('H1', 2026, 'year');
+    expect(view.overallSatisfaction).toBeGreaterThanOrEqual(0);
+    expect(view.overallSatisfaction).toBeLessThanOrEqual(10);
+    expect(view.waitingScore).toBeLessThanOrEqual(10);
+    expect(view.dischargeScore).toBeLessThanOrEqual(10);
+    const overall = measure(findKpi('kpi_px_overall_satisfaction') as never, 'H1', 2026);
+    const waiting = measure(findKpi('kpi_px_waiting_score') as never, 'H1', 2026);
+    const discharge = measure(findKpi('kpi_px_discharge_score') as never, 'H1', 2026);
+    const recommend = measure(findKpi('kpi_px_recommendation') as never, 'H1', 2026);
+    expect(formatMeasure(overall)).toMatch(/\/ 10$/);
+    expect(formatMeasure(overall)).not.toMatch(/\/ 100/);
+    expect(formatMeasure(waiting)).toMatch(/\/ 10$/);
+    expect(formatMeasure(discharge)).toMatch(/\/ 10$/);
+    expect(formatMeasure(recommend)).toMatch(/pts$/);
+    expect(formatMeasure(recommend)).not.toMatch(/\/ 10$/);
+    const alerts = alertsFor('H1', 2026).filter((alert) => alert.department === 'Patient Experience');
+    const sat = alerts.find((alert) => alert.kpi === 'kpi_px_overall_satisfaction');
+    const wait = alerts.find((alert) => alert.kpi === 'kpi_px_waiting_score');
+    const disc = alerts.find((alert) => alert.kpi === 'kpi_px_discharge_score');
+    expect(sat?.observed).toMatch(/\/ 10/);
+    expect(sat?.observed).not.toMatch(/\/ 100/);
+    expect(wait?.observed).toMatch(/\/ 10/);
+    expect(disc?.observed).toMatch(/\/ 10/);
+  });
+
+  it('keeps Negative Survey Rating Share distinct from Negative Comment Sentiment Share', () => {
+    const view = buildPxView('H1', 2026, 'year');
+    expect(view.negativeShare).toBeCloseTo(view.bottomBox / Math.max(1, view.overallCount), 3);
+    expect(view.negativeFeedbackShare).toBeCloseTo(view.negativeComments / Math.max(1, view.commentsAnalyzed), 3);
+    // Cohorts differ — do not force equality
+    expect(view.overallCount).not.toBe(view.commentsAnalyzed);
+    const surveyNeg = bindKpi(findKpi('kpi_px_negative_share') as never, { admissions: 0 } as never, 'H1', 2026);
+    const commentNeg = bindKpi(findKpi('kpi_px_negative_feedback_share') as never, { admissions: 0 } as never, 'H1', 2026);
+    expect(surveyNeg.note).toMatch(/Survey Rating Share|survey/i);
+    expect(surveyNeg.note).toMatch(/Distinct|distinct|not.*comment/i);
+    expect(commentNeg.note).toMatch(/Comment Sentiment|comment/i);
+    expect(commentNeg.note).toMatch(/Distinct|distinct|not.*Survey/i);
+    expect(PX_KPI_OWNERS.find((item) => item.id === 'kpi_px_negative_share')?.fullName).toMatch(/Survey Rating/i);
+    expect(PX_KPI_OWNERS.find((item) => item.id === 'kpi_px_negative_feedback_share')?.fullName).toMatch(/Comment Sentiment/i);
+  });
+
+  it('exposes survey invitation denominators and duplicate exclusion', () => {
+    const view = buildPxView('H1', 2026, 'year');
+    expect(view.eligibleCompleted).toBeLessThanOrEqual(view.eligibleInvitations);
+    expect(view.eligibleCompleted).toBe(view.completionsRaw - view.duplicateCompletions);
+    expect(view.completionsRaw).toBeGreaterThanOrEqual(view.eligibleCompleted);
+    expect(view.duplicateCompletions).toBeGreaterThanOrEqual(0);
+    expect(view.overallCount).toBeLessThanOrEqual(view.eligibleCompleted);
+    expect(view.recommendCount).toBeLessThanOrEqual(view.eligibleCompleted);
+    const response = bindKpi(findKpi('kpi_px_response_rate') as never, { admissions: 0 } as never, 'H1', 2026);
+    expect(response.note).toMatch(/duplicates discarded/i);
+    expect(response.denominator).toBe(view.eligibleInvitations);
+    expect(response.numerator).toBe(view.eligibleCompleted);
   });
 });
 

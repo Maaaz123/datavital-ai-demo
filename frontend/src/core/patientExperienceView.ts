@@ -1118,6 +1118,7 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
 
     // Voice KPIs
     commentsAnalyzed,
+    negativeComments,
     negativeFeedbackShare,
     emergingThemes,
     highPriorityFeedback,
