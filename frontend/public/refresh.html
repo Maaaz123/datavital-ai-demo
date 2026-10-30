@@ -10,7 +10,7 @@
     <p>Clearing cached files…</p>
     <script>
       (async function () {
-        const BUILD_ID = 'v72-patient-experience';
+        const BUILD_ID = 'v72b-px-pages-base';
         try {
           localStorage.setItem('datavital-build-id', BUILD_ID);
           if (window.caches) {
@@ -24,7 +24,7 @@
         } catch (error) {
           console.warn(error);
         }
-        location.replace('/datavital-ai-demo/?fresh=' + encodeURIComponent(BUILD_ID));
+        location.replace('/?fresh=' + encodeURIComponent(BUILD_ID));
       })();
     </script>
   </body>

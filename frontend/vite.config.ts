@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  base: '/datavital-ai-demo/',
+  // Custom domain (demo.datavital.io) serves the Pages project at site root.
+  // github.io/datavital-ai-demo redirects there, so asset base must be `/`.
+  base: '/',
   plugins: [
     react(),
     VitePWA({
@@ -19,7 +21,7 @@ export default defineConfig({
         theme_color: '#0B6E6E',
         background_color: '#f8fafc',
         display: 'standalone',
-        start_url: '/datavital-ai-demo/',
+        start_url: '/',
         lang: 'en',
         dir: 'auto' as 'ltr',
         icons: [
@@ -37,7 +39,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        navigateFallback: '/datavital-ai-demo/index.html',
+        navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /refresh\.html$/],
 
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],

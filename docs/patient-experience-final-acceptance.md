@@ -1,10 +1,10 @@
 # Patient Experience & Satisfaction Intelligence — Final Acceptance
 
 **Domain:** Domain 11 — Patient Experience & Satisfaction Intelligence  
-**BUILD_ID:** `v72-patient-experience`  
+**BUILD_ID:** `v72b-px-pages-base`  
 **Production commit:** `16720825c4f9818fda179eb8f1a015d70858dae1` — fill after commit; **pending push**  
-**JS bundle:** `assets/index-Cfi4FfYs.js`  
-**PWA helper:** `assets/pwa-DeMTWY9q.js`  
+**JS bundle:** `assets/index-CQ4cZtdj.js`  
+**PWA helper:** `assets/pwa-CTHl9rWL.js`  
 **Instrument:** `DV-PX-Internal-v1` (official HCAHPS / CAHPS benchmarking **unavailable**)  
 **Automated suite:** **271 passed** / 271 (`vitest run`, 40 files)  
 **PX reconcile:** **20 passed** (`patient-experience-reconcile.test.ts`)  
@@ -348,9 +348,9 @@ Domains 1–10 must remain operational without redesign.
 
 | Item | Value | Result |
 |---|---|---|
-| BUILD_ID | `v72-patient-experience` | **PASS** (local `frontend/src/pwa.ts`, `frontend/public/refresh.html`, root `refresh.html`) |
-| Bundle | `assets/index-Cfi4FfYs.js` | **PASS** (local `frontend/dist` production build) |
-| PWA helper | `assets/pwa-DeMTWY9q.js` | **PASS** (local dist) |
+| BUILD_ID | `v72b-px-pages-base` | **PASS** (local `frontend/src/pwa.ts`, `frontend/public/refresh.html`, root `refresh.html`) |
+| Bundle | `assets/index-CQ4cZtdj.js` | **PASS** (local `frontend/dist` production build) |
+| PWA helper | `assets/pwa-CTHl9rWL.js` | **PASS** (local dist) |
 | GitHub Pages serves BUILD_ID / bundles | **NOT TESTED** | pending push |
 | `localStorage` BUILD_ID after `/refresh.html` on production | **NOT TESTED** | pending push |
 
@@ -410,8 +410,8 @@ Documentable future associations (satisfaction ↔ service quality ↔ capacity 
 | Local automated acceptance (ownership, survey, complaints, voice, journey, Assist, six What-ifs, filters, pages) | **PASS** |
 | Artifact pack (dictionary / mapping / lineage / readiness) | **PASS** |
 | Ten-domain regression suite | **PASS** (271/271) |
-| Local production build identity `v72-patient-experience` / `index-Cfi4FfYs.js` / `pwa-DeMTWY9q.js` | **PASS** |
+| Local production build identity `v72b-px-pages-base` / `index-CQ4cZtdj.js` / `pwa-CTHl9rWL.js` | **PASS** |
 | Commit hash recorded | **NOT TESTED** (`16720825c4f9818fda179eb8f1a015d70858dae1`) |
 | GitHub Pages live verification + desktop browser visual QA | **NOT TESTED** (pending push) |
 
-**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `16720825c4f9818fda179eb8f1a015d70858dae1` is replaced with the real hash, and live Pages checks confirm `v72-patient-experience` with bundles `index-Cfi4FfYs.js` / `pwa-DeMTWY9q.js` on the six `/patient-experience*` routes.
+**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `16720825c4f9818fda179eb8f1a015d70858dae1` is replaced with the real hash, and live Pages checks confirm `v72b-px-pages-base` with bundles `index-CQ4cZtdj.js` / `pwa-CTHl9rWL.js` on the six `/patient-experience*` routes.
