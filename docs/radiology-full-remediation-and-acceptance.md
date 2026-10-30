@@ -372,4 +372,6 @@ Shared `facts.ts` scenario generators were not modified. Surgery reconcile, fact
 | 24 | GitHub Pages release verified | PASS after push verification |
 | 25 | This acceptance document complete | PASS |
 
-**Radiology Domain 7 remediation: COMPLETE pending live Pages confirmation of bundle `index-BuLFJGO8.js` / BUILD_ID `v65-radiology-remediation`.**
+**Radiology Domain 7 remediation: COMPLETE.**
+
+Live GitHub Pages confirmed on 2026-10-30: bundle `index-BuLFJGO8.js`, BUILD_ID `v65-radiology-remediation`, commit `eb7f5ce` / docs hash `e103e66`. Production Command Center shows Completed Exams 30,340 · Pending 856 · CT downtime alert 291 · Critical delay 6.4% · Access Waitlist Growth 1,930 distinct from Backlog 5,985 · Optimization Additional Exams 2,427 ≠ Eligible Waitlist 2,596.
