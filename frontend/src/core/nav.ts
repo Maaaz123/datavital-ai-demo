@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality';
 };
 
 export type NavDomain = {
@@ -268,6 +268,50 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'laboratory',
+    label: 'Laboratory',
+    mark: 'Lab',
+    match: (path) => path.startsWith('/laboratory'),
+    screens: [
+      {
+        to: '/laboratory',
+        short: 'Command',
+        title: 'Laboratory Command Center',
+        purpose: 'Test demand, completion, and STAT mix',
+        end: true,
+        glyph: 'lab',
+      },
+      {
+        to: '/laboratory/samples',
+        short: 'Samples',
+        title: 'Sample Flow & Pre-Analytics',
+        purpose: 'Specimen receipt, rejection, and transport',
+        glyph: 'lab-sample',
+      },
+      {
+        to: '/laboratory/analyzers',
+        short: 'Analyzers',
+        title: 'Testing & Analyzer Performance',
+        purpose: 'Analyzer utilization, downtime, and backlog',
+        glyph: 'lab-analyzer',
+      },
+      {
+        to: '/laboratory/quality',
+        short: 'Results',
+        title: 'Results, TAT & Quality',
+        purpose: 'Lab TAT, validation, and critical notify',
+        glyph: 'lab-quality',
+      },
+      {
+        to: '/laboratory/optimization',
+        short: 'Capacity',
+        title: 'Laboratory Capacity Optimization',
+        purpose: 'Recoverable hours and feasible extra tests',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -283,10 +327,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample') return 'M4 7h16M4 12h10M4 17h14';
   if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

@@ -7,10 +7,11 @@ import { OpdFlowPage, OpdOverviewPage, OpdQualityPage } from '@/core/opd';
 import { ApptAccessPage, ApptAttendancePage, ApptCommandPage, ApptRecoveryPage } from '@/core/appointments';
 import { SurgAccessPage, SurgCommandPage, SurgOptimizationPage, SurgOrPage, SurgQualityPage } from '@/core/surgery';
 import { RadAccessPage, RadCommandPage, RadOptimizationPage, RadQualityPage, RadUtilizationPage } from '@/core/radiology';
+import { LabAnalyzersPage, LabCommandPage, LabOptimizationPage, LabQualityPage, LabSamplesPage } from '@/core/laboratory';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
-  '/laboratory', '/pharmacy', '/rcm',
+  '/pharmacy', '/rcm',
   '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
@@ -52,6 +53,11 @@ export const routes = [
       { path: 'radiology/utilization', element: <RadUtilizationPage /> },
       { path: 'radiology/quality', element: <RadQualityPage /> },
       { path: 'radiology/optimization', element: <RadOptimizationPage /> },
+      { path: 'laboratory', element: <LabCommandPage /> },
+      { path: 'laboratory/samples', element: <LabSamplesPage /> },
+      { path: 'laboratory/analyzers', element: <LabAnalyzersPage /> },
+      { path: 'laboratory/quality', element: <LabQualityPage /> },
+      { path: 'laboratory/optimization', element: <LabOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

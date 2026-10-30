@@ -1,5 +1,6 @@
 import { leaveSplit } from '@/core/derived';
 import { longStayRateFromP90 } from '@/core/ipdScope';
+import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
@@ -127,9 +128,55 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_bed_awaiting_count' || key === 'kpi_inpatient_awaiting_placement_count') return count(Math.round(arrivals * 0.04), 'down', 'Patients waiting for a bed are 4% of ED arrivals, not a share of staffed beds.');
   if (key === 'kpi_bed_waitlist_volume' || key === 'kpi_ed_bed_waitlist_volume') return count(Math.round(arrivals * 0.08), 'down', 'Bed-request events are 8% of ED arrivals.');
 
-  if (key === 'kpi_lab_order_volume') return count(orders, 'neutral', 'Laboratory orders. The same integer as the laboratory workspace.');
+  if (key === 'kpi_lab_order_volume' || key === 'kpi_lab_test_orders' || key === 'kpi_lab_tests_ordered') {
+    if (key === 'kpi_lab_test_orders') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return count(view.orders, 'neutral', 'Laboratory test orders from Laboratory Command view. Distinct from specimens and test items.');
+    }
+    return count(orders, 'neutral', 'Laboratory orders. The same integer as the laboratory workspace.');
+  }
+  if (key === 'kpi_lab_completed_tests' || key === 'kpi_lab_tests_completed') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.completedTests, 'neutral', 'Completed (released) laboratory tests from Laboratory Command view.');
+  }
   if (key === 'kpi_lab_result_volume') return count(fact.labResulted, 'neutral', 'Resulted tests. Resulted + cancelled + delayed = orders.');
   if (key === 'kpi_lab_cancelled_tests') return count(fact.labCancelled, 'down', 'Cancelled tests inside the order identity.');
+  if (key === 'kpi_lab_samples_received') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.samplesReceived, 'neutral', 'Samples received from Laboratory Samples view.');
+  }
+  if (key === 'kpi_lab_testing_backlog') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.testingBacklog, 'down', 'Laboratory testing backlog (pending analysis) from Laboratory Analyzers view.');
+  }
+  if (key === 'kpi_lab_pending_validation') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.pendingValidation, 'down', 'Results awaiting validation from Laboratory Quality view.');
+  }
+  if (key === 'kpi_lab_over_target') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.resultsOverTarget, 'down', 'Released results over TAT target from Laboratory Quality view.');
+  }
+  if (key === 'kpi_lab_analyzer_downtime') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.chemistryDowntimeHours, 'down', 'Chemistry analyzer downtime hours from Laboratory Analyzers view — not hospital-wide downtime.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_lab_unused_analyzer_hours') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.unusedHours, 'down', 'Unused staffed analyzer hours from Laboratory Analyzers view.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_lab_recoverable_hours') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.recoverableHours, 'up', 'Potentially recoverable lab hours from Laboratory Optimization.', GRAIN, 'hours');
+  }
+  if (key === 'kpi_lab_additional_tests') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.additionalTests, 'up', 'Feasible additional tests from Laboratory Optimization.');
+  }
+  if (key === 'kpi_lab_eligible_backlog') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.eligibleBacklog, 'neutral', 'Eligible testing backlog from Laboratory Optimization.');
+  }
   if (key === 'kpi_radiology_order_volume' || key === 'kpi_rad_imaging_order_volume' || key === 'kpi_rad_imaging_requests') {
     if (key === 'kpi_rad_imaging_requests') {
       const view = buildRadiologyView(hospital, year, 'year');
@@ -296,6 +343,14 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
     const view = buildRadiologyView(hospital, year, 'year');
     return count(view.ctDowntimeHours, 'down', 'CT-specific downtime hours inside staffed CT sessions. Bound to Radiology Utilization view.', GRAIN, 'hours');
   }
+  if (key === 'kpi_lab_analyzer_utilization') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return exactRate(view.inSessionUsed, view.staffedHours, 'up', 'Analyzer Utilization = in-session ÷ staffed hours from Laboratory Analyzers view. Overtime is separate.');
+  }
+  if (key === 'kpi_lab_tests_per_hour') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return multiplier(view.completedTests, Math.max(view.inSessionUsed, 1), 'tests per hour', 'Completed tests ÷ in-session analyzer hours from Laboratory Analyzers view.');
+  }
   if (key === 'kpi_surg_or_utilization') {
     const view = buildSurgeryView(hospital, year, 'year');
     return exactRate(view.usedHours, view.staffedHours, 'up', 'OR Utilization = (procedure + turnover) ÷ staffed hours from Surgery OR view. Uncapped; overtime is separate.');
@@ -331,6 +386,10 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_lab_cancellation_rate') return ratio(fact.labCancelled, orders, 'down', 'Cancelled tests ÷ laboratory orders.');
   if (key === 'kpi_rad_cancelled_exam_rate') return ratio(fact.radCancelled, fact.radOrders, 'down', 'Cancelled exams ÷ radiology orders.');
   if (key === 'kpi_lab_order_completed_rate' || key === 'kpi_lab_result_to_order_ratio') return ratio(fact.labResulted, orders, 'up', 'Resulted tests ÷ laboratory orders.');
+  if (key === 'kpi_lab_stat_share') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return exactRate(view.statTests, view.testItems, 'neutral', 'STAT tests ÷ test items from Laboratory Command view.');
+  }
   if (key === 'kpi_rad_exam_completion_rate' || key === 'kpi_rad_completion_rate') {
     const view = buildRadiologyView(hospital, year, 'year');
     return exactRate(view.completed, view.requests, 'up', 'Completed exams ÷ imaging requests. Bound to Radiology Command view.');
@@ -462,9 +521,21 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_bed_request_to_assignment_median_minutes' || key === 'kpi_bed_turnaround_median_minutes') return duration(42 + occ * 18, 'minutes', 'down', 'Median bed turnaround rises with occupancy.');
   if (key === 'kpi_bed_turnaround_hours') return duration((42 + occ * 18) / 60, 'hours', 'down', 'The same turnaround converted from minutes before display rounding.');
   if (key === 'kpi_lab_tat_avg_minutes') return duration(fact.labTatAvgMin, 'minutes', 'down', 'Average laboratory turnaround. It is not the median.');
-  if (key === 'kpi_lab_tat_median_minutes') return duration(fact.labTatMedianMin, 'minutes', 'down', 'Median laboratory turnaround.');
-  if (key === 'kpi_lab_tat_p90_minutes') return duration(fact.labTatP90Min, 'minutes', 'down', 'P90 laboratory turnaround.');
+  if (key === 'kpi_lab_median_tat') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return duration(view.medianLabTatHours, 'hours', 'down', 'Median Lab TAT (receipt→release) from Laboratory Quality view. Distinct from catalog kpi_lab_tat_median_minutes.');
+  }
+  if (key === 'kpi_lab_tat_median_minutes') return duration(fact.labTatMedianMin, 'minutes', 'down', 'Median laboratory turnaround from the shared scenario facts. It is not the average.');
+  if (key === 'kpi_lab_p90_tat') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return duration(view.p90LabTatHours, 'hours', 'down', 'P90 Lab TAT from Laboratory Quality view.');
+  }
+  if (key === 'kpi_lab_tat_p90_minutes') return duration(fact.labTatP90Min, 'minutes', 'down', 'P90 laboratory turnaround from the shared scenario facts.');
   if (key === 'kpi_lab_e2e_tat_minutes') return duration(fact.labTatAvgMin + 18, 'minutes', 'down', 'End-to-end time is the average turnaround plus an 18-minute collection allowance.');
+  if (key === 'kpi_lab_transport_time') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return duration(view.medianTransportMin, 'minutes', 'down', 'Median specimen transport time from Laboratory Samples view.');
+  }
   if (key === 'kpi_radiology_avg_tat_hours') return duration(fact.radTatAvgMin / 60, 'hours', 'down', 'Average report turnaround in hours, from the unrounded average in minutes.');
   if (key === 'kpi_rad_median_report_tat_minutes' || key === 'kpi_rad_median_report_tat') {
     const view = buildRadiologyView(hospital, year, 'year');
@@ -555,7 +626,10 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_pharmacy_demand_units') return count(fact.pharmOrders, 'neutral', 'Pharmacy demand is the medication-order count.');
   if (key === 'kpi_lab_tests_ordered') return count(orders, 'neutral', 'The same laboratory order total.');
   if (key === 'kpi_lab_tests_completed') return count(fact.labResulted, 'neutral', 'The same resulted-test total.');
-  if (key === 'kpi_lab_pending_tests') return count(fact.labDelayed, 'down', 'Delayed orders are the pending cohort inside the order identity.');
+  if (key === 'kpi_lab_pending_tests') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return count(view.pendingTests, 'down', 'Pending laboratory tests from Laboratory Command view.');
+  }
   if (key === 'kpi_lab_overdue_tests') return count(Math.round(orders * 0.02), 'down', 'Overdue tests are 2% of laboratory orders.');
   if (key === 'kpi_lab_critical_result_count') return count(Math.round(fact.labResulted * 0.01), 'down', 'Critical results are 1% of resulted tests.');
   if (key === 'kpi_lab_unacknowledged_critical_count') return count(Math.round(fact.labResulted * 0.01 * 0.07), 'down', 'Unacknowledged critical results are 7% of the critical-result count.');
@@ -601,16 +675,50 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key === 'kpi_icu_transfer_rate') return share(0.04, admissions, 'neutral', 'ICU transfers ÷ admissions. Not an individual deterioration prediction.');
   if (key === 'kpi_expected_discharge_accuracy_rate') return share(0.88, discharges, 'up', 'Discharges that matched the expected date ÷ discharges.');
   if (key === 'kpi_metric_anomaly_alert_rate') return share(0.02, encounters, 'down', 'Anomaly alerts ÷ encounters.');
-  if (key === 'kpi_lab_completion_rate') return ratio(fact.labResulted, orders, 'up', 'Resulted tests ÷ laboratory orders.');
-  if (key === 'kpi_lab_specimen_rejection_rate') return share(0.018, orders, 'down', 'Rejected specimens are 1.8% of laboratory orders.');
-  if (key === 'kpi_lab_hemolyzed_rate') return share(0.008, orders, 'down', 'Hemolyzed specimens are 0.8% of laboratory orders.');
+  if (key === 'kpi_lab_completion_rate') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return exactRate(view.completedTests, view.testItems, 'up', 'Completed tests ÷ test items from Laboratory Command view.');
+  }
+  if (key === 'kpi_lab_rejection_rate' || key === 'kpi_lab_specimen_rejection_rate') {
+    if (key === 'kpi_lab_rejection_rate') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return exactRate(view.rejected, view.assessed, 'down', 'Rejected ÷ assessed specimens from Laboratory Samples view.');
+    }
+    return share(0.018, orders, 'down', 'Rejected specimens are 1.8% of laboratory orders.');
+  }
+  if (key === 'kpi_lab_hemolysis_rate' || key === 'kpi_lab_hemolyzed_rate') {
+    if (key === 'kpi_lab_hemolysis_rate') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return exactRate(view.hemolyzed, view.assessed, 'down', 'Hemolyzed ÷ assessed specimens from Laboratory Samples view.');
+    }
+    return share(0.008, orders, 'down', 'Hemolyzed specimens are 0.8% of laboratory orders.');
+  }
   if (key === 'kpi_lab_clotted_rate') return share(0.004, orders, 'down', 'Clotted specimens are 0.4% of laboratory orders.');
   if (key === 'kpi_lab_qns_rate') return share(0.003, orders, 'down', 'Quantity-not-sufficient specimens are 0.3% of laboratory orders.');
   if (key === 'kpi_lab_mislabeled_rate') return share(0.002, orders, 'down', 'Mislabeled specimens are 0.2% of laboratory orders.');
-  if (key === 'kpi_lab_recollection_rate') return share(0.015, orders, 'down', 'Recollections are 1.5% of laboratory orders.');
+  if (key === 'kpi_lab_recollection_rate') {
+    const view = buildLaboratoryView(hospital, year, 'year');
+    return exactRate(view.recollections, view.assessed, 'down', 'Recollections ÷ assessed specimens from Laboratory Samples view.');
+  }
   if (key === 'kpi_lab_blood_culture_contamination_rate') return share(0.012, Math.round(orders * 0.08), 'down', 'Contaminated cultures ÷ blood-culture orders, which are 8% of laboratory orders.');
-  if (key === 'kpi_lab_critical_notification_rate' || key === 'kpi_lab_critical_notification_sla_rate') return share(key.includes('sla') ? 0.9 : 0.93, Math.round(fact.labResulted * 0.01), 'up', 'Notifications ÷ critical results.');
-  if (key === 'kpi_lab_corrected_result_rate') return share(0.006, fact.labResulted, 'down', 'Corrected results ÷ resulted tests.');
+  if (key === 'kpi_lab_critical_notify_rate' || key === 'kpi_lab_critical_notification_rate' || key === 'kpi_lab_critical_notification_sla_rate' || key === 'kpi_lab_critical_delay_rate') {
+    if (key === 'kpi_lab_critical_notify_rate') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return exactRate(view.criticalNotified, view.criticalResults, 'up', 'Critical Notify Rate = notified ÷ critical results from Laboratory Quality view.');
+    }
+    if (key === 'kpi_lab_critical_delay_rate') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return exactRate(view.criticalPendingComm, view.criticalResults, 'down', 'Critical Delay Rate = pending communication ÷ critical results. Distinct from notify rate.');
+    }
+    return share(key.includes('sla') ? 0.9 : 0.93, Math.round(fact.labResulted * 0.01), 'up', 'Notifications ÷ critical results.');
+  }
+  if (key === 'kpi_lab_corrected_report_rate' || key === 'kpi_lab_corrected_result_rate') {
+    if (key === 'kpi_lab_corrected_report_rate') {
+      const view = buildLaboratoryView(hospital, year, 'year');
+      return exactRate(view.correctedReports, view.releasedResults, 'down', 'Corrected ÷ released results from Laboratory Quality view.');
+    }
+    return share(0.006, fact.labResulted, 'down', 'Corrected results ÷ resulted tests.');
+  }
   if (key === 'kpi_lab_amended_result_rate') return share(0.004, fact.labResulted, 'down', 'Amended results ÷ resulted tests.');
 
   if (key === 'kpi_med_order_to_admin_hours') return duration(2.4, 'hours', 'down', 'A fixed 2.4-hour order-to-administration interval in this story.');

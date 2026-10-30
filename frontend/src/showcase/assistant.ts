@@ -6,6 +6,7 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -92,6 +93,7 @@ export function answerQuestion(
   if (department === 'Appointments') return answerAppointments(q, hospital, year, name, lang, period);
   if (department === 'Surgery') return answerSurgery(q, hospital, year, name, lang, period);
   if (department === 'Radiology') return answerRadiology(q, hospital, year, name, lang, period);
+  if (department === 'Laboratory') return answerLaboratory(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -888,6 +890,98 @@ function answerRadiology(
     action: tx(lang, topAlert?.action ?? `Review Command demand, Access backlog (${hotBacklog.id}), Utilization downtime, then Capacity Optimization.`, topAlert?.action ?? `راجع الطلب والطابور والتوقف.`),
     role: tx(lang, 'Imaging operations lead', 'قائد عمليات التصوير'),
     benefit: tx(lang, 'A sequenced Radiology review keeps demand, access, scanners, reporting, and capacity distinct.', 'مراجعة أشعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerLaboratory(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildLaboratoryView(hospital, year, period);
+  const hotTat = [...view.sections].sort((a, b) => b.reportTatHours - a.reportTatHours)[0];
+  const hotBacklog = [...view.sections].sort((a, b) => b.backlog - a.backlog)[0];
+  const hotReject = [...view.sections].sort((a, b) => b.rejected - a.rejected)[0];
+  const lowUtil = [...view.analyzers].sort((a, b) => a.utilization - b.utilization)[0];
+  const topDown = [...view.downtimeReasons].sort((a, b) => b.hours - a.hours)[0];
+  const topReject = [...view.rejectionReasons].sort((a, b) => b.count - a.count)[0];
+
+  if (/\bed\b|emergency boarding|bed occupancy|appointment no-?show|slot fill|clinic wait|or util|surgical backlog|first.?case|scanner util|imaging backlog/.test(q)
+    && !/laborator|analyzer|specimen|lab tat|hemolys|rejection|validation|critical result/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Laboratory focus', 'خارج تركيز المختبر'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Bed Occupancy stays in Beds. OR Utilization stays in Surgery. Scanner Utilization stays in Radiology. ED flow stays in Emergency.', 'إشغال الأسرة في الأسرة. استخدام غرف العمليات في الجراحة. أجهزة التصوير في الأشعة.'),
+      explanation: tx(lang, 'Laboratory owns test demand, specimen pre-analytics, analyzer utilization, result TAT, and feasible testing capacity recovery.', 'المختبر يملك الطلب والعينات واستخدام الأجهزة وزمن النتائج.'),
+      action: tx(lang, 'Stay on Laboratory screens for demand, samples, analyzers, results, and capacity questions.', 'ابقَ في شاشات المختبر.'),
+      role: tx(lang, 'Laboratory operations lead', 'قائد عمليات المختبر'),
+      benefit: tx(lang, 'Clear ownership prevents duplicated dashboards.', 'الملكية الواضحة تمنع لوحات مكررة.'),
+    });
+  }
+
+  if (/tat|turnaround|section.*tat|stat delay|over.?target|validation|unvalidated/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Results, TAT & quality · ${name} · ${view.periodLabel}`, `النتائج وزمن الاستجابة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Median Lab TAT ${view.medianLabTatHours.toFixed(1)} h · P90 ${view.p90LabTatHours.toFixed(1)} · over target ${view.resultsOverTarget.toLocaleString('en-US')} · pending validation ${view.pendingValidation.toLocaleString('en-US')} · longest section TAT ${hotTat.id} (${hotTat.reportTatHours.toFixed(1)} h).`, `زمن المختبر ${view.medianLabTatHours.toFixed(1)} س.`),
+      evidence: tx(lang, `${view.methodology.reportTat} Critical notify ${((view.criticalNotifyRate) * 100).toFixed(1)}% · critical delay ${((view.criticalDelayRate) * 100).toFixed(1)}% (${view.criticalPendingComm.toLocaleString('en-US')} pending). STAT share ${((view.statShare) * 100).toFixed(1)}%.`, `إشعار حرج ${((view.criticalNotifyRate) * 100).toFixed(1)}٪.`),
+      explanation: tx(lang, 'Potential reasons (not proven): validation aging, section mix (Histopathology/Microbiology), and STAT pathway pressure. Notify rate is not a delay rate.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Clear oldest unvalidated aging bands, tighten STAT pathways for ${hotTat.id}, and close pending critical communications.`, `أغلق أقدم النتائج غير المعتمدة وراجع ${hotTat.id}.`),
+      role: tx(lang, 'Laboratory quality lead', 'قائد جودة المختبر'),
+      benefit: tx(lang, 'Separating testing backlog, validation, and critical communication keeps management actions correctly targeted.', 'فصل طابور التحليل والاعتماد والتواصل الحرج يوجه الإجراءات بشكل صحيح.'),
+    });
+  }
+
+  if (/reject|hemolys|specimen|transport|recollect|pre-?analytic|sample/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Sample flow & pre-analytics · ${name} · ${view.periodLabel}`, `تدفق العينات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Samples received ${view.samplesReceived.toLocaleString('en-US')} · rejection ${((view.rejectionRate) * 100).toFixed(1)}% (${view.rejected.toLocaleString('en-US')}) · hemolysis ${((view.hemolysisRate) * 100).toFixed(1)}% · transport median ${view.medianTransportMin} min · recollections ${view.recollections.toLocaleString('en-US')}.`, `الرفض ${((view.rejectionRate) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Top rejection reason ${topReject.name} (${topReject.count.toLocaleString('en-US')}). Highest section rejections ${hotReject.id}. ${view.methodology.specimenLifecycle} ${view.methodology.accessClock}`, `أعلى سبب رفض ${topReject.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): collection technique, labeling, and transport conditions. Hemolysis overlaps rejection but is not identical.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Coach collection points on ${topReject.name} and review Sample Delays by Care Setting before adding analyzer sessions.`, `درّب نقاط السحب على ${topReject.name}.`),
+      role: tx(lang, 'Laboratory lead', 'قائد المختبر'),
+      benefit: tx(lang, 'Reducing preventable rejections recovers capacity without claiming new analyzers.', 'خفض الرفض القابل للتجنب يسترد السعة دون ادعاء أجهزة جديدة.'),
+    });
+  }
+
+  if (/utiliz|unused|downtime|analyzer|backlog|tests per/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Testing & analyzer performance · ${name} · ${view.periodLabel}`, `أداء أجهزة التحليل · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Analyzer Utilization ${((view.analyzerUtilization) * 100).toFixed(1)}% (${view.inSessionUsed.toLocaleString('en-US')} in-session of ${view.staffedHours.toLocaleString('en-US')} staffed) · unused ${view.unusedHours.toLocaleString('en-US')} h · downtime ${view.downtimeHours.toLocaleString('en-US')} h · Chemistry downtime ${view.chemistryDowntimeHours.toLocaleString('en-US')} h · testing backlog ${view.testingBacklog.toLocaleString('en-US')} · lowest analyzer ${lowUtil.id}.`, `الاستخدام ${((view.analyzerUtilization) * 100).toFixed(1)}٪.`),
+      evidence: tx(lang, `Top downtime reason ${topDown.name} (${topDown.hours.toLocaleString('en-US')} h). Largest section backlog ${hotBacklog.id}. ${view.methodology.utilization}`, `توقف ${topDown.name}.`),
+      explanation: tx(lang, 'Potential reasons (not proven): downtime, QC holds, and late batch starts leave staffed hours unused. Analyzer utilization is not staff utilization.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, `Start with Chemistry downtime recovery and ${topDown.name}, then review Testing Backlog by Section for ${hotBacklog.id}.`, `ابدأ باسترداد توقف الكيمياء و${topDown.name}.`),
+      role: tx(lang, 'Laboratory operations lead', 'قائد عمليات المختبر'),
+      benefit: tx(lang, 'Recovering staffed analyzer hours raises throughput without claiming new equipment.', 'استرداد ساعات الأجهزة يرفع الإنتاجية دون ادعاء أجهزة جديدة.'),
+    });
+  }
+
+  if (/additional|capacity|recoverable|feasible|optimization|priorit|management/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Laboratory capacity optimization · ${name} · ${view.periodLabel}`, `تحسين سعة المختبر · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Recoverable Hours ${view.recoverableHours.toLocaleString('en-US')} · feasible Additional Tests ${view.additionalTests.toLocaleString('en-US')} · eligible backlog ${view.eligibleBacklog.toLocaleString('en-US')}.`, `ساعات قابلة للاسترداد ${view.recoverableHours.toLocaleString('en-US')}.`),
+      evidence: tx(lang, `${view.methodology.capacity} Largest backlog section ${hotBacklog.id}. Chemistry downtime ${view.chemistryDowntimeHours.toLocaleString('en-US')} h · median Lab TAT ${view.medianLabTatHours.toFixed(1)} h.`, `الطابور الأكبر ${hotBacklog.id}.`),
+      explanation: tx(lang, 'Estimates are illustrative. Not all recovered hours become tests; staffing and reagent constraints remain. Sections are not interchangeable.', 'التقديرات توضيحية.'),
+      action: tx(lang, `Sequence rejection reduction, Chemistry downtime recovery, validation clearance, and eligible backlog prioritization for ${hotBacklog.id} before extending unstaffed sessions.`, `رتّب خفض الرفض وتوقف الكيمياء والاعتماد والطابور لـ ${hotBacklog.id}.`),
+      role: tx(lang, 'Laboratory operations lead', 'قائد عمليات المختبر'),
+      benefit: tx(lang, 'Constraint-aware scenarios prevent overstating achievable laboratory throughput.', 'السيناريوهات المقيدة تمنع المبالغة في الإنتاجية.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Laboratory' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Laboratory at ${name} · ${view.periodLabel}`, `المختبر في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed}`
+      : `Orders ${view.orders.toLocaleString('en-US')} · completed ${view.completedTests.toLocaleString('en-US')} · testing backlog ${view.testingBacklog.toLocaleString('en-US')} · analyzer util ${((view.analyzerUtilization) * 100).toFixed(1)}%.`, topAlert ? topAlert.title : `الطلبات ${view.orders.toLocaleString('en-US')}.`),
+    evidence: tx(lang, `${view.methodology.grains} ${view.methodology.utilization}`, `الطلبات ≠ العينات ≠ الاختبارات ≠ النتائج.`),
+    explanation: tx(lang, 'Potential reasons (not proven): pre-analytical quality, analyzer downtime, and validation backlog move together across Laboratory screens.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? `Review Command demand, Samples rejection, Analyzers downtime (${hotBacklog.id}), then Capacity Optimization.`, topAlert?.action ?? `راجع الطلب والرفض والتوقف.`),
+    role: tx(lang, 'Laboratory operations lead', 'قائد عمليات المختبر'),
+    benefit: tx(lang, 'A sequenced Laboratory review keeps demand, samples, analyzers, results, and capacity distinct.', 'مراجعة مختبر متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

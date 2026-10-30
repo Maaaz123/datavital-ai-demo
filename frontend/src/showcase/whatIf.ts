@@ -3,11 +3,12 @@ import { peakHours } from '@/core/derived';
 import { buildIpdView } from '@/core/ipdView';
 import { buildOpdView } from '@/core/opdView';
 import { buildAppointmentView } from '@/core/appointmentView';
+import { buildLaboratoryView } from '@/core/laboratoryView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory';
 
 export type WhatIfResult = {
   id: string;
@@ -69,6 +70,14 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if routine imaging slots are reallocated across modalities?',
     'What if eligible imaging backlog is prioritized with recovered capacity?',
   ],
+  Laboratory: [
+    'What if specimen rejection decreases by 20%?',
+    'What if specimen transport time decreases by 15%?',
+    'What if Chemistry analyzer downtime decreases by 20%?',
+    'What if STAT laboratory TAT decreases by 20%?',
+    'What if staffed laboratory hours increase by 10%?',
+    'What if pending validation decreases by 25%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -88,6 +97,16 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Laboratory intents before radiology/surgery generics that mention downtime, TAT, staffed, or backlog.
+  if (/reject/.test(q) && /specimen|lab|laborator/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/transport/.test(q) && /specimen|sample|lab|laborator/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-transport-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/chemistry/.test(q) && /downtime/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-downtime-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/stat/.test(q) && /(tat|turnaround|laborator)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-stat-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/staffed/.test(q) && /lab|laborator|analyzer/.test(q) && /increas|extend/.test(q)) return { kind: 'lab-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/validation|unvalidated/.test(q) && /(fell|decreas|reduc|pending)/.test(q)) return { kind: 'lab-validation-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/downtime/.test(q) && /analyzer|laborator|chemistry/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-downtime-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/reject/.test(q) && /(fell|decreas|reduc)/.test(q) && /specimen|sample/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
 
   // Radiology intents before surgery/appointment generics that mention capacity or wait.
   if (/mri/.test(q) && /exam|scan|duration|time/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
@@ -132,6 +151,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/laborator|analyzer|specimen|hemolys|lab tat|testing backlog|pending validation/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
   if (/radiolog|imaging|scanner|mri|report tat|imaging backlog/.test(q)) return { kind: 'rad-mri-duration-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/surgery|theatre|operating room|\bor\b|turnover|first.?case|surgical backlog/.test(q)) return { kind: 'surg-first-case-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/appointment|no-?show|slot|lead time|waitlist|schedul/.test(q)) return { kind: 'appt-noshow-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -154,6 +174,7 @@ export function runWhatIf(
   if (domain === 'Appointments') return appointmentsWhatIf(hospital, year, period, resolved);
   if (domain === 'Surgery') return surgeryWhatIf(hospital, year, period, resolved);
   if (domain === 'Radiology') return radiologyWhatIf(hospital, year, period, resolved);
+  if (domain === 'Laboratory') return laboratoryWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -164,6 +185,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Appointments') return { kind: 'appt-noshow-down', amount: 0.2 };
   if (domain === 'Surgery') return { kind: 'surg-first-case-up', amount: 0.15 };
   if (domain === 'Radiology') return { kind: 'rad-mri-duration-down', amount: 0.1 };
+  if (domain === 'Laboratory') return { kind: 'lab-reject-down', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -769,6 +791,120 @@ function radiologyWhatIf(
     implications: `Shorter eligible MRI exams help MRI access without converting CT capacity.`,
     followUp: 'Median Exam Time, MRI wait, and MRI Additional Exams',
     owner: 'Imaging operations lead',
+  };
+}
+
+function laboratoryWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildLaboratoryView(hospital, year, period);
+  const chemistry = view.sections.find((item) => item.id === 'Chemistry') ?? view.sections[0];
+  const hotBacklog = [...view.sections].sort((a, b) => b.backlog - a.backlog)[0];
+  const lowUtil = [...view.analyzers].sort((a, b) => a.utilization - b.utilization)[0];
+  const topReject = [...view.rejectionReasons].sort((a, b) => b.count - a.count)[0];
+
+  if (intent.kind === 'lab-transport-down') {
+    const nextTransport = view.medianTransportMin * (1 - intent.amount);
+    const recovered = Math.round(view.recollections * intent.amount * 0.25);
+    return {
+      id: intent.kind,
+      title: 'Specimen transport improvement scenario',
+      current: `Median Transport Time ${num(view.medianTransportMin)} min · P90 ${num(view.p90TransportMin)} · recollections ${num(view.recollections)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible collection-to-receipt delay`,
+      estimated: `Transport near ${num(nextTransport, 1)} min · about ${num(recovered)} fewer transport-linked recollections if care-setting handoffs improve`,
+      assumptions: 'Care-setting constraints remain. Transport is pre-analytical — not Lab TAT. Illustrative only.',
+      implications: 'Faster transport reduces pre-analytical aging before analyzers see the specimen.',
+      followUp: 'Transport Time, Recollection Rate, and Median Lab TAT',
+      owner: 'Laboratory lead',
+    };
+  }
+
+  if (intent.kind === 'lab-downtime-down') {
+    const chemDown = view.chemistryDowntimeHours;
+    const recovered = Math.round(chemDown * intent.amount * 0.7);
+    const examHours = Math.max((chemistry.examMin || 8) / 60, 0.1);
+    const eligible = chemistry.eligibleBacklog ?? Math.min(chemistry.backlog, view.eligibleBacklog);
+    const extras = Math.min(eligible, Math.floor(recovered / examHours));
+    return {
+      id: intent.kind,
+      title: 'Chemistry analyzer downtime reduction scenario',
+      current: `Chemistry downtime ${num(chemDown)} h (not hospital-wide ${num(view.downtimeHours)} h) · Chemistry analyzers ${chemistry.analyzers} · Chemistry backlog ${num(chemistry.backlog)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible Chemistry downtime only`,
+      estimated: `About ${num(recovered)} recoverable Chemistry hours · up to ${num(extras)} extra Chemistry tests if openings are staffed — other sections unchanged`,
+      assumptions: 'Only a share of Chemistry downtime is recoverable. Does not reduce non-Chemistry downtime. Maintenance windows remain. Illustrative — not achieved capacity.',
+      implications: 'Recovered Chemistry hours help Chemistry backlog first; they do not convert into Microbiology or Histopathology capacity.',
+      followUp: 'Chemistry downtime, Chemistry Additional Tests, and Recoverable Hours',
+      owner: 'Laboratory operations lead',
+    };
+  }
+
+  if (intent.kind === 'lab-stat-tat-down') {
+    const nextTat = view.medianLabTatHours * (1 - intent.amount * 0.7);
+    const cleared = Math.round(view.resultsOverTarget * intent.amount * 0.45);
+    return {
+      id: intent.kind,
+      title: 'STAT laboratory TAT improvement scenario',
+      current: `Median Lab TAT ${num(view.medianLabTatHours, 1)} h · STAT share ${pct(view.statShare)} · over target ${num(view.resultsOverTarget)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible STAT receipt-to-release turnaround`,
+      estimated: `Hospital median TAT near ${num(nextTat, 1)} h · about ${num(cleared)} fewer over-target releases if STAT pathways tighten`,
+      assumptions: 'STAT improvement is not a clinical outcome claim. Pending validation remains separate from completed TAT. Illustrative only.',
+      implications: 'Faster STAT release improves urgent result availability without claiming extra analyzer hours.',
+      followUp: 'Median Lab TAT, Over-Target Results, and STAT Share',
+      owner: 'Laboratory quality lead',
+    };
+  }
+
+  if (intent.kind === 'lab-staffed-up') {
+    const addedHours = Math.round(view.staffedHours * intent.amount);
+    const workforceLimited = Math.round(addedHours * 0.35);
+    const usable = Math.max(0, addedHours - workforceLimited);
+    const extras = Math.min(view.eligibleBacklog, Math.floor(usable / Math.max(chemistry.examMin / 60, 0.15)));
+    return {
+      id: intent.kind,
+      title: 'Extended staffed laboratory hours scenario',
+      current: `Staffed analyzer hours ${num(view.staffedHours)} · unused ${num(view.unusedHours)} · lowest util ${lowUtil.id} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} increase in staffed laboratory sessions`,
+      estimated: `About ${num(addedHours)} added staffed hours · ~${num(usable)} usable after workforce/reagent limit · up to ${num(extras)} feasible tests`,
+      assumptions: 'Extra sessions require staffing and reagents. Capacity does not increase without workforce. Illustrative only.',
+      implications: 'Extend hours only after recovering unused staffed capacity on low-util analyzers.',
+      followUp: 'Staffed Analyzer Hours, Unused Hours, and Additional Tests',
+      owner: 'Laboratory operations lead',
+    };
+  }
+
+  if (intent.kind === 'lab-validation-down') {
+    const cleared = Math.round(view.pendingValidation * intent.amount);
+    const residual = Math.max(0, view.pendingValidation - cleared);
+    return {
+      id: intent.kind,
+      title: 'Pending validation reduction scenario',
+      current: `Pending Validation ${num(view.pendingValidation)} · Median Lab TAT ${num(view.medianLabTatHours, 1)} h · released ${num(view.releasedResults)} (${view.periodLabel})`,
+      change: `Illustrative ${pct(intent.amount, 0)} reduction in eligible validation backlog`,
+      estimated: `About ${num(cleared)} validations cleared · residual near ${num(residual)} if signature capacity rises`,
+      assumptions: 'Validation backlog is separate from analyzer capacity. Unsigned/pending aging is not a completed TAT. Illustrative only.',
+      implications: 'Clearing validation improves result release without claiming extra analyzer sessions.',
+      followUp: 'Pending Validation, Median Lab TAT, and Unvalidated Result Aging',
+      owner: 'Laboratory quality lead',
+    };
+  }
+
+  const avoidedRejects = Math.round(view.rejected * intent.amount);
+  const avoidedRecollect = Math.round(view.recollections * intent.amount * 0.55);
+  const recoveredHours = Math.round((view.delayDriverHours.find((item) => /rejection/i.test(item.name))?.hours ?? 0) * intent.amount);
+  const extras = Math.min(view.eligibleBacklog, Math.floor((recoveredHours * 0.6) / Math.max(chemistry.examMin / 60, 0.15)));
+  return {
+    id: 'lab-reject-down',
+    title: 'Specimen rejection reduction scenario',
+    current: `Rejection Rate ${pct(view.rejectionRate)} · rejected ${num(view.rejected)} · top reason ${topReject.name} · recollections ${num(view.recollections)} (${view.periodLabel})`,
+    change: `Illustrative ${pct(intent.amount, 0)} reduction in preventable specimen rejections`,
+    estimated: `About ${num(avoidedRejects)} fewer rejections · ~${num(avoidedRecollect)} fewer recollections · up to ${num(extras)} extra tests if recovered rework hours are staffed`,
+    assumptions: 'Not all rejections are avoidable. Hemolysis overlaps rejection but is not identical. Illustrative — not achieved capacity.',
+    implications: `Focus collection coaching on ${topReject.name} before expanding analyzer sessions for ${hotBacklog.id}.`,
+    followUp: 'Rejection Rate, Hemolysis Rate, and Recoverable Hours',
+    owner: 'Laboratory lead',
   };
 }
 

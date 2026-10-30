@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v66b-radiology-layout';
+const BUILD_ID = 'v67-laboratory';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
