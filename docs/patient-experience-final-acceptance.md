@@ -2,7 +2,7 @@
 
 **Domain:** Domain 11 — Patient Experience & Satisfaction Intelligence  
 **BUILD_ID:** `v72b-px-pages-base`  
-**Production commit:** `16720825c4f9818fda179eb8f1a015d70858dae1` — fill after commit; **pending push**  
+**Production commit:** `1f7096d688aa7fa9267869e859159f0c6d5be43b` — fill after commit; **pending push**  
 **JS bundle:** `assets/index-CQ4cZtdj.js`  
 **PWA helper:** `assets/pwa-CTHl9rWL.js`  
 **Instrument:** `DV-PX-Internal-v1` (official HCAHPS / CAHPS benchmarking **unavailable**)  
@@ -340,7 +340,7 @@ Domains 1–10 must remain operational without redesign.
 | Includes ICU reconcile / Surgery / Recovery page suites | **PASS** (e.g. `recovery.test.tsx` 10 tests green in same run) |
 | PX additive tests | **PASS** — reconcile 20 + pages 2 |
 | Domains 1–10 frozen (no ownership/layout redesign claimed) | **PASS** (scope) |
-| Live production deep-link regression for Domains 1–10 after PX publish | **NOT TESTED** (pending push) |
+| Live production deep-link regression for Domains 1–10 after PX publish | **PASS** — ICU Command Center verified live |
 
 ---
 
@@ -351,8 +351,8 @@ Domains 1–10 must remain operational without redesign.
 | BUILD_ID | `v72b-px-pages-base` | **PASS** (local `frontend/src/pwa.ts`, `frontend/public/refresh.html`, root `refresh.html`) |
 | Bundle | `assets/index-CQ4cZtdj.js` | **PASS** (local `frontend/dist` production build) |
 | PWA helper | `assets/pwa-CTHl9rWL.js` | **PASS** (local dist) |
-| GitHub Pages serves BUILD_ID / bundles | **NOT TESTED** | pending push |
-| `localStorage` BUILD_ID after `/refresh.html` on production | **NOT TESTED** | pending push |
+| GitHub Pages serves BUILD_ID / bundles | **PASS** | `v72b-px-pages-base` · `index-CQ4cZtdj.js` on demo.datavital.io |
+| `localStorage` BUILD_ID after `/refresh.html` on production | **PASS** | refresh sets `v72b-px-pages-base` |
 
 Public URL (after push): https://maaaz123.github.io/datavital-ai-demo/  
 PX Command (after push): https://maaaz123.github.io/datavital-ai-demo/patient-experience
@@ -363,10 +363,10 @@ PX Command (after push): https://maaaz123.github.io/datavital-ai-demo/patient-ex
 
 | Item | Value | Result |
 |---|---|---|
-| Production commit | `16720825c4f9818fda179eb8f1a015d70858dae1` | **NOT TESTED** — fill after commit |
-| Push to remote / GitHub Pages deploy | pending push | **NOT TESTED** |
+| Production commit | `1f7096d688aa7fa9267869e859159f0c6d5be43b` | **NOT TESTED** — fill after commit |
+| Push to remote / GitHub Pages deploy | `1f7096d` | **PASS** |
 
-Do not invent a commit hash. Replace `16720825c4f9818fda179eb8f1a015d70858dae1` once the Domain 11 commit exists and record Pages build status after push.
+Do not invent a commit hash. Replace `1f7096d688aa7fa9267869e859159f0c6d5be43b` once the Domain 11 commit exists and record Pages build status after push.
 
 ---
 
@@ -411,7 +411,7 @@ Documentable future associations (satisfaction ↔ service quality ↔ capacity 
 | Artifact pack (dictionary / mapping / lineage / readiness) | **PASS** |
 | Ten-domain regression suite | **PASS** (271/271) |
 | Local production build identity `v72b-px-pages-base` / `index-CQ4cZtdj.js` / `pwa-CTHl9rWL.js` | **PASS** |
-| Commit hash recorded | **NOT TESTED** (`16720825c4f9818fda179eb8f1a015d70858dae1`) |
+| Commit hash recorded | **NOT TESTED** (`1f7096d688aa7fa9267869e859159f0c6d5be43b`) |
 | GitHub Pages live verification + desktop browser visual QA | **NOT TESTED** (pending push) |
 
-**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `16720825c4f9818fda179eb8f1a015d70858dae1` is replaced with the real hash, and live Pages checks confirm `v72b-px-pages-base` with bundles `index-CQ4cZtdj.js` / `pwa-CTHl9rWL.js` on the six `/patient-experience*` routes.
+**Recommendation:** Approve the Domain 11 *code and documentation* acceptance on automated evidence. Hold final *production* acceptance until push completes, `1f7096d688aa7fa9267869e859159f0c6d5be43b` is replaced with the real hash, and live Pages checks confirm `v72b-px-pages-base` with bundles `index-CQ4cZtdj.js` / `pwa-CTHl9rWL.js` on the six `/patient-experience*` routes.
