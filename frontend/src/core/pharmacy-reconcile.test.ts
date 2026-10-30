@@ -112,14 +112,19 @@ describe('Pharmacy order-line ledger and pending roll-forward', () => {
 });
 
 describe('Pharmacy dispensing turnaround and line quality', () => {
-  it('keeps median ≤ P90 and splits dispensed lines into exclusive groups', () => {
+  it('keeps verification-to-dispense distinct from receipt-to-dispense and median ≤ P90', () => {
     for (const hospital of SITES.slice(0, 3)) {
       for (const period of PERIODS) {
         const view = buildPharmacyView(hospital.code, 2026, period);
+        expect(view.tatClock).toBe('verification-to-dispense');
         expect(view.medianTatMin).toBeGreaterThan(0);
         expect(view.p90TatMin).toBeGreaterThanOrEqual(view.medianTatMin);
+        expect(view.receiptToDispenseMedianMin).toBeGreaterThan(view.medianTatMin);
+        expect(view.receiptToDispenseP90Min).toBeGreaterThanOrEqual(view.receiptToDispenseMedianMin);
         expect(view.dispensesOverTarget).toBeLessThanOrEqual(view.dispensedOrders);
         expect(view.tatByPriority[0].median).toBeLessThan(view.tatByPriority[1].median);
+        expect(view.methodology.tat).toMatch(/Verification-to-Dispense/i);
+        expect(view.methodology.tat).toMatch(/never mixed/i);
         expect(view.firstPassLines + view.clarifiedLines + view.reworkLines).toBe(view.dispensedLines);
         expect(view.reworkReasons.reduce((sum, item) => sum + item.count, 0)).toBe(view.reworkLines);
         expect(view.clarificationReasons.reduce((sum, item) => sum + item.count, 0)).toBe(view.clarifiedLines);
@@ -157,7 +162,7 @@ describe('Pharmacy inventory batch ledger', () => {
     }
   });
 
-  it('keeps stockout and low-stock SKUs mutually exclusive and values consistent', () => {
+  it('derives stockout/low/adequate from inventory closing units and uses physical days of supply', () => {
     for (const hospital of HOSPITALS) {
       for (const year of YEARS) {
         const view = buildPharmacyView(hospital.code, year, 'year');
@@ -165,12 +170,15 @@ describe('Pharmacy inventory batch ledger', () => {
         for (const group of view.classSku) {
           expect(group.stockout + group.low + group.adequate).toBe(group.skus);
           expect(group.adequate).toBeGreaterThanOrEqual(0);
+          expect(group.allocatedUnits).toBe(group.closingUnits);
         }
         expect(view.classRows.reduce((sum, item) => sum + item.closingValue, 0)).toBe(view.inventoryValue);
         expect(view.classRows.reduce((sum, item) => sum + item.nearExpiryValue, 0)).toBe(view.nearExpiryValue);
         expect(view.nearExpiryValue).toBeLessThan(view.inventoryValue);
-        expect(view.daysOfSupply).toBeCloseTo(view.inventoryValue / (view.medicationSpend / view.days), 1);
+        expect(view.daysOfSupply).toBeCloseTo(view.closingUnitsTotal / (view.issuedUnitsTotal / view.days), 1);
+        expect(view.valueWeightedDaysOfSupply).toBeCloseTo(view.inventoryValue / (view.medicationSpend / view.days), 1);
         expect(view.daysOfSupply).toBeGreaterThan(0);
+        expect(view.methodology.inventory).toMatch(/physical cover|allocating closing units/i);
       }
     }
   });
@@ -243,6 +251,11 @@ describe('Pharmacy workflow capacity', () => {
         expect(view.delayDriverHours.reduce((sum, item) => sum + item.hours, 0)).toBe(view.recoverableHours);
         expect(view.additionalLines).toBeLessThanOrEqual(view.eligiblePending);
         expect(view.additionalLines).toBeLessThanOrEqual(view.potentialAdditionalLines);
+        // Equal Additional Lines and Eligible Pending is valid demand capping, not a hard-coded duplicate.
+        if (view.additionalLines === view.eligiblePending) {
+          expect(view.potentialAdditionalLines).toBeGreaterThanOrEqual(view.eligiblePending);
+        }
+        expect(view.methodology.capacity).toMatch(/demand capping|eligible pending/i);
         expect(view.eligiblePending).toBeLessThanOrEqual(view.pendingLines);
         expect(view.feasibleTatCutMin).toBeLessThanOrEqual(view.medianTatMin * 0.3 + 0.05);
         expect(view.feasibleTatCutMin).toBeGreaterThanOrEqual(0);

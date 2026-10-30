@@ -27,8 +27,8 @@ export const PHARMACY_KPI_OWNERS: PharmacyKpiOwner[] = [
   { id: 'kpi_rx_urgent_share', fullName: 'Urgent Medication Order Share', display: 'Urgent Share', screen: 'command', route: '/pharmacy', decision: 'Urgent vs routine order mix' },
 
   // Dispensing — turnaround and workflow quality
-  { id: 'kpi_rx_median_tat', fullName: 'Median Dispensing Turnaround', display: 'Median Dispensing TAT', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Typical verification-to-dispense turnaround' },
-  { id: 'kpi_rx_p90_tat', fullName: 'P90 Dispensing Turnaround', display: 'P90 Dispensing TAT', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Long-tail dispensing turnaround' },
+  { id: 'kpi_rx_median_tat', fullName: 'Median Verification-to-Dispense TAT', display: 'Median TAT', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Typical verification-to-dispense turnaround' },
+  { id: 'kpi_rx_p90_tat', fullName: 'P90 Verification-to-Dispense TAT', display: 'P90 TAT', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Long-tail verification-to-dispense turnaround' },
   { id: 'kpi_rx_over_target', fullName: 'Dispenses Exceeding TAT Target', display: 'Over-Target Dispenses', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Dispensed orders past the turnaround target' },
   { id: 'kpi_rx_verification_backlog', fullName: 'Orders Awaiting Pharmacist Verification', display: 'Verification Backlog', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Verification queue at observation' },
   { id: 'kpi_rx_first_pass', fullName: 'First-Pass Dispensing Rate', display: 'First-Pass Rate', screen: 'dispensing', route: '/pharmacy/dispensing', decision: 'Dispensed lines needing no rework or clarification' },

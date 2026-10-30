@@ -195,25 +195,35 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
   const workflowLinesOrdered = splitExact(orderLines, WORKFLOW_LINE_SHARES);
   const workflowPending = splitExact(pendingLines, WORKFLOW_LINE_SHARES);
 
-  // --- Dispensing turnaround (verification → dispense), dispensed orders only ---
+  // --- Dispensing turnaround clocks (dispensed orders only) ---
+  // Headline KPI = Verification-to-Dispense TAT (dispense − pharmacist verification).
+  // Receipt-to-Dispense TAT is a separate longer clock (dispense − pharmacy receipt).
+  // The two clocks are never mixed into one median/P90.
   const tatSampleSize = Math.min(dispensedOrders, 400);
   const urgentEvery = Math.max(2, Math.round(1 / Math.max(urgentShareBase, 0.05)));
   const tatAll: number[] = [];
   const tatUrgent: number[] = [];
   const tatRoutine: number[] = [];
+  const receiptTatAll: number[] = [];
   for (let i = 0; i < tatSampleSize; i += 1) {
     const u = unit(siteSeed + i * 4.3);
     const isUrgent = i % urgentEvery === 0;
-    const base = isUrgent ? 9 + pressure * 14 : 24 + pressure * 40;
-    const minutes = Math.max(3, Math.round(base * (0.45 + u * 1.7)));
-    tatAll.push(minutes);
-    (isUrgent ? tatUrgent : tatRoutine).push(minutes);
+    const verifyToDispenseBase = isUrgent ? 9 + pressure * 14 : 24 + pressure * 40;
+    const verifyToDispense = Math.max(3, Math.round(verifyToDispenseBase * (0.45 + u * 1.7)));
+    const receiptQueue = Math.max(2, Math.round((isUrgent ? 4 : 9 + pressure * 8) * (0.5 + unit(siteSeed + i * 9.1) * 1.4)));
+    const receiptToDispense = verifyToDispense + receiptQueue;
+    tatAll.push(verifyToDispense);
+    receiptTatAll.push(receiptToDispense);
+    (isUrgent ? tatUrgent : tatRoutine).push(verifyToDispense);
   }
   tatAll.sort((a, b) => a - b);
   tatUrgent.sort((a, b) => a - b);
   tatRoutine.sort((a, b) => a - b);
+  receiptTatAll.sort((a, b) => a - b);
   const medianTatMin = quantile(tatAll, 0.5);
   const p90TatMin = quantile(tatAll, 0.9);
+  const receiptToDispenseMedianMin = quantile(receiptTatAll, 0.5);
+  const receiptToDispenseP90Min = quantile(receiptTatAll, 0.9);
   const overTargetShare = tatAll.length ? tatAll.filter((value) => value > TAT_TARGET_MIN).length / tatAll.length : 0;
   const dispensesOverTarget = Math.round(dispensedOrders * overTargetShare);
   const workflowTat = RX_WORKFLOWS.map((_, index) => Math.max(2, Math.round(medianTatMin * WORKFLOW_TAT_FACTOR[index])));
@@ -309,12 +319,50 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
   });
   const batchTotals = BATCH_BUCKETS.map((_, b) => sum(classBatches.map((item) => item.buckets[b])));
 
-  // --- SKU position: stockout + low-stock + adequate = active SKUs (mutually exclusive) ---
+  // --- SKU positions derived from closing inventory units (not independent percentages) ---
+  // Available usable stock = closing ledger units (expired already written off; reserved/quarantine not modeled as separate pools).
+  // Greedy cover: rank SKUs by demand weight, fill each to target cover until units are exhausted; remainder = stockout.
   const classSku = RX_CLASSES.map((name, c) => {
-    const skus = Math.round(CLASS_SKU_BASE[c] * skuScale);
-    const stockout = Math.min(skus, Math.round(skus * (0.006 + pressure * 0.035 + (c === 3 ? 0.012 : 0))));
-    const low = Math.min(skus - stockout, Math.round(skus * (0.045 + pressure * 0.12)));
-    return { name, skus, stockout, low, adequate: skus - stockout - low };
+    const skus = Math.max(1, Math.round(CLASS_SKU_BASE[c] * skuScale));
+    const closing = classClosingUnits[c];
+    const issuedUnits = sum(classMonths[c].map((item) => item.issued));
+    const dailyIssue = issuedUnits / days;
+    const dailyPerSku = dailyIssue / skus;
+    const reorderUnits = Math.max(1, Math.round(dailyPerSku * CLASS_TARGET_DAYS[c] * 0.5));
+    const coverTarget = Math.max(reorderUnits, Math.round(dailyPerSku * CLASS_TARGET_DAYS[c]));
+    const ranked = Array.from({ length: skus }, (_, index) => ({
+      index,
+      weight: Math.pow(index + 1, -1.2) * (0.55 + unit(siteSeed + c * 71 + index * 3.3)),
+    })).sort((a, b) => b.weight - a.weight);
+    const units = Array(skus).fill(0);
+    let remaining = Math.max(0, closing);
+    for (const item of ranked) {
+      if (remaining <= 0) break;
+      const take = Math.min(coverTarget, remaining);
+      units[item.index] = take;
+      remaining -= take;
+    }
+    // Any leftover units after every SKU has coverTarget stay on the top-ranked SKU (conserves closing units).
+    if (remaining > 0 && ranked.length) units[ranked[0].index] += remaining;
+    let stockout = 0;
+    let low = 0;
+    let adequate = 0;
+    for (const qty of units) {
+      if (qty <= 0) stockout += 1;
+      else if (qty < reorderUnits) low += 1;
+      else adequate += 1;
+    }
+    return {
+      name,
+      skus,
+      stockout,
+      low,
+      adequate,
+      closingUnits: closing,
+      allocatedUnits: sum(units),
+      reorderUnits,
+      coverTarget,
+    };
   });
   const totalSkus = sum(classSku.map((item) => item.skus));
   const stockoutSkus = sum(classSku.map((item) => item.stockout));
@@ -326,7 +374,7 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
     const nearUnits = classBatches[c].buckets[0] + classBatches[c].buckets[1];
     const nearValue = Math.round(nearUnits * CLASS_UNIT_COST[c]);
     const issuedUnits = sum(classMonths[c].map((item) => item.issued));
-    const dayValue = classSpend[c] / days;
+    const dailyUnits = issuedUnits / days;
     return {
       name,
       lineShare: CLASS_LINE_SHARES[c],
@@ -339,7 +387,8 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
       spend: classSpend[c],
       expiredValue: classExpired[c],
       discardValue: classDiscard[c],
-      daysOfSupply: dayValue > 0 ? r1(closingValue / dayValue) : 0,
+      // Physical cover: available usable units ÷ average daily issued units.
+      daysOfSupply: dailyUnits > 0 ? r1(classClosingUnits[c] / dailyUnits) : 0,
       skus: classSku[c].skus,
       stockout: classSku[c].stockout,
       low: classSku[c].low,
@@ -351,13 +400,19 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
   const medicationSpend = sum(classRows.map((item) => item.spend));
   const expiredValue = sum(classRows.map((item) => item.expiredValue));
   const discardValue = sum(classRows.map((item) => item.discardValue));
-  const daysOfSupply = medicationSpend > 0 ? r1(inventoryValue / (medicationSpend / days)) : 0;
+  const closingUnitsTotal = sum(classClosingUnits);
+  const issuedUnitsTotal = sum(classRows.map((item) => item.issuedUnits));
+  // Hospital Days of Supply = physical unit cover (not monetary). Value-weighted cover is not the headline.
+  const daysOfSupply = issuedUnitsTotal > 0 ? r1(closingUnitsTotal / (issuedUnitsTotal / days)) : 0;
+  const valueWeightedDaysOfSupply = medicationSpend > 0 ? r1(inventoryValue / (medicationSpend / days)) : 0;
   const costPerLine = dispensedLines ? Math.round(medicationSpend / dispensedLines) : 0;
   const totalWaste = expiredValue + discardValue;
   const totalOutflowCost = medicationSpend + totalWaste;
   const monthlyDaysSupply = rows.map((_, index) => {
-    const perDay = monthlySpend[index] / daysPerMonth;
-    return perDay > 0 ? r1(monthlyClosingValue[index] / perDay) : 0;
+    const issued = ledgerRows[index]?.issued ?? 0;
+    const closing = ledgerRows[index]?.closing ?? 0;
+    const perDay = issued / daysPerMonth;
+    return perDay > 0 ? r1(closing / perDay) : 0;
   });
 
   // --- Avoidable waste and exclusive savings drivers (each SAR counted once) ---
@@ -515,9 +570,12 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
     dispensingCompletion: r3(dispensingCompletion),
     lineLedger,
 
-    // Turnaround
+    // Turnaround — headline is verification→dispense; receipt→dispense is a distinct longer clock
     medianTatMin,
     p90TatMin,
+    receiptToDispenseMedianMin,
+    receiptToDispenseP90Min,
+    tatClock: 'verification-to-dispense' as const,
     tatTargetMin: TAT_TARGET_MIN,
     dispensesOverTarget,
     tatByPriority,
@@ -550,6 +608,9 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
     nearExpiryValue,
     nearExpiryUnits,
     daysOfSupply,
+    valueWeightedDaysOfSupply,
+    closingUnitsTotal,
+    issuedUnitsTotal,
     monthlyDaysSupply,
     monthlyClosingValue,
 
@@ -612,11 +673,11 @@ function compute(hospital: string, year: number, period: ReportPeriod) {
     methodology: {
       grains: 'Orders ≠ Lines ≠ Dispenses ≠ Administrations. One order averages ~2.6 lines; one dispense transaction covers ~1.9 lines; one administered order averages ~3.6 administration events.',
       ledger: 'Line ledger: opening + new lines − dispensed − cancelled = closing, month by month. Closing pending lines equals the Pending headline.',
-      tat: 'Dispensing TAT = dispense time − pharmacist verification time for dispensed orders only. Urgent and routine orders are separated in the sample.',
-      inventory: 'Batch ledger: opening + receipts − issues − expired − discards = closing per month and therapeutic group; next opening equals prior closing and no balance goes negative. Stockout (zero available) and Low-Stock (below reorder cover) are mutually exclusive SKUs; the all-hospitals view counts SKU-site positions.',
+      tat: 'Headline Dispensing TAT = Verification-to-Dispense (dispense − pharmacist verification) for dispensed orders only. Receipt-to-Dispense is a separate longer clock and is never mixed into the headline median/P90. Over-target uses the verification-to-dispense clock and the illustrative 45-minute target.',
+      inventory: 'Batch ledger: opening + receipts − issues − expired − discards = closing per month and therapeutic group; next opening equals prior closing and no balance goes negative. SKU stockout/low/adequate positions are derived by greedily allocating closing units to demand-ranked SKUs up to cover target; leftover SKUs are stockouts. Stockout + Low + Adequate = active SKUs. Days of Supply headline = closing units ÷ average daily issued units (physical cover). Value-weighted cover is reported separately and is not the headline.',
       safety: 'Each safety rate keeps its own denominator: exceptions ÷ verified orders, high-alert checks ÷ high-alert lines, scans ÷ administration events, incidents per 1,000 administration events. Operational process signals only — not clinical advice.',
-      cost: 'Spend = issued units × unit cost. Expired and discarded value are separate write-offs, not part of spend. Avoidable waste is a share of write-offs; savings drivers are exclusive so no SAR is counted twice. All amounts are fictional SAR.',
-      capacity: 'Staffed = productive + rework + clarification + handoff + unused. Recoverable hours are exclusive workflow drivers; additional lines respect workflow minutes and eligible pending lines. Illustrative — not achieved.',
+      cost: 'Spend = issued units × unit cost. Total write-offs = expired + discarded. Avoidable waste is a subset of write-offs (not an extra expense). Near-expiry value is inventory exposure, not a write-off. Potential savings drivers are exclusive and illustrative — not achieved. All amounts are fictional SAR.',
+      capacity: 'Staffed = productive + rework + clarification + handoff + unused. Recoverable hours are exclusive workflow drivers; additional lines = Σ min(potential, eligible pending) by pathway. Equal Additional Lines and Eligible Pending means demand capping, not a duplicated metric. Illustrative — not achieved.',
     },
   };
 }

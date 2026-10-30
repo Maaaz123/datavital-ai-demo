@@ -159,9 +159,55 @@ function Slot({ figure, span = 'span-6' }: { figure: Figure; span?: string | fal
   );
 }
 
+/** Axis-safe short labels (≤14 chars) so BarChart does not ellipsize Pharmacy categories. Full names stay in chart notes/tooltips via figure.note. */
+const RX_AXIS: Record<string, string> = {
+  'Unit-dose & oral': 'Unit-dose',
+  'IV compounding': 'IV compound',
+  'Controlled & high-alert': 'Controlled',
+  'Outpatient & discharge': 'Outpatient',
+  'Ward stock replenishment': 'Ward stock',
+  'Anti-infectives': 'Anti-infect.',
+  Cardiovascular: 'Cardio',
+  'Analgesics & CNS': 'Analgesics',
+  'Oncology & specialty': 'Oncology',
+  'Endocrine & insulin': 'Endocrine',
+  'IV fluids & electrolytes': 'IV fluids',
+  'Day-case & procedures': 'Day-case',
+  'Inpatient wards': 'Inpatient',
+  'Intensive care': 'ICU',
+  Emergency: 'Emergency',
+  'Rework & re-pick': 'Rework',
+  'Prescriber clarification waits': 'Clarification',
+  'Queue handoff gaps': 'Handoff',
+  'Unused staffed time': 'Unused',
+  'Label or packaging error': 'Label error',
+  'Wrong pick / re-pick': 'Wrong pick',
+  'Stock substitution': 'Substitution',
+  'Late order change': 'Late change',
+  'Compounding re-make': 'Re-make',
+  'Incomplete order details': 'Incomplete',
+  'Formulary substitution': 'Formulary',
+  'Duplicate order check': 'Duplicate',
+  'Allergy record check': 'Allergy',
+  'Route or form query': 'Route/form',
+  'Caught before reaching patient': 'Caught early',
+  'Reached patient, no harm reported': 'Reached, no harm',
+  'Reached patient, review required': 'Review needed',
+  'Expiry avoidance (par levels, FEFO)': 'Expiry avoid',
+  'Discard & return reduction': 'Discard cut',
+  'Generic & formulary conversion': 'Formulary',
+  'Purchase price variance': 'Price var.',
+  'Expired stock': 'Expired',
+  'Discards & returns': 'Discards',
+};
+
+function axis(labels: string[]): string[] {
+  return labels.map((label) => RX_AXIS[label] ?? (label.length > 14 ? `${label.slice(0, 13)}` : label));
+}
+
 function fig(type: Figure['type'], title: string, categories: string[], series: Figure['series'], unit: string, note: string, extra?: Partial<Figure>): Figure {
-  const digits = unit === '%' || unit === 'days' || unit === 'hours' || unit === 'min' || unit === 'rate' || unit === 'index' ? 1 : 0;
-  return { type, title, categories, series, unit, digits, note, domain: 'pharmacy', subjects: [title], ...extra };
+  const digits = unit === '%' || unit === 'days' || unit === 'hours' || unit === 'min' || unit === 'rate' || unit === 'index' || unit === 'SAR' ? 1 : 0;
+  return { type, title, categories: axis(categories), series, unit, digits, note, domain: 'pharmacy', subjects: [title], ...extra };
 }
 
 function Alerts({ packed = false }: { packed?: boolean } = {}) {
@@ -341,18 +387,18 @@ export function PharmDispensingPage() {
   const prior = usePrior();
   return (
     <Page title="Verification & Dispensing Flow" kpis={[
-      score('Median TAT', `${num(view.medianTatMin)} min`, compare(view, prior, (item) => item.medianTatMin), 'Median Dispensing Turnaround',
-        'Median minutes from pharmacist verification to dispense for dispensed orders.',
-        `Median ${num(view.medianTatMin)} min · P90 ${num(view.p90TatMin)} · target ${view.tatTargetMin} min.`,
-        { formula: 'Median(dispense − verification)', testId: 'value-kpi_rx_median_tat', tone: view.medianTatMin >= view.tatTargetMin ? 'alert' : view.medianTatMin >= 32 ? 'watch' : 'good', limitations: 'Dispensed orders only; pending orders are aged separately.' }),
-      score('P90 TAT', `${num(view.p90TatMin)} min`, compare(view, prior, (item) => item.p90TatMin), 'P90 Dispensing Turnaround',
-        '90th-percentile verification-to-dispense turnaround.',
-        `P90 ${num(view.p90TatMin)} min against a ${view.tatTargetMin}-minute target.`,
-        { formula: 'P90(dispense − verification)', testId: 'value-kpi_rx_p90_tat', tone: view.p90TatMin > view.tatTargetMin ? 'watch' : 'good' }),
+      score('Median TAT', `${num(view.medianTatMin)} min`, compare(view, prior, (item) => item.medianTatMin), 'Median Verification-to-Dispense TAT',
+        'Median minutes from pharmacist verification to dispense for dispensed orders. Distinct from Receipt-to-Dispense TAT.',
+        `Verif→Disp median ${num(view.medianTatMin)} min · P90 ${num(view.p90TatMin)} · target ${view.tatTargetMin} min. Receipt→Disp median ${num(view.receiptToDispenseMedianMin)} min (separate clock).`,
+        { formula: 'Median(dispense − pharmacist verification)', testId: 'value-kpi_rx_median_tat', tone: view.medianTatMin >= view.tatTargetMin ? 'alert' : view.medianTatMin >= 32 ? 'watch' : 'good', limitations: 'Headline clock is verification-to-dispense only. Receipt-to-dispense is longer and never mixed into this median.' }),
+      score('P90 TAT', `${num(view.p90TatMin)} min`, compare(view, prior, (item) => item.p90TatMin), 'P90 Verification-to-Dispense TAT',
+        '90th-percentile verification-to-dispense turnaround for dispensed orders.',
+        `P90 ${num(view.p90TatMin)} min · Receipt→Disp P90 ${num(view.receiptToDispenseP90Min)} min (separate).`,
+        { formula: 'P90(dispense − pharmacist verification)', testId: 'value-kpi_rx_p90_tat', tone: view.p90TatMin > view.tatTargetMin ? 'watch' : 'good', limitations: 'Same verification-to-dispense clock as Median TAT.' }),
       score('Over-Target', num(view.dispensesOverTarget), compare(view, prior, (item) => item.dispensesOverTarget), 'Dispenses Exceeding TAT Target',
-        `Dispensed orders with turnaround above the illustrative ${view.tatTargetMin}-minute target.`,
+        `Dispensed orders with verification-to-dispense TAT above the illustrative ${view.tatTargetMin}-minute target.`,
         `${num(view.dispensesOverTarget)} of ${num(view.dispensedOrders)} dispensed orders.`,
-        { formula: `Dispensed orders with TAT > ${view.tatTargetMin} min`, testId: 'value-kpi_rx_over_target', tone: view.dispensedOrders && view.dispensesOverTarget / view.dispensedOrders > 0.25 ? 'alert' : 'watch' }),
+        { formula: `Dispensed orders with verif→disp TAT > ${view.tatTargetMin} min`, testId: 'value-kpi_rx_over_target', tone: view.dispensedOrders && view.dispensesOverTarget / view.dispensedOrders > 0.25 ? 'alert' : 'watch' }),
       score('Verification Backlog', num(view.verificationBacklog), compare(view, prior, (item) => item.verificationBacklog), 'Orders Awaiting Pharmacist Verification',
         'Open orders waiting for pharmacist verification at observation.',
         `${num(view.verificationBacklog)} of ${num(view.pendingOrders)} pending orders at ${view.observationDate}.`,
@@ -368,7 +414,7 @@ export function PharmDispensingPage() {
     ]}>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('line', 'Dispensing TAT Trend', view.labels, [{ name: 'Median minutes', values: view.monthlyTat }], 'min', `Monthly median verification-to-dispense TAT. Period median ${num(view.medianTatMin)} min · P90 ${num(view.p90TatMin)}.`)} />
+          <Slot span={false} figure={fig('line', 'Dispensing TAT Trend', view.labels, [{ name: 'Median minutes', values: view.monthlyTat }], 'min', `Monthly median Verification-to-Dispense TAT (not receipt-to-dispense). Period median ${num(view.medianTatMin)} min · P90 ${num(view.p90TatMin)}. Receipt→Disp median ${num(view.receiptToDispenseMedianMin)} min is a separate clock.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'TAT by Dispensing Pathway', view.workflows.map((item) => item.name), [{ name: 'Median minutes', values: view.workflowTat }], 'min', `Pathway medians around the hospital median ${num(view.medianTatMin)} min. IV compounding runs longest by design.`)} />
@@ -387,10 +433,10 @@ export function PharmDispensingPage() {
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Dispensed Line Quality Mix', ['First pass', 'Clarified', 'Rework'], [{ name: 'Lines', values: [view.firstPassLines, view.clarifiedLines, view.reworkLines] }], 'lines', `Partition of ${num(view.dispensedLines)} dispensed lines — the three groups are mutually exclusive.`)} />
+          <Slot span={false} figure={fig('bars', 'Dispensed Line Quality Mix', ['First pass', 'Clarified', 'Rework'], [{ name: 'Lines', values: [view.firstPassLines, view.clarifiedLines, view.reworkLines] }], 'lines', `Quality cohort: first-pass + clarified + rework = ${num(view.dispensedLines)} dispensed lines (mutually exclusive). First-pass is not 1 − rework.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Rework Reasons', view.reworkReasons.map((item) => item.name), [{ name: 'Lines', values: view.reworkReasons.map((item) => item.count) }], 'lines', `Rework reasons sum to ${num(view.reworkLines)} lines.`)} />
+          <Slot span={false} figure={fig('bars', 'Rework Reasons', view.reworkReasons.map((item) => item.name), [{ name: 'Lines', values: view.reworkReasons.map((item) => item.count) }], 'lines', `Rework reason partition of ${num(view.reworkLines)} rework lines only — not clarified lines and not all dispensed lines.`)} />
         </div>
       </div>
       <IndicatorIndex indicators={pharmacyIndicatorsFor(view)} domains={['Dispensing Flow']} />
@@ -409,17 +455,17 @@ export function PharmInventoryPage() {
         `${sar(view.inventoryValue)} across ${num(view.totalSkus)} active SKUs at ${view.observationDate}.`,
         { formula: 'Σ closing units × unit cost', testId: 'value-kpi_rx_inventory_value', tone: 'neutral', limitations: 'Point-in-time balance, not a flow measure.' }),
       score('Stockout SKUs', num(view.stockoutSkus), compare(view, prior, (item) => item.stockoutSkus), 'Stocked-Out SKUs',
-        'Active SKUs with zero available stock at observation.',
-        `${num(view.stockoutSkus)} stocked out of ${num(view.totalSkus)} SKUs.`,
-        { formula: 'Active SKUs with zero available stock', testId: 'value-kpi_rx_stockout_skus', tone: view.stockoutSkus >= 8 ? 'alert' : view.stockoutSkus >= 5 ? 'watch' : 'good', limitations: 'Mutually exclusive with Low-Stock SKUs.' }),
+        'Active SKUs with zero available usable stock after allocating closing inventory units across SKUs.',
+        `${num(view.stockoutSkus)} stocked out · ${num(view.lowStockSkus)} low · ${num(view.adequateSkus)} adequate of ${num(view.totalSkus)} SKUs.`,
+        { formula: 'Count of SKUs with allocated closing units = 0', testId: 'value-kpi_rx_stockout_skus', tone: view.stockoutSkus >= 8 ? 'alert' : view.stockoutSkus >= 5 ? 'watch' : 'good', limitations: 'Derived from inventory closing units — not an independent percentage. Mutually exclusive with Low-Stock and Adequate.' }),
       score('Low-Stock SKUs', num(view.lowStockSkus), compare(view, prior, (item) => item.lowStockSkus), 'Low-Stock SKUs',
         'SKUs below reorder cover but still in stock.',
         `${num(view.lowStockSkus)} low-stock · ${num(view.adequateSkus)} adequate · ${num(view.stockoutSkus)} stocked out.`,
         { formula: 'SKUs below reorder cover, stock > 0', testId: 'value-kpi_rx_low_stock_skus', tone: 'watch', limitations: 'Does not include stocked-out SKUs.' }),
       score('Days of Supply', `${num(view.daysOfSupply, 1)} d`, compare(view, prior, (item) => item.daysOfSupply), 'Medication Days of Supply',
-        'Closing stock value divided by average daily issue value.',
-        `${num(view.daysOfSupply, 1)} days · lowest cover ${hotCover?.name ?? 'n/a'} (${num(hotCover?.daysOfSupply ?? 0, 1)} d).`,
-        { formula: 'Closing value ÷ (Spend ÷ days in period)', testId: 'value-kpi_rx_days_of_supply', tone: view.daysOfSupply < 10 ? 'alert' : view.daysOfSupply < 12 ? 'watch' : 'good', limitations: 'Value-weighted across therapeutic groups.' }),
+        'Physical cover: closing usable units ÷ average daily issued units. Distinct from value-weighted monetary cover.',
+        `${num(view.daysOfSupply, 1)} days (units) · value-weighted ${num(view.valueWeightedDaysOfSupply, 1)} d · lowest cover ${hotCover?.name ?? 'n/a'} (${num(hotCover?.daysOfSupply ?? 0, 1)} d).`,
+        { formula: 'Closing units ÷ (Issued units ÷ days)', testId: 'value-kpi_rx_days_of_supply', tone: view.daysOfSupply < 10 ? 'alert' : view.daysOfSupply < 12 ? 'watch' : 'good', limitations: 'Headline is physical unit cover. Value-weighted cover is contextual only and is not a second primary KPI.' }),
       score('Near-Expiry Value', sar(view.nearExpiryValue), compare(view, prior, (item) => item.nearExpiryValue), 'Near-Expiry Stock Value',
         'Closing stock value in batches expiring within 90 days.',
         `${sar(view.nearExpiryValue)} · ${num(view.nearExpiryUnits)} units in ≤90-day batches.`,

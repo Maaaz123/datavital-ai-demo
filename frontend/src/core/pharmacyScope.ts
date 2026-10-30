@@ -82,20 +82,20 @@ export function pharmacyIndicatorsFor(view: PharmacyView): Indicator[] {
       limitations: 'Illustrative priority mix; not a clinical triage score.', method: 'Urgent ÷ orders.',
     }),
 
-    row('Dispensing Flow', 'Median Dispensing Turnaround', {
-      unit: 'minutes', formula: 'Median(dispense − verification)', cohort: 'Dispensed orders',
-      aggregation: 'Median', scope: view.periodLabel, classification: 'constructed',
+    row('Dispensing Flow', 'Median Verification-to-Dispense TAT', {
+      unit: 'minutes', formula: 'Median(dispense completed − pharmacist verified)', cohort: 'Dispensed orders',
+      aggregation: 'Median of eligible observations', scope: view.periodLabel, classification: 'constructed',
       limitations: m.tat, method: m.tat,
     }),
-    row('Dispensing Flow', 'P90 Dispensing Turnaround', {
-      unit: 'minutes', formula: 'P90(dispense − verification)', cohort: 'Dispensed orders',
-      aggregation: 'P90', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Not an average of monthly P90 values.', method: 'P90 of dispensing turnaround.',
+    row('Dispensing Flow', 'P90 Verification-to-Dispense TAT', {
+      unit: 'minutes', formula: 'P90(dispense completed − pharmacist verified)', cohort: 'Dispensed orders',
+      aggregation: 'P90 of eligible observations', scope: view.periodLabel, classification: 'constructed',
+      limitations: 'Not an average of monthly P90 values. Receipt-to-Dispense is a separate longer clock.', method: 'P90 of verification-to-dispense turnaround.',
     }),
     row('Dispensing Flow', 'Dispenses Exceeding TAT Target', {
-      unit: 'orders', formula: 'Dispensed orders with TAT > target', cohort: 'Dispensed orders',
+      unit: 'orders', formula: 'Dispensed orders with verification-to-dispense TAT > 45 min', cohort: 'Dispensed orders',
       aggregation: 'Count', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Illustrative management target.', method: 'Over-target dispensed orders.',
+      limitations: 'Illustrative management target on the verification-to-dispense clock only.', method: 'Over-target dispensed orders.',
     }),
     row('Dispensing Flow', 'Orders Awaiting Pharmacist Verification', {
       unit: 'orders', formula: 'Open orders not yet verified at observation', cohort: 'Open orders',
@@ -119,19 +119,19 @@ export function pharmacyIndicatorsFor(view: PharmacyView): Indicator[] {
       limitations: m.inventory, method: m.inventory,
     }),
     row('Inventory Position', 'Stocked-Out SKUs', {
-      unit: 'SKUs', formula: 'Active SKUs with zero available stock', cohort: 'Active SKUs',
+      unit: 'SKUs', formula: 'Active SKUs with zero available usable closing units', cohort: 'Active SKUs',
       aggregation: 'Point-in-time', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Mutually exclusive with Low-Stock SKUs.', method: 'Zero-stock SKU count.',
+      limitations: 'Derived from allocating closing units across SKUs; mutually exclusive with Low-Stock and Adequate.', method: 'Zero-stock SKU count from inventory positions.',
     }),
     row('Inventory Position', 'Low-Stock SKUs', {
-      unit: 'SKUs', formula: 'Active SKUs below reorder cover, stock > 0', cohort: 'Active SKUs',
+      unit: 'SKUs', formula: 'Active SKUs with 0 < available units < reorder cover', cohort: 'Active SKUs',
       aggregation: 'Point-in-time', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Does not include stocked-out SKUs.', method: 'Below-reorder SKUs with stock on hand.',
+      limitations: 'Does not include stocked-out SKUs. Stockout + Low + Adequate = active SKUs.', method: 'Below-reorder SKUs with stock on hand.',
     }),
     row('Inventory Position', 'Medication Days of Supply', {
-      unit: 'days', formula: 'Closing value ÷ (Spend ÷ days in period)', cohort: 'Closing stock',
+      unit: 'days', formula: 'Closing units ÷ (Issued units ÷ days in period)', cohort: 'Closing stock',
       aggregation: 'Ratio', scope: view.periodLabel, classification: 'constructed',
-      limitations: 'Value-weighted; class-level cover differs.', method: 'Closing stock value ÷ average daily issue value.',
+      limitations: 'Physical unit cover. Value-weighted cover is separate and is not the headline.', method: 'Closing usable units ÷ average daily issued units.',
     }),
     row('Inventory Position', 'Near-Expiry Stock Value', {
       unit: 'SAR', formula: 'Σ units in ≤90-day batches × unit cost', cohort: 'Closing batches',
