@@ -4,7 +4,7 @@
 **BUILD_ID:** `v63-surgery-remediation`  
 **JS bundle:** `index-C4BD1kK6.js`  
 **Screenshots:** `docs/visual-after/surgery-remediation/`  
-**Feature commit:** *(recorded after push)*
+**Feature commit:** `214984d49c41b1a517ab71ad5bbc270f727de57f`
 
 ---
 
@@ -303,21 +303,25 @@ Surgery-only changes in bind/alerts for Surgery KPI keys.
 
 | Item | Value |
 |---|---|
-| Feature commit | *(after push)* |
+| Feature commit | `214984d49c41b1a517ab71ad5bbc270f727de57f` |
 | BUILD_ID | `v63-surgery-remediation` |
 | Published JS | `assets/index-C4BD1kK6.js` |
 | Production | https://maaaz123.github.io/datavital-ai-demo/surgery |
 | Refresh | https://maaaz123.github.io/datavital-ai-demo/refresh.html |
 
-### Production live check
+### Production live check (2026-10-30)
 
 | Check | Result |
 |---|---|
-| `index.html` serves `index-C4BD1kK6.js` | **PENDING** (after push) |
-| `refresh.html` BUILD_ID `v63-surgery-remediation` | **PENDING** |
-| Five Surgery routes | **PENDING** |
-| Alert OR util matches KPI | **PENDING** |
-| Vital Assist Surgery context | **PENDING** |
+| `index.html` serves `index-C4BD1kK6.js` | **PASS** |
+| `refresh.html` BUILD_ID `v63-surgery-remediation` | **PASS** |
+| `/surgery` Cases / OR Day + aligned methods | **PASS** |
+| `/surgery/or` OR Util 51.0% = alert 51%; Late Start Hours 350 h; no OR Delay Reasons | **PASS** |
+| `/surgery/access` Within Wait Target; ledger backlog 572 | **PASS** |
+| `/surgery/quality` Documentation Rate; specialty complication notes | **PASS** |
+| `/surgery/optimization` 4 KPIs only; no Scenario Improvement / Delay Reduction chart | **PASS** |
+| Alert “Low first-case on-time starts” | **PASS** |
+| Vital Assist OR & Surgery + Decide Defer recorded | **PASS** |
 
 ---
 
@@ -344,7 +348,9 @@ Surgery-only changes in bind/alerts for Surgery KPI keys.
 | Alerts aligned | **PASS** |
 | Vital Assist | **PASS** |
 | Six What-ifs | **PASS** |
-| Decision workflow | **PASS** |
+| Decision workflow | **PASS** (Defer exercised live) |
 | Five approved domains unchanged | **PASS** |
-| Production verified | **PENDING** |
+| Production verified | **PASS** |
 | Acceptance evidence complete | **PASS** |
+
+**Surgery Domain 6 remediation — COMPLETE.**
