@@ -21,7 +21,7 @@ Final acceptance hardening closed the remaining QA gaps without redesigning Radi
 5. **Deep-link shell** kept in sync (`404.html` ≡ `index.html`) so `/radiology` boots the current bundle.
 6. **Alerts** remain full-year scoped and explicitly labeled when the dashboard period is a quarter.
 
-**Recommendation:** Radiology Domain 7 is ready for formal acceptance.
+**Recommendation:** Radiology Domain 7 is **ACCEPTED** for formal executive demonstration use.
 
 ---
 
@@ -32,8 +32,9 @@ Final acceptance hardening closed the remaining QA gaps without redesigning Radi
 | Branch | `main` |
 | BUILD_ID | `v66-radiology-acceptance` |
 | Bundle | `index-DhZfZ9EJ.js` |
-| Commit | Recorded at publish (this closure ship) |
+| Commit | `984b0de7a0d882394ae50d8fa4bee4a04a8f5a9e` |
 | Deep-link fix retained | `404.html` copies current `index.html` assets |
+| Production verified | 2026-10-30 — H2 Q1 Requests 5,303; alerts remain full-year with explicit note; Access backlog 917 after cross-screen navigation; catalog shows definition text (no duplicate headline numbers) |
 
 ---
 
