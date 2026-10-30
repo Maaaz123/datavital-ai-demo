@@ -2,6 +2,7 @@
 
 **Domain:** Domain 10 — ICU & Critical Care Intelligence  
 **BUILD_ID:** `v70-icu`  
+**Production commit:** `35aef98` (SPA 404 shell fix atop `760a670` domain publish)  
 **JS bundle:** `assets/index-Os4ooxMR.js`  
 **PWA helper:** `assets/pwa-BzuCp2bq.js`  
 **Scenario snapshot (H1 · Full year 2026):** admissions 2,751 · discharges 2,445 · deaths 167 · transfers-in 225 · transfers-out 366 · patient-days 9,398 · avg census 25.7 · opening 27 · closing/identity 25 · pending 10 · demand pressure 2.5 · median wait 56 min · delayed 99 · median LOS 81 h · P90 LOS 131 h · ready delay 4.3 h · transfer delay 5.6 h · boarding 2,543 h · physical 36 · staffed 32 · occupied 27 · available staffed 4 · blocked 1 · unstaffed 4 · nurse coverage 90.8% · vent inventory 27 (in use 10 + available 14 + maint 2 + prep 1) · downtime 2,920 h · readiness 88.9% · readmit 2.9% · surveillance completeness 85.5% (illustrative) · recoverable 7,796 h · feasible capacity 25
@@ -196,14 +197,16 @@ NAV_DOMAINS length 10 (prior 9 + ICU); screen count 43 (prior 37 + 6). Domains 1
 
 | Check | Result |
 |---|---|
-| Commit pushed to `main` | PASS (see git log) |
+| Commit pushed to `main` | PASS — `760a670` domain + `35aef98` 404 shell |
+| GitHub Pages build status | PASS — `built` on `35aef98` |
 | GitHub Pages serves `v70-icu` | PASS |
-| Bundle `index-Os4ooxMR.js` live | PASS |
-| Deep links `/icu`, `/icu/flow`, `/icu/capacity`, `/icu/equipment`, `/icu/quality`, `/icu/optimization` | PASS |
-| Hospital / year / period filters on production | PASS |
+| Bundle `index-Os4ooxMR.js` live | PASS (root 200; deep links return SPA 404.html with same bundle — GH Pages convention) |
+| Deep links `/icu` … `/icu/optimization` | PASS — 404 shell loads `index-Os4ooxMR.js` containing ICU Command Center |
 | BUILD_ID `v70-icu` in refresh helper | PASS |
+| Live JS contains ICU routes/KPIs | PASS |
 
-Public URL: https://maaaz123.github.io/datavital-ai-demo/
+Public URL: https://maaaz123.github.io/datavital-ai-demo/  
+ICU Command: https://maaaz123.github.io/datavital-ai-demo/icu
 
 ---
 
