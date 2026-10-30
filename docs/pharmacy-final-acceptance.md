@@ -261,14 +261,28 @@ Emergency, Beds, Inpatient, Outpatient, Appointments, Surgery, Radiology, Labora
 | BUILD_ID | `v68-pharmacy` | **PASS** |
 | Bundle | `assets/index-v90Mr-rx.js` | **PASS** |
 | Automated tests | 231/231 | **PASS** |
-| Commit | _(filled after commit)_ | pending |
-| Production deploy | GitHub Pages `main` | pending verification |
+| Commit | `4c1e782` | **PASS** |
+| Production deploy | GitHub Pages `main` | **PASS** (browser verified 2026-10-30) |
+
+### Production verification checklist
+
+| Check | Status |
+|---|---|
+| Published `index.html` references `index-v90Mr-rx.js` | **PASS** |
+| Bundle HTTP 200 | **PASS** |
+| `localStorage` BUILD_ID `v68-pharmacy` | **PASS** |
+| `/pharmacy` Command (orders 255,560 · dispensed lines 643,727) | **PASS** |
+| `/pharmacy/inventory` (value SAR 3.65M · stockout 4 · DOS 12.5) | **PASS** |
+| `/pharmacy/optimization` (recoverable 4,438 h · additional 833) | **PASS** |
+| Vital Assist · Pharmacy Decision Support | **PASS** |
+| Forecast what-if (TAT −15% → median near 26.4 min) | **PASS** |
+| Laboratory domain still present in nav | **PASS** |
 
 ### Release gate checklist
 
 | Gate | Status |
 |---|---|
-| All six Pharmacy pages function | **PASS** (local routes + build) |
+| All six Pharmacy pages function | **PASS** (prod browser) |
 | Each KPI one primary owner | **PASS** |
 | No unnecessary chart duplication | **PASS** |
 | Orders/lines/dispenses/admins distinct | **PASS** |
@@ -283,11 +297,11 @@ Emergency, Beds, Inpatient, Outpatient, Appointments, Surgery, Radiology, Labora
 | Vital Assist Pharmacy | **PASS** |
 | Decision workflow | **PASS** |
 | Domains 1–8 unchanged | **PASS** |
-| Production verified | **PENDING** → update after Pages |
+| Production verified | **PASS** (`v68-pharmacy` / `index-v90Mr-rx.js`) |
 | Acceptance complete | **PASS** |
 
 ---
 
 ## Verdict
 
-**CONDITIONAL PASS** pending production browser verification of `v68-pharmacy` / `index-v90Mr-rx.js` on all six Pharmacy deep links after push.
+**PASS** — Domain 9 Pharmacy & Medication Operations Intelligence is ready for product-owner review. Production Pages serves `v68-pharmacy` / `index-v90Mr-rx.js` on Pharmacy routes with Vital Assist and what-if scenarios confirmed; Domains 1–8 remain unchanged.
