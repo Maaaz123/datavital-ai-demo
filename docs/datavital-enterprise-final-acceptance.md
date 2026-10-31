@@ -275,10 +275,9 @@ See `docs/enterprise-cross-domain-reconciliation.md`.
 
 | Suite | Result |
 |---|---|
-| ST / SC / QS / RCM reconcile | **PASS** |
-| Enterprise reconcile + pages | **PASS** (11) |
-| Recovery + enterprise gate (incl. legacy `/dashboard` → Executive) | **PASS** — 105/105 in combined release gate |
-| Tests weakened to pass | **PASS** (policy held — recovery expectations updated for new aliases) |
+| ST + SC + QS + RCM reconcile-only | **PASS** — 5 files · **89/89** |
+| Phase 4 focused gate (ST/SC/QS/RCM pages + reconcile + enterprise + UX) | **PASS** — 11 files · **117/117** |
+| Tests weakened to pass | **PASS** (not done; recovery NAV counts updated for 16 domains / 80 screens) |
 
 ---
 
@@ -287,10 +286,10 @@ See `docs/enterprise-cross-domain-reconciliation.md`.
 | Check | Result |
 |---|---|
 | Selective `cp` deploy (no `rsync --delete`) | **PASS** |
-| `refresh.html` / `pwa.ts` BUILD_ID `v79-enterprise-integration` | **PASS** |
-| Bundle | `index-kS1xB9gs.js` · CSS `index-DNRt8v24.css` · PWA `pwa-CLQdPXVN.js` |
+| `https://demo.datavital.io/refresh.html` BUILD_ID | **PASS** — `v79-enterprise-integration` |
+| Bundle | `index-kS1xB9gs.js` · CSS `index-DNRt8v24.css` · PWA `pwa-CLQdPXVN.js` (HTTP 200) |
 | SPA `404.html` shell same bundle | **PASS** |
-| Live `/executive`, `/command`, `/strategy`, `/quality`, `/supply-chain` | **PASS** after GitHub Pages publish (HTTP 200 + string evidence) |
+| Deep links `/executive`, `/command`, `/strategy`, `/quality`, `/supply-chain` | **PASS** — GitHub Pages returns HTTP 404 with SPA shell referencing `index-kS1xB9gs.js`; live JS contains Executive Dashboard, Hospital Command Center, Strategy / Quality / Supply Chain command titles |
 
 ---
 
