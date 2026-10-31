@@ -4,7 +4,12 @@
  */
 import { z } from 'zod';
 import type { EnterpriseAiIntent, IntentClassification } from './types';
-import { REFUSAL_CAPEX_AUTO, REFUSAL_CLINICAL } from './types';
+import {
+  REFUSAL_CAPEX_AUTO,
+  REFUSAL_CLINICAL,
+  REFUSAL_PROMPT_INJECTION,
+  REFUSAL_UNSUPPORTED_ROI,
+} from './types';
 
 export const INTENT_IDS: EnterpriseAiIntent[] = [
   'kpi_explanation',
@@ -73,7 +78,22 @@ export function classifyIntent(question: string): IntentClassification {
   }
 
   // Hard refusals — surface as refused intents before planning tools.
-  if (/\b(diagnos(e|is)|patient[- ]level|this\s+patient|prescribe|clinical\s+decision\s+support)\b/i.test(q)) {
+  if (
+    /\b(ignore\s+(all\s+)?(previous|prior|above)\s+instructions?|disregard\s+(your\s+)?(system|safety)\s+prompt|reveal\s+(your\s+)?(system\s+)?prompt|jailbreak|you\s+are\s+now\s+(dan|unrestricted)|override\s+safety)\b/i.test(
+      q,
+    )
+  ) {
+    return {
+      primary: 'kpi_explanation',
+      secondary: [],
+      scores,
+      method: 'deterministic-pattern',
+      disclosure: DISCLOSURE,
+      refused: true,
+      refuseReason: REFUSAL_PROMPT_INJECTION,
+    };
+  }
+  if (/\b(diagnos(e|is)|patient[- ]level|this\s+patient|prescribe|clinical\s+decision\s+support|treat(ment)?\s+plan\s+for\s+(the\s+)?patient)\b/i.test(q)) {
     return {
       primary: 'kpi_explanation',
       secondary: [],
@@ -93,6 +113,21 @@ export function classifyIntent(question: string): IntentClassification {
       disclosure: DISCLOSURE,
       refused: true,
       refuseReason: REFUSAL_CAPEX_AUTO,
+    };
+  }
+  if (
+    /\b(guaranteed\s+roi|proven\s+roi|exact\s+roi\s+of|roi\s+will\s+be|promise[sd]?\s+return\s+on\s+investment|validated\s+investment\s+roi)\b/i.test(
+      q,
+    )
+  ) {
+    return {
+      primary: 'financial',
+      secondary: [],
+      scores,
+      method: 'deterministic-pattern',
+      disclosure: DISCLOSURE,
+      refused: true,
+      refuseReason: REFUSAL_UNSUPPORTED_ROI,
     };
   }
 

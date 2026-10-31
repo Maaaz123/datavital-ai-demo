@@ -221,3 +221,9 @@ export const REFUSAL_CLINICAL =
 
 export const REFUSAL_CAPEX_AUTO =
   'Refused: CapEx auto-approval is not permitted. Human decision required; historical KPI facts are never mutated by approval.';
+
+export const REFUSAL_PROMPT_INJECTION =
+  'Refused: prompt-injection / instruction-override attempts are ignored. Enterprise AI only answers operational analytics questions via tools.';
+
+export const REFUSAL_UNSUPPORTED_ROI =
+  'Refused: unsupported ROI / guaranteed financial return claims. Synthetic demo cannot invent validated investment ROI.';
