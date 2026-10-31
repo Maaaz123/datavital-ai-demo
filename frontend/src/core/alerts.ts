@@ -1,5 +1,6 @@
 import { findKpi } from '@/showcase/engine';
 import { formatDelta, formatMeasure, measure } from '@/showcase/measures';
+import { buildQsView } from './qualitySafetyView';
 import { buildRcmView } from './rcmView';
 import type { ReportPeriod } from './period';
 
@@ -1333,6 +1334,150 @@ const RULES: Rule[] = [
     high: 2500000,
     medium: 1500000,
   },
+  {
+    kpi: 'kpi_qs_validated_event_rate',
+    department: 'Quality & Safety',
+    screen: 'quality',
+    title: 'Elevated validated safety event rate',
+    owner: 'Chief Quality Officer',
+    investigation: 'Validated Safety Event Rate = validated events ÷ discharges × 1,000. Descriptive — not risk-adjusted. Reporting culture affects volume; rising reports are not automatically rising harm.',
+    action: 'Review severity and harm distribution with Patient Safety, then open Incident Intelligence for category patterns requiring investigation.',
+    rule: 'Critical at 18 or more, high at 15, medium at 12 validated events per 1,000 discharges.',
+    threshold: 'Operating target 12 /1k · high at 15 · critical at 18',
+    consequence: 'Elevated validated-event density needs leadership attention before specialist deep-dives.',
+    whyMatters: 'Validated Safety Event Rate is the primary Quality & Safety command signal.',
+    followUp: 'Validated Event Rate, Severe Harm Events, and Events With Harm',
+    worse: true,
+    critical: 18,
+    high: 15,
+    medium: 12,
+  },
+  {
+    kpi: 'kpi_qs_severe_harm_events',
+    department: 'Quality & Safety',
+    screen: 'quality',
+    title: 'Severe harm events present',
+    owner: 'Patient Safety Director',
+    investigation: 'Severe Harm Events are validated events with severe-harm classification after human review in the demo ledger. The product does not auto-classify regulatory sentinel events.',
+    action: 'Confirm classification completeness and open RCA where policy requires; keep clinical judgment with authorized reviewers.',
+    rule: 'Critical at 4 or more, high at 2, medium at 1 severe harm event in the period.',
+    threshold: 'Management threshold 1 event · high at 2 · critical at 4',
+    consequence: 'Severe harm requires investigation and learning-system follow-through.',
+    whyMatters: 'Severe Harm Events are the primary patient-safety harm signal on Command.',
+    followUp: 'Severe Harm Events, Open RCA, and Overdue High-Risk Actions',
+    worse: true,
+    critical: 4,
+    high: 2,
+    medium: 1,
+  },
+  {
+    kpi: 'kpi_qs_clabsi_rate',
+    department: 'Quality & Safety',
+    screen: 'quality-infections',
+    title: 'CLABSI incidence above target',
+    owner: 'Infection Prevention Director',
+    investigation: 'CLABSI rate = eligible CLABSI ÷ central-line days × 1,000. Device-day denominator required. Demo surveillance — not certified NHSN. Official SIR is unavailable without model-based predicted infections.',
+    action: 'Review unit device-days vs events and central-line bundle compliance; do not treat process compliance as proven infection reduction.',
+    rule: 'Critical at 2.4 or more, high at 1.8, medium at 1.2 CLABSI per 1,000 central-line days.',
+    threshold: 'Operating target 1.2 /1k CL-days · high at 1.8 · critical at 2.4',
+    consequence: 'Elevated CLABSI density concentrates infection burden and needs surveillance review.',
+    whyMatters: 'CLABSI Incidence Density is the primary device-associated bloodstream signal.',
+    followUp: 'CLABSI Rate, Central Line Bundle Compliance, and Surveillance Coverage',
+    worse: true,
+    critical: 2.4,
+    high: 1.8,
+    medium: 1.2,
+  },
+  {
+    kpi: 'kpi_qs_cauti_rate',
+    department: 'Quality & Safety',
+    screen: 'quality-infections',
+    title: 'CAUTI incidence above target',
+    owner: 'Infection Prevention Director',
+    investigation: 'CAUTI rate = eligible CAUTI ÷ urinary-catheter days × 1,000. Device-day denominator required. Demo surveillance — not certified NHSN.',
+    action: 'Review catheter maintenance bundle gaps by unit and confirm surveillance coverage before ranking units.',
+    rule: 'Critical at 2.8 or more, high at 2.1, medium at 1.5 CAUTI per 1,000 catheter days.',
+    threshold: 'Operating target 1.5 /1k UC-days · high at 2.1 · critical at 2.8',
+    consequence: 'Elevated CAUTI density signals device-associated UTI burden needing IPC review.',
+    whyMatters: 'CAUTI Incidence Density is the primary device-associated UTI signal.',
+    followUp: 'CAUTI Rate, Catheter Bundle Compliance, and Device Days vs Events',
+    worse: true,
+    critical: 2.8,
+    high: 2.1,
+    medium: 1.5,
+  },
+  {
+    kpi: 'kpi_qs_hand_hygiene_compliance',
+    department: 'Quality & Safety',
+    screen: 'quality-prevention',
+    title: 'Hand-hygiene compliance below target',
+    owner: 'Infection Prevention Director',
+    investigation: 'Observed compliance = compliant ÷ eligible observed opportunities. Audited sample only — not the universe of all care interactions. Observer bias and sampling limits apply.',
+    action: 'Increase eligible observation coverage on lagging units and close high-risk prevention gaps; compliance alone does not prove infection reduction.',
+    rule: 'Critical at 72% or below, high at 78%, medium at 85% observed compliance.',
+    threshold: 'Operating target 85% · high at 78% · critical at 72%',
+    consequence: 'Weak audited hand-hygiene reliability is a prevention-process gap.',
+    whyMatters: 'Hand Hygiene Observed Compliance is the primary infection-prevention process signal.',
+    followUp: 'Hand Hygiene Compliance, Prevention Gaps, and Bundle Compliance by Unit',
+    worse: false,
+    critical: 0.72,
+    high: 0.78,
+    medium: 0.85,
+  },
+  {
+    kpi: 'kpi_qs_overdue_high_risk_actions',
+    department: 'Quality & Safety',
+    screen: 'quality-actions',
+    title: 'Overdue high-risk CAPA backlog',
+    owner: 'Quality Governance lead',
+    investigation: 'Overdue High-Risk Actions are open high-risk CAPA / safety actions past due at observation. Approval of an action is not measured effectiveness.',
+    action: 'Age the CAPA ledger, escalate overdue high-risk items, and schedule effectiveness reviews for closed actions.',
+    rule: 'Critical at 14 or more, high at 9, medium at 5 overdue high-risk actions.',
+    threshold: 'Management threshold 5 · high at 9 · critical at 14',
+    consequence: 'Aging high-risk actions delay learning-system closure and recurring-risk control.',
+    whyMatters: 'Overdue High-Risk Actions is the primary learning-system backlog signal on Command.',
+    followUp: 'Overdue High-Risk Actions, CAPA On-Time, and Open CAPA',
+    worse: true,
+    critical: 14,
+    high: 9,
+    medium: 5,
+  },
+  {
+    kpi: 'kpi_qs_readmission_rate',
+    department: 'Quality & Safety',
+    screen: 'quality-outcomes',
+    title: 'Eligible readmission rate above target',
+    owner: 'Care Transitions lead',
+    investigation: 'Eligible 30-Day Unplanned Readmission Rate uses same-facility index discharges only. Cross-facility linkage is unavailable. Descriptive — not a risk-adjusted ranking.',
+    action: 'Review eligible cohort exclusions and outcome review backlog with Care Transitions; do not infer avoidability from counts alone.',
+    rule: 'Critical at 14% or more, high at 11%, medium at 9% of eligible index discharges.',
+    threshold: 'Operating target 9% · high at 11% · critical at 14%',
+    consequence: 'Elevated same-facility unplanned readmissions flag transitions-of-care review needs.',
+    whyMatters: 'Eligible 30-Day Unplanned Readmission Rate is the primary clinical-outcomes command signal.',
+    followUp: 'Readmission Rate, Outcome Review Backlog, and Outcome Measure Coverage',
+    worse: true,
+    critical: 0.14,
+    high: 0.11,
+    medium: 0.09,
+  },
+  {
+    kpi: 'kpi_qs_investigation_timeliness',
+    department: 'Quality & Safety',
+    screen: 'quality-incidents',
+    title: 'Slow safety investigation closure',
+    owner: 'Patient Safety Director',
+    investigation: 'Investigation Timeliness = on-time closed investigations ÷ investigations decided in the period. Incomplete classification limits pattern analysis.',
+    action: 'Clear overdue investigations in age order and complete category + severity labels before ranking departments.',
+    rule: 'Critical at 60% or below, high at 70%, medium at 80% on-time investigations.',
+    threshold: 'Operating target 80% · high at 70% · critical at 60%',
+    consequence: 'Slow investigations delay RCA initiation and recurring-pattern detection.',
+    whyMatters: 'Investigation Timeliness is the primary incident-investigation process signal.',
+    followUp: 'Investigation Timeliness, Classification Completeness, and Events With Harm',
+    worse: false,
+    critical: 0.6,
+    high: 0.7,
+    medium: 0.8,
+  },
 ];
 
 const SCREEN_DEPARTMENT: Record<string, string> = {
@@ -1368,6 +1513,13 @@ const SCREEN_DEPARTMENT: Record<string, string> = {
   'rcm-collections': 'Revenue Cycle',
   'rcm-leakage': 'Revenue Cycle',
   'rcm-optimization': 'Revenue Cycle',
+  quality: 'Quality & Safety',
+  'quality-incidents': 'Quality & Safety',
+  'quality-infections': 'Quality & Safety',
+  'quality-prevention': 'Quality & Safety',
+  'quality-outcomes': 'Quality & Safety',
+  'quality-actions': 'Quality & Safety',
+  'quality-optimization': 'Quality & Safety',
   laboratory: 'Laboratory',
   'laboratory-samples': 'Laboratory',
   'laboratory-analyzers': 'Laboratory',
@@ -1406,19 +1558,27 @@ function periodLabel(year: number, period: ReportPeriod): string {
 
 /**
  * Build demo alerts. Domains 1–11 keep full-year measure() values.
- * Revenue Cycle alerts optionally use the selected reporting period via buildRcmView
- * so Q1 cards and Q1 alerts share the same financial cohort.
+ * Revenue Cycle and Quality & Safety alerts optionally use the selected reporting period
+ * via buildRcmView / buildQsView so quarterly cards and alerts share the same cohort.
  */
 export function alertsFor(hospital: string, year: number, period: ReportPeriod = 'year'): DemoAlert[] {
   const rcmView = period === 'year' ? null : buildRcmView(hospital, year, period);
+  const qsView = period === 'year' ? null : buildQsView(hospital, year, period);
   const label = periodLabel(year, period);
   return RULES.map((rule) => {
     const kpi = findKpi(rule.kpi);
     if (!kpi) throw new Error(`Alert rule missing KPI ${rule.kpi}`);
     const useRcmPeriod = Boolean(rcmView && rule.department === 'Revenue Cycle' && rule.kpi.startsWith('kpi_rcm_'));
+    const useQsPeriod = Boolean(qsView && rule.department === 'Quality & Safety' && rule.kpi.startsWith('kpi_qs_'));
+    const usePeriodView = useRcmPeriod || useQsPeriod;
     const item = measure(kpi, hospital, year, 'All');
-    const value = useRcmPeriod ? Number(rcmView!.kpiValues[rule.kpi] ?? item.value) : item.value;
-    const observedItem = useRcmPeriod ? { ...item, value } : item;
+    const periodValue = useRcmPeriod
+      ? Number(rcmView!.kpiValues[rule.kpi] ?? item.value)
+      : useQsPeriod
+        ? Number(qsView!.kpiValues[rule.kpi] ?? item.value)
+        : item.value;
+    const value = usePeriodView ? periodValue : item.value;
+    const observedItem = usePeriodView ? { ...item, value } : item;
     const severity = severityFor(value, rule);
     return {
       // Domains 1–11 keep the historic full-year id shape when period === 'year'.
@@ -1427,14 +1587,14 @@ export function alertsFor(hospital: string, year: number, period: ReportPeriod =
       department: rule.department,
       kpi: rule.kpi,
       screen: rule.screen,
-      period: useRcmPeriod || period === 'year' ? label : `Full year ${year}`,
+      period: usePeriodView || period === 'year' ? label : `Full year ${year}`,
       severity,
       title: rule.title,
       observed: formatMeasure(observedItem, 'en'),
       comparison: `${formatDelta(observedItem, 'en')}. ${rule.rule}`,
       rule: rule.rule,
       threshold: rule.threshold ?? rule.rule,
-      evidence: `${kpi.name}: ${formatMeasure(observedItem, 'en')} for ${hospital}, ${useRcmPeriod || period === 'year' ? label : `full year ${year}`}. ${item.note}`,
+      evidence: `${kpi.name}: ${formatMeasure(observedItem, 'en')} for ${hospital}, ${usePeriodView || period === 'year' ? label : `full year ${year}`}. ${item.note}`,
       investigation: rule.investigation,
       drivers: rule.investigation,
       consequence: rule.consequence ?? 'Operational consequence depends on how long the signal stays above the review line.',
@@ -1458,9 +1618,10 @@ export function visibleAlerts(
   screenId: string | null,
   period: ReportPeriod = 'year',
 ): { alerts: DemoAlert[]; note: string } {
-  const usePeriod = screenDepartment(screenId) === 'Revenue Cycle' ? period : 'year';
+  const scopedDept = screenDepartment(screenId);
+  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' ? period : 'year';
   const all = alertsFor(hospital, year, usePeriod);
-  const scoped = screenDepartment(screenId);
+  const scoped = scopedDept;
   const scopeNote = usePeriod === 'year'
     ? `this hospital and year`
     : `this hospital and ${periodLabel(year, usePeriod)}`;
@@ -1482,7 +1643,7 @@ export function badgeCount(
   statuses: Record<string, AlertStatus>,
   period: ReportPeriod = 'year',
 ): number {
-  const usePeriod = department === 'Revenue Cycle' ? period : 'year';
+  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' ? period : 'year';
   return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (department !== 'All' && alert.department !== department) return false;
     if (alert.severity === 'info') return false;
@@ -1503,6 +1664,15 @@ export function screenFromPath(path: string): string | null {
   if (path.startsWith('/icu')) return 'icu';
   if (path.startsWith('/patient-experience')) return 'patient-experience';
   if (path.startsWith('/rcm')) return 'rcm';
+  if (path.startsWith('/quality')) {
+    if (path.startsWith('/quality/incidents')) return 'quality-incidents';
+    if (path.startsWith('/quality/infections')) return 'quality-infections';
+    if (path.startsWith('/quality/prevention')) return 'quality-prevention';
+    if (path.startsWith('/quality/outcomes')) return 'quality-outcomes';
+    if (path.startsWith('/quality/actions')) return 'quality-actions';
+    if (path.startsWith('/quality/optimization')) return 'quality-optimization';
+    return 'quality';
+  }
   if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];

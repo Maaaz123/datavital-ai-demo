@@ -20,6 +20,15 @@ import {
   RcmLeakagePage,
   RcmOptimizationPage,
 } from '@/core/rcm';
+import {
+  QsActionsPage,
+  QsCommandPage,
+  QsIncidentsPage,
+  QsInfectionsPage,
+  QsOptimizationPage,
+  QsOutcomesPage,
+  QsPreventionPage,
+} from '@/core/qualitySafety';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
@@ -94,6 +103,13 @@ export const routes = [
       { path: 'rcm/collections', element: <RcmCollectionsPage /> },
       { path: 'rcm/leakage', element: <RcmLeakagePage /> },
       { path: 'rcm/optimization', element: <RcmOptimizationPage /> },
+      { path: 'quality', element: <QsCommandPage /> },
+      { path: 'quality/incidents', element: <QsIncidentsPage /> },
+      { path: 'quality/infections', element: <QsInfectionsPage /> },
+      { path: 'quality/prevention', element: <QsPreventionPage /> },
+      { path: 'quality/outcomes', element: <QsOutcomesPage /> },
+      { path: 'quality/actions', element: <QsActionsPage /> },
+      { path: 'quality/optimization', element: <QsOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

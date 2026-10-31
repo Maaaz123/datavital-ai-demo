@@ -1,0 +1,22 @@
+canonical_column,data_type,description,grain,readiness,related_kpi
+hospital_id,string,Facility code H1–H5 or ALL,hospital,Demo Available,all
+calendar_period_id,string,Year or quarter bucket,period,Demo Available,all
+department_id,string,Care unit / department,department,Demo Available,kpi_qs_validated_incidents
+reported_incident_count,integer,Safety reports received,period flow,Demo Available,kpi_qs_reported_incidents
+validated_event_count,integer,Validated after review,period flow,Demo Available,kpi_qs_validated_incidents
+near_miss_count,integer,Validated near misses,period flow,Demo Available,kpi_qs_near_miss_events
+events_with_harm_count,integer,Validated harm events,period flow,Demo Available,kpi_qs_events_with_harm
+severe_harm_count,integer,Severe harm validated events,period flow,Demo Available,kpi_qs_severe_harm_events
+central_line_days,integer,Eligible central-line days,period flow,Demo Available,kpi_qs_clabsi_rate
+urinary_catheter_days,integer,Eligible catheter days,period flow,Demo Available,kpi_qs_cauti_rate
+clabsi_event_count,integer,Eligible CLABSI events,period flow,Demo Available,kpi_qs_clabsi_rate
+cauti_event_count,integer,Eligible CAUTI events,period flow,Demo Available,kpi_qs_cauti_rate
+eligible_procedure_count,integer,SSI surveillance procedures,period flow,Demo Available,kpi_qs_ssi_rate
+ssi_event_count,integer,Eligible SSI events,period flow,Demo Available,kpi_qs_ssi_rate
+ho_cdi_event_count,integer,Hospital-onset CDI events,period flow,Demo Available,kpi_qs_cdi_events
+hh_eligible_opportunities,integer,Audited HH opportunities,period flow,Demo Available,kpi_qs_hand_hygiene_compliance
+hh_compliant_opportunities,integer,Compliant HH observations,period flow,Demo Available,kpi_qs_hand_hygiene_compliance
+open_rca_count,integer,Open investigations at observation,period-end stock,Demo Available,kpi_qs_open_rca
+open_capa_count,integer,Open CAPA at observation,period-end stock,Demo Available,kpi_qs_open_capa
+overdue_high_risk_action_count,integer,Overdue high-risk CAPA,period-end stock,Demo Available,kpi_qs_overdue_high_risk_actions
+official_sir,number,Standardized Infection Ratio,n/a,Missing,n/a

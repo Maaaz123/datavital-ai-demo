@@ -5,6 +5,7 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildQsView } from '@/core/qualitySafetyView';
 import { buildRcmView } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
@@ -212,6 +213,68 @@ function pxMapped(key: string, hospital: string, year: number): Raw | null {
   }
 }
 
+/** Quality & Safety KPIs bound to the shared QS view. Rates are descriptive demo surveillance — not certified NHSN / official SIR. */
+function qsMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildQsView(hospital, year, 'year');
+  const density = (events: number, days: number, unit: string, note: string): Raw => ({
+    value: days > 0 ? (events / days) * 1000 : 0,
+    kind: 'index',
+    unit,
+    numerator: events,
+    denominator: Math.max(1, days),
+    grain: RATE_GRAIN,
+    better: 'down',
+    note,
+  });
+  const rateIdx = (value: number, unit: string, note: string, better: Raw['better'] = 'down'): Raw => ({
+    value, kind: 'index', unit, numerator: Math.round(value * 1000), denominator: 1000, grain: RATE_GRAIN, better, note,
+  });
+  switch (key) {
+    case 'kpi_qs_validated_event_rate': return density(v.validated, v.discharges, '/1k discharges', 'Validated events ÷ discharges × 1,000 from the Quality & Safety Command view. Descriptive — not risk-adjusted.');
+    case 'kpi_qs_severe_harm_events': return count(v.severeHarm, 'down', 'Validated severe-harm events from the Quality & Safety Command view. Not auto-classified as regulatory sentinel events.', GRAIN, 'events');
+    case 'kpi_qs_hai_burden_rate': return density(v.haiCases, v.patientDays, '/1k patient-days', 'Hospital-onset infection events ÷ patient-days × 1,000 from the Quality & Safety Command view. Not an official NHSN SIR.');
+    case 'kpi_qs_quality_measure_compliance': return { value: v.qualityCompliance, kind: 'rate', unit: '%', numerator: Math.round(v.qualityCompliance * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Measure numerators met ÷ eligible opportunities from the Quality & Safety Command view.' };
+    case 'kpi_qs_overdue_high_risk_actions': return count(v.overdueHighRiskActions, 'down', 'Open high-risk CAPA / safety actions past due from the Quality & Safety Command view.', GRAIN, 'actions');
+    case 'kpi_qs_priority_safety_signals': return count(v.prioritySignals, 'down', 'Non-info Quality & Safety priority signals from the Quality & Safety Command view.', GRAIN, 'signals');
+    case 'kpi_qs_reported_incidents': return count(v.reported, 'neutral', 'Safety reports received from Incident Intelligence. Reporting volume ≠ underlying harm.', GRAIN, 'reports');
+    case 'kpi_qs_validated_incidents': return count(v.validated, 'down', 'Validated incidents after review from Incident Intelligence.', GRAIN, 'events');
+    case 'kpi_qs_near_miss_events': return count(v.nearMiss, 'neutral', 'Validated near-miss events from Incident Intelligence.', GRAIN, 'events');
+    case 'kpi_qs_events_with_harm': return count(v.withHarm, 'down', 'Validated events with harm from Incident Intelligence.', GRAIN, 'events');
+    case 'kpi_qs_investigation_timeliness': return { value: v.investigationTimeliness, kind: 'rate', unit: '%', numerator: Math.round(v.investigationTimeliness * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'On-time investigations ÷ decided investigations from Incident Intelligence.' };
+    case 'kpi_qs_classification_completeness': return { value: v.classificationCompleteness, kind: 'rate', unit: '%', numerator: Math.round(v.classificationCompleteness * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Fully labeled reports ÷ reported incidents from Incident Intelligence.' };
+    case 'kpi_qs_clabsi_rate': return density(v.clabsi, v.centralLineDays, '/1k CL-days', 'CLABSI ÷ central-line days × 1,000. Demo surveillance — not certified NHSN.');
+    case 'kpi_qs_cauti_rate': return density(v.cauti, v.catheterDays, '/1k UC-days', 'CAUTI ÷ catheter days × 1,000. Demo surveillance — not certified NHSN.');
+    case 'kpi_qs_ssi_rate': return exactRate(v.ssi, v.procedures, 'down', 'SSI ÷ eligible surveillance procedures from the HAI view.');
+    case 'kpi_qs_validated_hai_cases': return count(v.haiCases, 'down', 'CLABSI + CAUTI + SSI + HO CDI from the HAI view.', GRAIN, 'events');
+    case 'kpi_qs_cdi_events': return count(v.cdi, 'down', 'Hospital-onset CDI LabID events from the HAI view.', GRAIN, 'events');
+    case 'kpi_qs_surveillance_coverage': return { value: v.surveillanceCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.surveillanceCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Covered units ÷ surveillance-plan units from the HAI view.' };
+    case 'kpi_qs_hand_hygiene_compliance': return exactRate(v.hhCompliant, v.hhEligible, 'up', 'Compliant ÷ eligible observed hand-hygiene opportunities (audited sample only).');
+    case 'kpi_qs_isolation_compliance': return { value: v.isolationCompliance, kind: 'rate', unit: '%', numerator: Math.round(v.isolationCompliance * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Compliant ÷ eligible isolation observations from Infection Prevention.' };
+    case 'kpi_qs_ip_audit_completion': return { value: v.ipAuditCompletion, kind: 'rate', unit: '%', numerator: Math.round(v.ipAuditCompletion * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Completed ÷ scheduled IP audits from Infection Prevention.' };
+    case 'kpi_qs_cl_bundle_compliance': return { value: v.clBundle, kind: 'rate', unit: '%', numerator: Math.round(v.clBundle * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Fully compliant central-line observations ÷ eligible observations.' };
+    case 'kpi_qs_catheter_bundle_compliance': return { value: v.ucBundle, kind: 'rate', unit: '%', numerator: Math.round(v.ucBundle * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Fully compliant urinary-catheter maintenance observations ÷ eligible observations.' };
+    case 'kpi_qs_prevention_gaps': return count(v.preventionGaps, 'down', 'Open high-risk prevention audit findings from Infection Prevention.', GRAIN, 'gaps');
+    case 'kpi_qs_readmission_rate': return exactRate(v.readmissions, v.eligibleDischarges, 'down', 'Unplanned same-facility 30-day readmissions ÷ eligible index discharges. Cross-facility linkage unavailable.');
+    case 'kpi_qs_pressure_injury_rate': return density(v.hapi, v.patientDays, '/1k patient-days', 'Hospital-acquired pressure injuries ÷ patient-days × 1,000.');
+    case 'kpi_qs_falls_with_injury_rate': return density(v.fallsInjury, v.patientDays, '/1k patient-days', 'Falls with injury ÷ patient-days × 1,000.');
+    case 'kpi_qs_postop_complication_rate': return exactRate(v.postopComplications, v.surgicalDischarges, 'down', 'Postoperative complications ÷ eligible surgical discharges. Descriptive — not risk-adjusted.');
+    case 'kpi_qs_outcome_measure_coverage': return { value: v.outcomeMeasureCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.outcomeMeasureCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Outcome cohorts with complete eligibility flags ÷ planned measures.' };
+    case 'kpi_qs_outcome_review_backlog': return count(v.outcomeReviewBacklog, 'down', 'Open outcome reviews past target from Clinical Quality & Outcomes.', GRAIN, 'reviews');
+    case 'kpi_qs_open_rca': return count(v.openRca, 'down', 'Open RCA cases at observation from the RCA/CAPA view.', GRAIN, 'cases');
+    case 'kpi_qs_overdue_rca': return count(v.overdueRca, 'down', 'Overdue open RCA from the RCA/CAPA view.', GRAIN, 'cases');
+    case 'kpi_qs_capa_ontime': return { value: v.capaOntime, kind: 'rate', unit: '%', numerator: Math.round(v.capaOntime * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'On-time CAPA ÷ decided CAPA from the RCA/CAPA view.' };
+    case 'kpi_qs_open_capa': return count(v.openCapa, 'down', 'Open CAPA actions from the RCA/CAPA view.', GRAIN, 'actions');
+    case 'kpi_qs_recurring_themes': return count(v.recurringThemes, 'down', 'Recurring safety themes requiring RCA attention.', GRAIN, 'themes');
+    case 'kpi_qs_effectiveness_review_rate': return { value: v.effectivenessReviewRate, kind: 'rate', unit: '%', numerator: Math.round(v.effectivenessReviewRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Closed CAPA with effectiveness review ÷ closed CAPA. Approval ≠ measured effectiveness.' };
+    case 'kpi_qs_addressable_gap': return rateIdx(v.addressableGap, '/1k gap', 'Illustrative gap between validated event rate and target from Optimization.', 'down');
+    case 'kpi_qs_modeled_incident_reduction': return count(v.modeledIncidentReduction, 'up', 'Illustrative preventable validated events from Optimization — not measured improvement.', GRAIN, 'events');
+    case 'kpi_qs_modeled_hai_prevention': return count(v.modeledHaiPrevention, 'up', 'Illustrative preventable HAI events from Optimization — not measured infection reduction.', GRAIN, 'events');
+    case 'kpi_qs_modeled_compliance_uplift': return { value: v.modeledComplianceUplift, kind: 'rate', unit: '%', numerator: Math.round(v.modeledComplianceUplift * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Illustrative audited-opportunity compliance uplift from Optimization.' };
+    case 'kpi_qs_priority_action_coverage': return { value: v.priorityActionCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.priorityActionCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Priority actions with owner ÷ priority opportunities from Optimization.' };
+    default: return null;
+  }
+}
+
 /** Revenue Cycle KPIs bound to the shared RCM view. Amounts are fictional SAR; modeled values are illustrative, not collected cash. */
 function rcmMapped(key: string, hospital: string, year: number): Raw | null {
   const v = buildRcmView(hospital, year, 'year');
@@ -266,6 +329,7 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   const key = kpi.key;
   // Registry-origin kpi_rcm_* (legacy Revenue story, e.g. outstanding AR) keep their fact-ledger binding below.
   if (key.startsWith('kpi_rcm_') && kpi.origin === 'demo_assumption') return rcmMapped(key, hospital, year);
+  if (key.startsWith('kpi_qs_')) return qsMapped(key, hospital, year);
   if (key.startsWith('kpi_px_')) return pxMapped(key, hospital, year);
   if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);

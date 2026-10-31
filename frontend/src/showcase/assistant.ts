@@ -11,6 +11,7 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -44,6 +45,7 @@ function siteName(code: string, lang: Lang): string {
 }
 
 export function promptForPath(path: string): string {
+  if (/quality|infection|incident|capa|hai|clabsi/.test(path)) return 'Where are the largest quality and safety concerns?';
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
   if (/surgery/.test(path)) return 'Which surgical specialties have the largest backlog?';
@@ -112,6 +114,28 @@ export function answerQuestion(
       return {
         ...answer,
         approval: tx(lang, 'Management approval required. AI does not submit claims or write off balances alone. Modeled recovery is not collected cash.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يقدم المطالبات ولا يشطب الأرصدة وحده. الاسترداد المقدر ليس نقداً محصلاً.'),
+      };
+    }
+  }
+
+  if (department === 'Quality & Safety') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('qs-')) {
+      const result = runWhatIf('Quality & Safety', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not diagnose, order isolation, or close CAPA alone. Modeled reductions are not measured improvement.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يشخص ولا يأمر بالعزل ولا يغلق الإجراءات التصحيحية وحده.'),
       };
     }
   }
@@ -186,6 +210,7 @@ export function answerQuestion(
   if (department === 'ICU') return answerIcu(q, hospital, year, name, lang, period);
   if (department === 'Patient Experience') return answerPx(q, hospital, year, name, lang, period);
   if (department === 'Revenue Cycle') return answerRcm(q, hospital, year, name, lang, period);
+  if (department === 'Quality & Safety') return answerQs(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1587,6 +1612,134 @@ function answerRcm(
     action: tx(lang, topAlert?.action ?? 'Review Command health, then Claims & denials, AR & collections, and Leakage. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم المطالبات والتحصيل والتسرب.'),
     role: tx(lang, 'Revenue cycle director', 'مدير دورة الإيراد'),
     benefit: tx(lang, 'A sequenced review keeps eligibility, billing, claims, collections, and leakage distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerQs(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildQsView(hospital, year, period);
+  const n = (value: number, digits = 0) => value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const rate1k = (value: number) => `${n(value, 1)} /1k`;
+  const modeledNote = 'Modeled figures are illustrative under documented assumptions — not measured improvement, not certified NHSN rates, and not an official SIR.';
+  const priorityOpp = [...view.opportunities].sort((a, b) => b.eligibleValue - a.eligibleValue)[0];
+  const topCategory = [...view.categoryRows].sort((a, b) => b.count - a.count)[0];
+
+  if (/ed wait|emergency boarding|bed occupancy|no-?show|or utilization|imaging backlog|lab tat|pharmacy stock|icu transfer|patient satisfaction|claim denial|net collection|revenue leakage/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Quality & Safety focus', 'خارج تركيز الجودة والسلامة'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'ED waits stay in Emergency, occupancy in Beds, satisfaction in Patient Experience, and denials in Revenue Cycle.', 'كل دومين يملك مؤشراته.'),
+      explanation: tx(lang, 'Quality & Safety owns incident intelligence, HAI surveillance, infection prevention, clinical outcomes, RCA/CAPA, and illustrative safety scenarios.', 'الجودة والسلامة تملك الحوادث والعدوى والوقاية والنتائج وRCA.'),
+      action: tx(lang, 'Stay on Quality & Safety screens for safety, infection, and CAPA questions.', 'ابقَ في شاشات الجودة والسلامة.'),
+      role: tx(lang, 'Chief quality officer', 'رئيس الجودة'),
+      benefit: tx(lang, 'Clear ownership prevents duplicating operational dashboards inside Quality & Safety.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/diagnos|prescrib|treat the patient|prognosis|medical device|autonomous infection|order isolation|close capa alone/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside autonomous clinical decision support', 'خارج الدعم السريري الذاتي'),
+      observation: tx(lang, 'Vital Assist is a clinical-governance intelligence layer — not a diagnostic system, medical device, or autonomous infection-control engine.', 'المساعد طبقة حوكمة سريرية وليس نظام تشخيص أو جهاز طبي.'),
+      evidence: tx(lang, `Observed facts for ${name}: validated event rate ${rate1k(view.validatedEventRate)} · CLABSI ${n(view.clabsiRate, 2)} /1k CL-days · hand hygiene ${p(view.handHygiene)} (${view.periodLabel}). ${view.sirNote}`, 'مؤشرات حوكمة فقط.'),
+      explanation: tx(lang, 'Every clinically meaningful interpretation requires authorized human review.', 'كل تفسير سريري يتطلب مراجعة بشرية مخولة.'),
+      action: tx(lang, 'Ask about validated events, HAI rates, prevention compliance, outcomes, or RCA/CAPA instead.', 'اسأل عن الحوادث أو العدوى أو الوقاية أو RCA.'),
+      role: tx(lang, 'Patient safety director', 'مدير سلامة المرضى'),
+      benefit: tx(lang, 'Keeps governance analytics separate from clinical orders.', 'يفصل تحليل الحوكمة عن الأوامر السريرية.'),
+    });
+  }
+
+  if (/clabsi|cauti|ssi|hai|infection|device.?day|surveillance|cdi|mrsa/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `HAI surveillance · ${name} · ${view.periodLabel}`, `ترصد العدوى · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: CLABSI ${n(view.clabsiRate, 2)} /1k CL-days (target ${QS_TARGETS.clabsiRate}; ${n(view.clabsi)} / ${n(view.centralLineDays)} CL-days) · CAUTI ${n(view.cautiRate, 2)} /1k UC-days · SSI ${p(view.ssiRate)} · HO CDI ${n(view.cdi)} · validated HAI ${n(view.haiCases)} · surveillance coverage ${p(view.surveillanceCoverage)}.`, `CLABSI ${n(view.clabsiRate, 2)}.`),
+      evidence: tx(lang, `${view.methodology.infections}`, view.methodology.infections),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): device utilization and prevention-process gaps. Modeled (illustrative): ${n(view.modeledHaiPrevention)} preventable HAI events. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: review unit device-days vs events and bundle compliance with Infection Prevention. Do not treat process compliance as proven infection reduction.', 'راجع أيام الأجهزة والامتثال مع مكافحة العدوى.'),
+      role: tx(lang, 'Infection prevention director', 'مدير مكافحة العدوى'),
+      benefit: tx(lang, 'Device-day and procedure denominators keep HAI rates defensible.', 'المقامات الصحيحة تبقي المعدلات قابلة للدفاع.'),
+    });
+  }
+
+  if (/hand.?hygiene|bundle|isolation|prevention|audit|compliance/.test(q) && !/capa|rca/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Infection prevention · ${name} · ${view.periodLabel}`, `الوقاية من العدوى · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: hand hygiene ${p(view.handHygiene)} (target ${p(QS_TARGETS.handHygiene)}; ${n(view.hhCompliant)} / ${n(view.hhEligible)} audited opportunities) · isolation ${p(view.isolationCompliance)} · CL bundle ${p(view.clBundle)} · UC bundle ${p(view.ucBundle)} · IP audit completion ${p(view.ipAuditCompletion)} · prevention gaps ${n(view.preventionGaps)}.`, `نظافة اليدين ${p(view.handHygiene)}.`),
+      evidence: tx(lang, `${view.methodology.prevention}`, view.methodology.prevention),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): observation coverage and unit process reliability. Modeled (illustrative): compliance uplift ${p(view.modeledComplianceUplift)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: increase eligible observation coverage on lagging units and close high-risk prevention gaps. Compliance alone does not prove infection reduction.', 'زد تغطية الملاحظة وأغلق فجوات الوقاية.'),
+      role: tx(lang, 'Infection prevention director', 'مدير مكافحة العدوى'),
+      benefit: tx(lang, 'Audited-opportunity framing avoids overstating universal compliance.', 'صيغة الفرص المدققة تمنع المبالغة.'),
+    });
+  }
+
+  if (/incident|near.?miss|harm|report|investigat|fall|medication.?related|sentinel/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Incident intelligence · ${name} · ${view.periodLabel}`, `ذكاء الحوادث · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: reported ${n(view.reported)} · validated ${n(view.validated)} · near miss ${n(view.nearMiss)} · with harm ${n(view.withHarm)} · severe harm ${n(view.severeHarm)} · investigation timeliness ${p(view.investigationTimeliness)} · classification completeness ${p(view.classificationCompleteness)}. Largest category: ${topCategory?.name ?? 'n/a'} (${n(topCategory?.count ?? 0)}).`, `المبلغ ${n(view.reported)}.`),
+      evidence: tx(lang, `${view.methodology.incidents}`, view.methodology.incidents),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): reporting culture and recurring category concentration. Modeled (illustrative): ${n(view.modeledIncidentReduction)} preventable harm events. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: complete classification labels and clear overdue investigations before ranking departments. Do not auto-classify sentinel events for regulation.', 'أكمل التصنيف وأغلق التحقيقات المتأخرة.'),
+      role: tx(lang, 'Patient safety director', 'مدير سلامة المرضى'),
+      benefit: tx(lang, 'Separating reporting volume from harm keeps safety signals honest.', 'فصل حجم الإبلاغ عن الضرر يحافظ على صدق الإشارة.'),
+    });
+  }
+
+  if (/readmit|hapi|pressure.?injur|falls with|postop|outcome|mortality review|complication/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Clinical outcomes · ${name} · ${view.periodLabel}`, `النتائج السريرية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: eligible 30-day unplanned readmission ${p(view.readmissionRate)} (target ${p(QS_TARGETS.readmissionRate)}; same-facility only) · HAPI ${n(view.pressureInjuryRate, 2)} /1k · falls with injury ${n(view.fallsWithInjuryRate, 2)} /1k · postop complications ${p(view.postopComplicationRate)} · outcome coverage ${p(view.outcomeMeasureCoverage)} · review backlog ${n(view.outcomeReviewBacklog)}.`, `إعادة الدخول ${p(view.readmissionRate)}.`),
+      evidence: tx(lang, `${view.methodology.outcomes}`, view.methodology.outcomes),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): care transitions and skin/mobility reliability. Death counts do not imply avoidability. Rates are descriptive — not risk-adjusted rankings.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: clear outcome review backlog and confirm eligible cohort exclusions with Care Transitions.', 'صفّر متأخرات مراجعة النتائج مع انتقالات الرعاية.'),
+      role: tx(lang, 'Care transitions lead', 'قائد انتقالات الرعاية'),
+      benefit: tx(lang, 'Same-facility and eligibility framing prevents overstated outcome claims.', 'صيغة الأهلية تمنع المبالغة في النتائج.'),
+    });
+  }
+
+  if (/rca|capa|learning|effectiveness|overdue action|recurring theme/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `RCA & CAPA · ${name} · ${view.periodLabel}`, `RCA وCAPA · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: open RCA ${n(view.openRca)} · overdue RCA ${n(view.overdueRca)} · CAPA on-time ${p(view.capaOntime)} (target ${p(QS_TARGETS.capaOntime)}) · open CAPA ${n(view.openCapa)} · recurring themes ${n(view.recurringThemes)} · effectiveness review ${p(view.effectivenessReviewRate)} · overdue high-risk actions ${n(view.overdueHighRiskActions)}.`, `RCA المفتوح ${n(view.openRca)}.`),
+      evidence: tx(lang, `${view.methodology.rca}`, view.methodology.rca),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): investigation lag and incomplete effectiveness review. Approval of an action is not measured improvement.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: age the CAPA ledger, escalate overdue high-risk items, and schedule effectiveness reviews for closed actions.', 'رتّب إجراءات CAPA وصعّد المتأخر عالي المخاطر.'),
+      role: tx(lang, 'Quality governance lead', 'قائد حوكمة الجودة'),
+      benefit: tx(lang, 'Learning-system throughput stays distinct from proven outcome improvement.', 'إنتاجية التعلم تبقى منفصلة عن تحسن النتائج المثبت.'),
+    });
+  }
+
+  if (/interven|priorit|first|improve|optim|what.?if|opportunit|action|scenario/.test(q)) {
+    const sims = view.opportunities.slice(0, 4).map((item) => `${item.title} (~${n(item.eligibleValue)})`).join('; ');
+    return pack(lang, {
+      title: tx(lang, `Quality & safety priorities · ${name} · ${view.periodLabel}`, `أولويات الجودة والسلامة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: validated event rate ${rate1k(view.validatedEventRate)} · HAI burden ${rate1k(view.haiBurdenRate)} · overdue high-risk actions ${n(view.overdueHighRiskActions)} · addressable gap ${rate1k(view.addressableGap)}. Largest modeled scenario: ${priorityOpp.title}.`, `فجوة قابلة للمعالجة ${rate1k(view.addressableGap)}.`),
+      evidence: tx(lang, `${view.methodology.optimization}`, view.methodology.optimization),
+      explanation: tx(lang, `Modeled (illustrative): incident reduction ${n(view.modeledIncidentReduction)}; HAI prevention ${n(view.modeledHaiPrevention)}; ${sims}. ${modeledNote}`, 'محاكاة توضيحية وليست تحسناً مقيساً.'),
+      action: tx(lang, `Recommendations: sequence ${priorityOpp.title.toLowerCase()} with owner ${priorityOpp.owner}; monitor ${priorityOpp.followUp} after the next reporting checkpoint. AI does not diagnose, order isolation, or close CAPA alone.`, `نفّذ الأولوية وراقب المؤشر.`),
+      role: tx(lang, priorityOpp.owner, priorityOpp.owner),
+      benefit: tx(lang, 'Non-additive scenarios prevent overstating combined improvement.', 'السيناريوهات غير الجمعية تمنع المبالغة.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year, period).filter((alert) => alert.department === 'Quality & Safety' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Quality & Safety at ${name} · ${view.periodLabel}`, `الجودة والسلامة في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed} (${topAlert.period})`
+      : `Observed facts: validated event rate ${rate1k(view.validatedEventRate)} · severe harm ${n(view.severeHarm)} · HAI burden ${rate1k(view.haiBurdenRate)} · quality compliance ${p(view.qualityCompliance)} · overdue high-risk actions ${n(view.overdueHighRiskActions)}.`, topAlert ? topAlert.title : `معدل الأحداث ${rate1k(view.validatedEventRate)}.`),
+    evidence: tx(lang, `${view.methodology.clinical} ${view.methodology.incidents}`, view.methodology.clinical),
+    explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): harm events, device-associated infection burden, and overdue CAPA move together across Quality & Safety screens. Official SIR is unavailable.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? 'Review Command signals, then Incidents, Infections, Prevention, Outcomes, and RCA/CAPA. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم الحوادث والعدوى والوقاية والنتائج وRCA.'),
+    role: tx(lang, 'Chief quality officer', 'رئيس الجودة'),
+    benefit: tx(lang, 'A sequenced review keeps reporting, surveillance, prevention, outcomes, and learning distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

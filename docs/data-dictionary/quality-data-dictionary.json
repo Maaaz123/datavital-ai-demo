@@ -1,0 +1,26 @@
+{
+  "domain": "Quality & Safety",
+  "domainId": 13,
+  "buildId": "v76-quality-domain",
+  "routes": [
+    "/quality",
+    "/quality/incidents",
+    "/quality/infections",
+    "/quality/prevention",
+    "/quality/outcomes",
+    "/quality/actions",
+    "/quality/optimization"
+  ],
+  "kpiCount": 41,
+  "chartCount": 42,
+  "screenCount": 7,
+  "sirAvailable": false,
+  "readiness": "Demo Available",
+  "productionSourceVerified": false,
+  "authoritativeModules": [
+    "frontend/src/core/qualitySafetyOwnership.ts",
+    "frontend/src/core/qualitySafetyView.ts",
+    "frontend/src/core/qualitySafety.tsx",
+    "frontend/src/core/qualitySafetyScope.ts"
+  ]
+}

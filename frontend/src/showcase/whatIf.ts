@@ -8,11 +8,12 @@ import { buildIcuView } from '@/core/icuView';
 import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
+import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety';
 
 export type WhatIfResult = {
   id: string;
@@ -116,6 +117,16 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if avoidable write-offs decrease by 30%?',
     'What if coding and billing workflow delays decrease by 20%?',
   ],
+  'Quality & Safety': [
+    'What if observed hand-hygiene compliance improves by 8 points?',
+    'What if device bundle compliance improves by 10 points?',
+    'What if infection case review delays decrease by 25%?',
+    'What if incident investigation timeliness improves by 20 points?',
+    'What if overdue corrective actions decrease by 40%?',
+    'What if high-risk unit observation coverage improves by 15 points?',
+    'What if surgical infection prevention process compliance improves by 10 points?',
+    'What if CAPA effectiveness verification increases by 20 points?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -136,7 +147,19 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
 
-  // Revenue Cycle intents first: finance keywords (denial, authorization, AR, write-off, underpayment, coding/billing) are domain-specific.
+  // Quality & Safety intents before RCM/PX generics that mention infection, CAPA, or investigation.
+  const qsAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
+  if (/hand.?hygiene|hh compliance/.test(q) && /(improv|increas|lift|rise)/.test(q)) return { kind: 'qs-hh-up', amount: qsAmount(0.08) };
+  if (/device.?bundle|bundle compliance|central.?line bundle|catheter.?bundle/.test(q) && /(improv|increas|lift)/.test(q)) return { kind: 'qs-bundle-up', amount: qsAmount(0.1) };
+  if (/infection.*(review|case review)/.test(q) && /(fell|decreas|reduc|delay)/.test(q)) return { kind: 'qs-infection-review-down', amount: qsAmount(0.25) };
+  if (/investigat/.test(q) && /(improv|accelerat|timeliness|faster)/.test(q)) return { kind: 'qs-investigation-up', amount: qsAmount(0.2) };
+  if (/(overdue).*(corrective|capa|action)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'qs-capa-overdue-down', amount: qsAmount(0.4) };
+  if (/observation.?coverage|high.?risk unit/.test(q) && /(improv|increas)/.test(q)) return { kind: 'qs-observation-up', amount: qsAmount(0.15) };
+  if (/surgical.?infection|ssi.?prevention|surgical infection prevention/.test(q) && /(improv|increas)/.test(q)) return { kind: 'qs-ssi-prevention-up', amount: qsAmount(0.1) };
+  if (/effectiveness.?verif|capa.?verif|verification/.test(q) && /(improv|increas)/.test(q)) return { kind: 'qs-effectiveness-up', amount: qsAmount(0.2) };
+  if (/(hai|infection prevention|patient safety|quality.?safety|capa|hand.?hygiene)/.test(q) && /(fell|decreas|reduc|improv)/.test(q)) return { kind: 'qs-hh-up', amount: qsAmount(0.08) };
+
+  // Revenue Cycle intents: finance keywords (denial, authorization, AR, write-off, underpayment, coding/billing) are domain-specific.
   const rcmAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
   if (/(pre-?auth|authori[sz])/.test(q) && /(approv|turnaround|improv|increas|speed|fell|decreas|reduc)/.test(q)) return { kind: 'rcm-auth-up', amount: rcmAmount(0.15) };
   if (/first.?pass|clean claim|claim acceptance/.test(q) && /(improv|increas|rise|lift)/.test(q)) return { kind: 'rcm-first-pass-up', amount: rcmAmount(0.05) };
@@ -223,6 +246,7 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/delay.*discharge|ready but|discharge delay/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'ipd-delay-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
   if (/length of stay|los|average stay/.test(q) && /(decreas|fell|reduc)/.test(q)) return { kind: 'ipd-los-down', amount: days ? Number(days[1]) : 0.5 };
   if (/patient experience|satisfaction|complaint|survey|sentiment|voice of patient/.test(q)) return { kind: 'px-wait-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  if (/quality.?safety|patient safety|infection prevention|hai|clabsi|cauti|capa|hand.?hygiene/.test(q)) return { kind: 'qs-hh-up', amount: percent ? Number(percent[1]) / 100 : 0.08 };
   if (/arriv|waiting|board|ed /.test(q)) return { kind: 'ed-arrivals-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/bed|occup|block|assign/.test(q)) return { kind: 'beds-demand-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/stay|discharge|readmit|inpatient/.test(q)) return { kind: 'ipd-longstay-down', amount: percent ? Number(percent[1]) / 100 : 0.1 };
@@ -256,6 +280,7 @@ export function runWhatIf(
   if (domain === 'ICU') return icuWhatIf(hospital, year, period, resolved);
   if (domain === 'Patient Experience') return pxWhatIf(hospital, year, period, resolved);
   if (domain === 'Revenue Cycle') return rcmWhatIf(hospital, year, period, resolved);
+  if (domain === 'Quality & Safety') return qsWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -271,6 +296,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'ICU') return { kind: 'icu-transfer-down', amount: 0.2 };
   if (domain === 'Patient Experience') return { kind: 'px-wait-down', amount: 0.2 };
   if (domain === 'Revenue Cycle') return { kind: 'rcm-denials-down', amount: 0.2 };
+  if (domain === 'Quality & Safety') return { kind: 'qs-hh-up', amount: 0.08 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1469,6 +1495,125 @@ function rcmWhatIf(
 
 function r2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Quality & Safety what-ifs: process uplifts are illustrative and must not be translated into guaranteed infection or mortality reductions. */
+function qsWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildQsView(hospital, year, period);
+  const kind = intent.kind.startsWith('qs-') ? intent.kind : 'qs-hh-up';
+  const amount = Math.min(1, Math.max(0.05, intent.amount));
+  const opp = view.opportunities.find((item) => item.id === kind) ?? view.opportunities[0];
+  const modeled = Math.round(opp.eligibleValue * Math.min(1, amount / 0.2));
+  const framing = `Illustrative under documented assumptions — not measured improvement and not additive to other Quality & Safety scenarios (they overlap). ${opp.assumption} Official SIR remains unavailable. AI does not diagnose, order isolation, or close CAPA alone.`;
+  const common = {
+    id: kind,
+    assumptions: framing,
+    implications: 'Authorized human review remains required. Process compliance does not prove infection or harm reduction.',
+    owner: opp.owner,
+    followUp: opp.followUp,
+  };
+
+  if (kind === 'qs-bundle-up') {
+    const baseline = Math.min(view.clBundle, view.ucBundle);
+    const next = Math.min(1, baseline + amount);
+    return {
+      ...common,
+      title: 'Device bundle compliance scenario',
+      current: `CL bundle ${pct(view.clBundle)} · UC bundle ${pct(view.ucBundle)} · prevention gaps ${num(view.preventionGaps)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in eligible device-bundle compliance`,
+      estimated: `Bundle compliance near ${pct(next)} · about ${num(modeled)} additional fully compliant observations if realized`,
+      implications: 'Eligible observed bundles only. Compliance uplift is not a guaranteed CLABSI/CAUTI reduction.',
+      followUp: 'CL Bundle Compliance, UC Bundle Compliance, and Prevention Gaps',
+    };
+  }
+  if (kind === 'qs-infection-review-down') {
+    const next = Math.min(1, view.surveillanceCoverage + amount * 0.5);
+    return {
+      ...common,
+      title: 'Infection case review acceleration scenario',
+      current: `Surveillance coverage ${pct(view.surveillanceCoverage)} · validated HAI ${num(view.haiCases)} · outcome/infection review backlog proxy ${num(view.outcomeReviewBacklog)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in infection review delay`,
+      estimated: `Coverage near ${pct(next)} · about ${num(modeled)} review items addressable earlier`,
+      implications: 'Faster review improves signal timeliness; it does not create confirmed clinical diagnoses.',
+      followUp: 'Surveillance Coverage, Validated HAI Cases, and Outcome Review Backlog',
+    };
+  }
+  if (kind === 'qs-investigation-up') {
+    const next = Math.min(1, view.investigationTimeliness + amount);
+    return {
+      ...common,
+      title: 'Incident investigation acceleration scenario',
+      current: `Investigation timeliness ${pct(view.investigationTimeliness)} (target ${pct(QS_TARGETS.investigationTimeliness, 0)}) · validated ${num(view.validated)} · with harm ${num(view.withHarm)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in on-time investigations`,
+      estimated: `Timeliness near ${pct(next)} · about ${num(modeled)} additional on-time closures if realized`,
+      implications: 'Administrative closure is not proof that clinical risk was reduced.',
+      followUp: 'Investigation Timeliness, Classification Completeness, and Open Investigations',
+    };
+  }
+  if (kind === 'qs-capa-overdue-down') {
+    const next = Math.max(0, Math.round(view.overdueHighRiskActions * (1 - amount)));
+    return {
+      ...common,
+      title: 'Overdue corrective action reduction scenario',
+      current: `Overdue high-risk actions ${num(view.overdueHighRiskActions)} · open CAPA ${num(view.openCapa)} · CAPA on-time ${pct(view.capaOntime)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in overdue high-risk CAPA`,
+      estimated: `Overdue actions near ${num(next)} · about ${num(modeled)} actions addressable if realized`,
+      implications: 'Clearing overdue CAPA improves governance throughput; approval ≠ measured effectiveness.',
+      followUp: 'Overdue High-Risk Actions, CAPA On-Time, and CAPA Verification Rate',
+    };
+  }
+  if (kind === 'qs-observation-up') {
+    const nextEligible = view.hhEligible + modeled;
+    return {
+      ...common,
+      title: 'High-risk unit observation coverage scenario',
+      current: `Audited HH opportunities ${num(view.hhEligible)} · compliance ${pct(view.handHygiene)} · prevention gaps ${num(view.preventionGaps)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in high-risk unit observation coverage`,
+      estimated: `About ${num(modeled)} additional eligible observations · opportunity base near ${num(nextEligible)}`,
+      implications: 'Coverage reduces sampling bias; it is not universal compliance across all care interactions.',
+      followUp: 'Hand Hygiene Compliance, Prevention Gaps, and Bundle Compliance by Unit',
+    };
+  }
+  if (kind === 'qs-ssi-prevention-up') {
+    const next = Math.min(1, (1 - view.ssiRate) + amount);
+    return {
+      ...common,
+      title: 'Surgical infection prevention process scenario',
+      current: `SSI ${pct(view.ssiRate)} (${num(view.ssi)} of ${num(view.procedures)} eligible procedures) · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in SSI prevention process compliance`,
+      estimated: `Process compliance near ${pct(next)} · about ${num(modeled)} eligible procedure opportunities under assumptions`,
+      implications: 'Procedure-based denominators and surveillance windows apply. Compliance uplift does not guarantee SSI reduction.',
+      followUp: 'SSI Rate, Surveillance Coverage, and Prevention Gaps',
+    };
+  }
+  if (kind === 'qs-effectiveness-up') {
+    const next = Math.min(1, view.effectivenessReviewRate + amount);
+    return {
+      ...common,
+      title: 'CAPA effectiveness verification scenario',
+      current: `Effectiveness verification ${pct(view.effectivenessReviewRate)} · closed CAPA ${num(view.capaClosed)} · open CAPA ${num(view.openCapa)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in CAPA effectiveness verification`,
+      estimated: `Verification near ${pct(next)} · about ${num(modeled)} additional verified closures if realized`,
+      implications: 'Verification coverage is process evidence only — not proof that clinical risk was reduced.',
+      followUp: 'CAPA Verification Rate, Overdue High-Risk Actions, and Repeat Findings',
+    };
+  }
+  const next = Math.min(1, view.handHygiene + amount);
+  return {
+    ...common,
+    id: 'qs-hh-up',
+    title: 'Hand-hygiene compliance uplift scenario',
+    current: `Observed hand-hygiene compliance ${pct(view.handHygiene)} (target ${pct(QS_TARGETS.handHygiene, 0)}; ${num(view.hhCompliant)} of ${num(view.hhEligible)} audited opportunities) · ${view.periodLabel}`,
+    change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in audited-opportunity compliance`,
+    estimated: `Compliance near ${pct(next)} · about ${num(Math.round(view.hhEligible * amount))} additional compliant audited opportunities if realized`,
+    implications: 'Audited sample only — not all care interactions. Observer bias and sampling limits apply. Compliance alone does not prove infection reduction.',
+    followUp: 'Hand Hygiene Compliance, Prevention Gaps, and CLABSI / CAUTI rates',
+  };
 }
 
 export function formatWhatIfAnswer(result: WhatIfResult): {
