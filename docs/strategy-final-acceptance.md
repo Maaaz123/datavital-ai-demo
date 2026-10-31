@@ -4,7 +4,7 @@
 **BUILD_ID:** `v78-strategy-domain`  
 **Routes:** `/strategy` (+ workforce, equipment, capacity, service-lines, cost-efficiency, expansion, optimization)  
 **Date:** 2026-10-30  
-**Commits:** `f008982` (feat) · `fdcf274` (deploy) · _(this docs commit cites production evidence)_  
+**Commits:** `f008982` (feat) · `fdcf274` (deploy) · `2aacfa7` / `4e1736f` / `a868851` (docs acceptance + production evidence)  
 **Production:** https://demo.datavital.io/strategy  
 **Production deploy:** PASS — `refresh.html` BUILD_ID `v78-strategy-domain`; bundle `index-WbcHhHYx.js` HTTP 200; SPA 404 shell serves same bundle for `/strategy`, `/strategy/workforce`, `/strategy/optimization`; live JS contains 48 `kpi_st_*` KPIs, all 10 ST opportunity IDs, Command/Workforce/Optimization titles, and CM ≠ net profit / Contribution Margin = Recognized disclosures  
 **Product-owner approval:** **NOT RECORDED**
