@@ -7,7 +7,7 @@
 | Ingestion host | `https://us.i.posthog.com` |
 | UI host | `https://us.posthog.com` |
 | Token type | Public project token (`phc_…`) — write-only, safe for browser |
-| BUILD_ID | `v94-posthog-capture-fix` |
+| BUILD_ID | `v95-posthog-token-fix` |
 
 ## Environment
 

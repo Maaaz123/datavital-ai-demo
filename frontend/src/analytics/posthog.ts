@@ -67,8 +67,10 @@ export function initPosthog(config: AnalyticsConfig = resolveAnalyticsConfig()):
         if (typeof next.$referrer === 'string' && /invite=/i.test(next.$referrer)) {
           next.$referrer = sanitizeUrlForAnalytics(next.$referrer);
         }
+        // Strip invitation attribution keys only — never delete PostHog's required
+        // event `token` (public project key) or other SDK-owned properties.
         delete next.invite;
-        delete next.token;
+        delete next.invite_token;
         return scrubEventProperties(next);
       },
       loaded: (ph) => {

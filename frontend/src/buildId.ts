@@ -1,2 +1,2 @@
 /** Public demo build label — bump on every Pages publish. */
-export const DEMO_BUILD_ID = 'v94-posthog-capture-fix';
+export const DEMO_BUILD_ID = 'v95-posthog-token-fix';
