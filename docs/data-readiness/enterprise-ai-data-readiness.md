@@ -23,5 +23,5 @@
 - [x] Tests for tools, intent, investigation, simulation, forecast, decisions, orchestrator, pages
 - [x] Registry Stage 1 tests still green
 - [x] Mode disclosure visible on UI
-- [ ] Stage 8 production deploy / BUILD_ID bump (parent owns)
+- [x] Stage 8 production deploy / BUILD_ID bump (`v81-enterprise-ai-domain`)
 - [ ] Live hard-refresh verification on demo.datavital.io
