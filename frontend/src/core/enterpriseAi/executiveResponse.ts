@@ -6,7 +6,7 @@ import type { ReportPeriod } from '../period';
 import { driverStatusLabel, executiveMetricLabel, type FocusResolution } from './focus';
 import { formatMetricValue } from './format';
 import type { RankedRisk } from './riskIntelligence';
-import type { ScenarioSelection } from './scenarioSelect';
+import { scenarioLabelForId, type ScenarioSelection } from './scenarioSelect';
 import type {
   DriverStatus,
   InvestigationReport,
@@ -193,11 +193,12 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
   const actions: ExecutiveAction[] = [];
   const pushAction = (id: string, kind: 'primary' | 'alt') => {
     if (!id || actions.some((a) => a.id === id) || actions.length >= 3) return;
+    const human = id === scenarioId
+      ? (args.scenario.label || scenarioLabelForId(id))
+      : scenarioLabelForId(id);
     actions.push({
       id,
-      label: kind === 'primary'
-        ? `Recommended Management Action: ${id === scenarioId ? (args.scenario.label ?? id) : id}`
-        : `Alternative: ${id}`,
+      label: kind === 'primary' ? human : `Alternative: ${human}`,
       owner: ownerFor(id),
       feasibility: args.optimization?.feasible === false && id === args.optimization.selected
         ? 'Currently infeasible'
@@ -211,25 +212,28 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
     if (alt) pushAction(alt, preferredId === alt ? 'primary' : 'alt');
   }
 
-  const preferredLabel = preferredId
-    ? (actions.find((a) => a.id === preferredId)?.label ?? preferredId)
-    : (args.scenario.available === false && /intervention|what[- ]?if|scenario/i.test(args.question)
-      ? 'Scenario unavailable with the current evidence and model.'
+  const preferredHuman = preferredId
+    ? (preferredId === scenarioId ? (args.scenario.label || scenarioLabelForId(preferredId)) : scenarioLabelForId(preferredId))
+    : null;
+
+  const preferredLabel = preferredHuman
+    ?? (args.scenario.available === false && /intervention|what[- ]?if|scenario/i.test(args.question)
+      ? 'Scenario unavailable with the current evidence.'
       : 'No preferred option selected');
 
   const summaryParts = [
     args.flagship
-      ? 'Hospital performance pressure spans multiple domains; no single definitive root cause is claimed from associative evidence alone.'
+      ? 'Hospital performance pressure spans multiple domains. Leadership should review the preferred option with domain owners before acting.'
       : `Investigation focus: ${focusLabel}.`,
     args.investigation?.observedValue != null && args.focus.focusMetricId
       ? `Observed ${executiveMetricLabel(args.focus.focusMetricId)} is ${formatMetricValue(args.focus.focusMetricId, args.investigation.observedValue)} for ${args.hospital} · ${args.period} ${args.year}.`
       : args.focus.mode === 'hospital_wide_risk'
-        ? `Labeled hospital-wide risk overview for ${args.hospital} · ${args.period} ${args.year} (Emergency Waiting Time is not assumed by default).`
+        ? `Hospital-wide risk overview for ${args.hospital} · ${args.period} ${args.year}.`
         : null,
-    preferredId
-      ? `Under current constraints${args.noAdditionalStaffingCost ? ' (no-additional-staffing-cost)' : ''}, the preferred management option is ${preferredId}.`
+    preferredHuman
+      ? `Under current constraints${args.noAdditionalStaffingCost ? ' (without adding staff cost)' : ''}, the preferred management option is ${preferredHuman}.`
       : null,
-    'Observed outcome remains unmeasured (Outcome not yet measured) until follow-up evidence is recorded.',
+    'Outcome remains unmeasured until follow-up evidence is recorded after a human decision.',
   ].filter(Boolean);
 
   return {
@@ -250,11 +254,11 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
       id: preferredId,
       label: preferredLabel,
       rationale: args.optimization?.feasible
-        ? 'Selected by constrained comparison / optimization under documented constraints.'
+        ? 'Selected by comparing improvement options under the stated leadership constraints.'
         : args.scenario.reason,
     },
     G_followUpMeasurement:
-      'Follow-up & Measurement: observed outcome remains unmeasured until evidence is recorded after human decision. Approval does not mutate historical KPI ledgers.',
+      'Follow-up remains unmeasured until evidence is recorded after a human decision. Approval does not change published hospital figures.',
     clarificationTopics: args.focus.clarificationTopics,
     focusLabel,
     focusMetricId: args.focus.focusMetricId,
@@ -272,7 +276,7 @@ export function roleEmphasis(role: ExecutiveRole): {
     case 'CEO/Board':
       return {
         emphasize: ['A_executiveSummary', 'B_riskAssessment', 'F_preferredOption', 'G_followUpMeasurement'],
-        note: 'CEO/Board view emphasizes summary, risk, preferred option, and measurement governance.',
+        note: 'CEO/Board view emphasizes summary, risk, preferred option, and follow-up.',
       };
     case 'COO':
       return {

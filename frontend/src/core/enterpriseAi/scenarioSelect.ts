@@ -231,6 +231,11 @@ export function selectScenarioFromQuestion(question: string): ScenarioSelection 
 }
 
 /** Candidate option IDs for constrained comparison given question + staffing constraint. */
+export function scenarioLabelForId(id: string | null | undefined): string {
+  if (!id) return 'None';
+  return SCENARIO_RULES.find((rule) => rule.id === id)?.label ?? id;
+}
+
 export function interventionCandidatesForQuestion(
   question: string,
   noAdditionalStaffingCost: boolean,

@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v88-executive-brief';
+const BUILD_ID = 'v88b-executive-brief';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
