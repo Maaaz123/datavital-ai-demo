@@ -1831,7 +1831,7 @@ function scWhatIf(
     return {
       ...common,
       title: 'Safety stock adjustment scenario',
-      current: `Critical SKUs below safety stock ${num(view.belowSafety)} · critical stockouts ${num(view.criticalStockouts)} · days of supply ${num(view.daysOfSupply, 1)} · ${view.periodLabel}`,
+      current: `Critical SKUs below safety stock ${num(view.belowSafety)} · critical stockouts ${num(view.criticalStockouts)} · days of supply ${view.daysOfSupply == null ? 'No demand' : num(view.daysOfSupply, 1)} · ${view.periodLabel}`,
       change: `Illustrative safety-stock cover uplift addressing about ${pct(amount, 0)} of below-safety critical SKUs (raise cover where clinically required)`,
       estimated: `Below-safety near ${num(next)} · about ${num(modeled)} SKUs addressable if realized`,
       implications: 'May raise safety stock for clinically critical SKUs. Never recommend cutting clinically critical safety stock solely for carrying-cost savings.',

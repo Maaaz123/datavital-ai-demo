@@ -2,21 +2,21 @@
 
 **BUILD_ID:** `v78-strategy-domain` · 48 owned KPIs · unique screen ownership enforced in `strategyOwnership.ts`.
 
-Cross-domain rule: Strategy may **read** RCM net revenue, SC consumption, Surgery OR hours, OPD/appointment slots, and Beds staffed/occupied as **inputs**. It does **not** reassign primary KPI ownership from Domains 1–14.
+Cross-domain rule: Strategy may **read** RCM net patient revenue (authoritative recognized NPR), ICU staffing hours, SC consumption, Surgery OR hours, OPD/appointment slots, and Beds staffed/occupied as **inputs**. It does **not** reassign primary KPI ownership from Domains 1–14. Revenue lineage: **RCM NPR → service-line allocation → CM**.
 
 | KPI ID | Full name | Owning screen | Numerator / input | Denominator / basis | Aggregation |
 |---|---|---|---|---|---|
-| kpi_st_operating_contribution | Operating Contribution | Command | Net revenue − eligible direct costs | — | Flow SAR |
+| kpi_st_operating_contribution | Operating Contribution | Command | RCM NPR − eligible direct costs | — | Flow SAR |
 | kpi_st_resource_utilization_index | Resource Utilization Index | Command | Composite used capacity | Available capacity | Index |
 | kpi_st_capacity_constrained_sl | Capacity-Constrained Service Lines | Command | Lines demand > capacity | — | Count |
-| kpi_st_service_line_cm | Service-Line Contribution Margin | Command | Aggregate CM | — | Flow SAR |
-| kpi_st_avoidable_resource_cost | Avoidable Resource Cost Opportunity | Command | Scenario-linked avoidable | — | Modeled SAR |
+| kpi_st_service_line_cm | Contribution Margin Rate | Command | Operating contribution | Recognized net revenue (RCM NPR) | Ratio |
+| kpi_st_avoidable_resource_cost | Avoidable Resource Cost Opportunity | Command | Scenario-linked avoidable (illustrative) | — | Modeled SAR |
 | kpi_st_investment_opportunity_coverage | Investment Opportunity Coverage | Command | Documented candidates | Candidate set | Ratio |
 | kpi_st_productive_clinical_hours | Productive Clinical Hours | Workforce | Productive hours | — | Flow hours |
 | kpi_st_staffing_utilization | Staffing Utilization | Workforce | Productive hours | Staffed available hours | Ratio |
 | kpi_st_overtime_exposure | Overtime Exposure | Workforce | OT hours × premium | — | Flow SAR |
 | kpi_st_agency_staffing_cost | Agency Staffing Cost | Workforce | Agency spend | — | Flow SAR |
-| kpi_st_staffing_capacity_gap | Staffing Capacity Gap | Workforce | Demand − staffed hours | — | Hours |
+| kpi_st_staffing_capacity_gap | Staffing Capacity Gap | Workforce | Enterprise demand − staffed available (≠ ICU gap) | — | Hours |
 | kpi_st_workforce_allocation_opp | Workforce Allocation Opportunity | Workforce | Redeployable hours | — | Modeled hours |
 | kpi_st_equipment_utilization | Equipment Utilization | Equipment | Used equip hours | Available operating hours | Ratio |
 | kpi_st_available_operating_hours | Available Operating Hours | Equipment | Staffed+maintained hours | — | Flow hours |
@@ -30,9 +30,9 @@ Cross-domain rule: Strategy may **read** RCM net revenue, SC consumption, Surger
 | kpi_st_redeployable_capacity | Redeployable Resource Capacity | Capacity | Unused eligible capacity | — | Hours |
 | kpi_st_constrained_service_lines | Constrained Service Lines | Capacity | Hard-constrained lines | — | Count |
 | kpi_st_allocation_opportunity | Allocation Opportunity | Capacity | Reallocable units | — | Modeled hours |
-| kpi_st_net_revenue_by_sl | Net Revenue by Service Line | Service Lines | Recognized net revenue | — | Flow SAR |
-| kpi_st_direct_cost_by_sl | Direct Cost by Service Line | Service Lines | Eligible direct costs | — | Flow SAR |
-| kpi_st_sl_cm_rate | Service-Line CM Rate | Service Lines | Aggregate CM | Net revenue | Ratio |
+| kpi_st_net_revenue_by_sl | Net Revenue by Service Line | Service Lines | Allocated RCM NPR by service line | — | Flow SAR |
+| kpi_st_direct_cost_by_sl | Direct Cost by Service Line | Service Lines | Eligible direct costs (synthetic) | — | Flow SAR |
+| kpi_st_sl_cm_rate | Service-Line CM Rate | Service Lines | By-line / weighted CM | Recognized net revenue | Ratio |
 | kpi_st_cost_per_eligible_encounter | Cost per Eligible Encounter | Service Lines | Direct cost | Encounters | Intensity |
 | kpi_st_resource_cost_intensity | Resource Cost Intensity | Service Lines | Direct resource cost | Activity units | Index |
 | kpi_st_sl_margin_variance | Service-Line Margin Variance | Service Lines | Actual CM − expected CM | — | Flow SAR |
@@ -55,4 +55,4 @@ Cross-domain rule: Strategy may **read** RCM net revenue, SC consumption, Surger
 | kpi_st_decision_readiness | Decision Readiness | Optimization | Documented priority scenarios | Priority set | Ratio |
 | kpi_st_priority_scenario_coverage | Priority Scenario Coverage | Optimization | Documented scenarios | Required set (10) | Ratio |
 
-Ownership rule: Aggregate CM (SAR) is Command-only; Service Lines owns CM **rate** and by-line revenue/cost detail. Investment Feasibility is Expansion-only; Optimization owns Scenario Capital Readiness (distinct).
+Ownership rule: Command owns Operating Contribution (SAR) and executive CM Rate (%). Service Lines owns by-line revenue/cost detail and by-line CM rate / variance. Investment Feasibility is Expansion-only; Optimization owns Scenario Capital Readiness (distinct). Enterprise staffing gap ≠ ICU credentialed nurse-hour gap; surplus ≠ automatic ICU fill.

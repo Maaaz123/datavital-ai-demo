@@ -338,7 +338,7 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       id: 'pri-supply',
       severity: sc.criticalStockouts >= 3 ? 'critical' : 'warning',
       issue: 'Critical supply interruption risk',
-      evidence: `Availability ${pct(sc.supplyAvailability)} · critical stockouts ${num(sc.criticalStockouts)} · days of supply ${num(sc.daysOfSupply, 1)}.`,
+      evidence: `Availability ${pct(sc.supplyAvailability)} · critical stockouts ${num(sc.criticalStockouts)} · days of supply ${sc.daysOfSupply == null ? 'No demand' : num(sc.daysOfSupply, 1)}.`,
       decision: 'Open Supply Chain Command for replenishment exceptions.',
       sourceDomain: 'Supply Chain',
       href: '/supply-chain',
@@ -490,7 +490,7 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       area: 'Critical supply interruption',
       severity: sc.criticalStockouts >= 3 ? 'critical' : 'warning',
       signal: `${num(sc.criticalStockouts)} critical stockouts`,
-      evidence: `Availability ${pct(sc.supplyAvailability)} · DOS ${num(sc.daysOfSupply, 1)}`,
+      evidence: `Availability ${pct(sc.supplyAvailability)} · DOS ${sc.daysOfSupply == null ? 'No demand' : num(sc.daysOfSupply, 1)}`,
       href: '/supply-chain',
       owner: 'Supply chain',
     });
@@ -506,13 +506,13 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       owner: 'Quality office',
     });
   }
-  if (icu.staffingGapHours > 40 || st.staffingCapacityGap > 0) {
+  if (icu.staffingGapHours > 40 || st.enterpriseStaffingGapHours > 0) {
     addEx({
       id: 'ops-staff',
       area: 'Staffing constraint',
       severity: icu.staffingGapHours > 120 ? 'critical' : 'warning',
       signal: `ICU gap ${num(icu.staffingGapHours)} h`,
-      evidence: `Strategy staffing capacity gap ${num(st.staffingCapacityGap, 0)} · overtime exposure ${sar(st.overtimeExposure)}`,
+      evidence: `ICU credentialed nurse gap ${num(st.icuStaffingGapHours, 0)} h (required ${num(st.icuRequiredHours, 0)} − available ${num(st.icuAvailableHours, 0)}) · enterprise-wide Strategy gap ${num(st.enterpriseStaffingGapHours, 0)} h (demand ${num(st.enterpriseRequiredHours, 0)} − staffed ${num(st.enterpriseAvailableHours, 0)}) · redeployable surplus ${num(st.redeployableHours, 0)} h is not automatic ICU fill · overtime ${sar(st.overtimeExposure)}`,
       href: '/strategy/workforce',
       owner: 'Workforce / ICU',
     });
@@ -548,6 +548,8 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       radUnsigned: rad.unsignedReports,
       radTat: rad.medianReportTatHours,
       icuStaffingGapHours: icu.staffingGapHours,
+      icuRequiredHours: st.icuRequiredHours,
+      icuAvailableHours: st.icuAvailableHours,
       icuBoardingHours: icu.boardingHours,
       supplyAvailability: sc.supplyAvailability,
       criticalStockouts: sc.criticalStockouts,
@@ -560,10 +562,16 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       grossDenialRate: rcm.grossDenialRate,
       netCollectionRate: rcm.netCollectionRate,
       operatingContribution: st.operatingContribution,
+      recognizedNetRevenue: st.recognizedNetRevenue,
+      contributionMarginRate: st.contributionMarginRate,
       resourceUtilizationIndex: st.resourceUtilizationIndex,
       capacityConstrainedSl: st.capacityConstrainedSl,
       addressableContribution: st.addressableContribution,
-      staffingCapacityGap: st.staffingCapacityGap,
+      staffingCapacityGap: st.enterpriseStaffingGapHours,
+      enterpriseRequiredHours: st.enterpriseRequiredHours,
+      enterpriseAvailableHours: st.enterpriseAvailableHours,
+      enterpriseStaffingGapHours: st.enterpriseStaffingGapHours,
+      redeployableHours: st.redeployableHours,
       labels: beds.labels,
       monthlyOccupancy: beds.monthlyOccupancy,
     },

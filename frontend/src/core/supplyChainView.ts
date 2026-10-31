@@ -169,6 +169,11 @@ function ratio(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0;
 }
 
+/** Days of Supply from usable units ÷ daily forecast demand. Zero demand → null (never invent a huge finite cover). */
+export function daysOfSupplyFrom(usableUnits: number, dailyForecastDemand: number): number | null {
+  return dailyForecastDemand > 0 ? r1(usableUnits / dailyForecastDemand) : null;
+}
+
 function sum(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
 }
@@ -255,7 +260,11 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number, priorClosin
   const receiptsOrdered = Math.max(10, Math.round(scale * season * (0.9 + unit(mix(seed, 4)) * 0.15)));
   const fill = 0.92 + unit(mix(seed, 5)) * 0.06 - pressure * 0.02;
   const receiptsReceived = Math.min(receiptsOrdered, Math.round(receiptsOrdered * fill));
-  const receiptsOnTime = Math.round(receiptsReceived * (0.88 + unit(mix(seed, 6)) * 0.08));
+  // On-time ⊆ received (never invent OTD > 100% via rounding or factor drift)
+  const receiptsOnTime = Math.min(
+    receiptsReceived,
+    Math.round(receiptsReceived * (0.88 + unit(mix(seed, 6)) * 0.08)),
+  );
   const issuedUnits = Math.max(1, Math.round(scale * season * (0.85 + unit(mix(seed, 7)) * 0.12)));
   const forecastUnits = Math.max(1, Math.round(issuedUnits * (0.92 + unit(mix(seed, 8)) * 0.16)));
   const expiredUnits = Math.max(0, Math.round(issuedUnits * (0.008 + pressure * 0.006 + unit(mix(seed, 9)) * 0.004)));
@@ -265,10 +274,11 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number, priorClosin
   const recalledUnits = Math.max(0, Math.round(issuedUnits * (0.001 + unit(mix(seed, 13)) * 0.002)));
   const quarantinedUnits = Math.max(0, Math.round(receiptsReceived * (0.008 + unit(mix(seed, 14)) * 0.01)));
 
-  // Roll-forward: opening + receipts + returns − issues − expired − damaged − obsolete − recalled ≈ closing available
+  // Roll-forward: opening + receipts + returns − issues − expired − damaged − obsolete − recalled − quarantined = closing usable
+  // closingAvailable is usable on-hand only (excludes quarantined / expired / damaged / recalled / obsolete).
   const closingAvailable = Math.max(
     0,
-    opening + receiptsReceived + returnedUnits - issuedUnits - expiredUnits - damagedUnits - obsoleteUnits - recalledUnits,
+    opening + receiptsReceived + returnedUnits - issuedUnits - expiredUnits - damagedUnits - obsoleteUnits - recalledUnits - quarantinedUnits,
   );
   const unitCostSar = Math.round(18 + unit(mix(seed, 15)) * 22);
   const nearExpiryShare = 0.08 + pressure * 0.03 + unit(mix(seed, 16)) * 0.04;
@@ -283,7 +293,9 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number, priorClosin
 
   const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][monthIndex];
   const skuPlanDays = Math.round((220 + unit(mix(seed, 21)) * 40) * daysInMonth);
-  const availableSkuDays = Math.round(skuPlanDays * (0.93 + unit(mix(seed, 22)) * 0.05 - pressure * 0.02));
+  // Available SKU-days ⊆ plan SKU-days (factor capped ≤ 0.98; min with plan prevents ratio > 1 from rounding)
+  const availabilityFactor = Math.min(0.98, Math.max(0.85, 0.93 + unit(mix(seed, 22)) * 0.05 - pressure * 0.02));
+  const availableSkuDays = Math.min(skuPlanDays, Math.round(skuPlanDays * availabilityFactor));
 
   const cycleCountLines = Math.max(20, Math.round(60 + unit(mix(seed, 23)) * 40));
   const cycleCountAccurate = Math.round(cycleCountLines * (0.94 + unit(mix(seed, 24)) * 0.05));
@@ -335,7 +347,7 @@ type Raw = {
   categoryAvailable: number[];
   categoryIssued: number[];
   categoryBelowSafety: number[];
-  categoryDos: number[];
+  categoryDos: Array<number | null>;
   categoryForecastDev: number[];
   dispositionUnits: number[];
   supplierFill: number[];
@@ -388,10 +400,11 @@ function siteRaw(code: SiteCode, year: number, period: ReportPeriod): Raw {
   months.forEach((month) => addFlows(totals, month));
   const categoryIssued = splitExact(totals.issuedUnits, SC_CATEGORIES.map((_, index) => 0.9 + unit(mix(seed, 30 + index))));
   const categoryBelowSafety = splitExact(last.closingBelowSafety, SC_CATEGORIES.map((_, index) => 0.7 + unit(mix(seed, 50 + index))));
-  const dailyDemand = Math.max(1, totals.forecastUnits / Math.max(1, meta.days));
+  const dailyDemand = totals.forecastUnits / Math.max(1, meta.days);
   const categoryDos = categoryAvailable.map((available, index) => {
-    const catDemand = Math.max(0.1, dailyDemand * (categoryIssued[index] / Math.max(1, totals.issuedUnits)));
-    return r1(available / catDemand);
+    const share = totals.issuedUnits > 0 ? categoryIssued[index] / totals.issuedUnits : 0;
+    const catDemand = dailyDemand * share;
+    return catDemand > 0 ? r1(available / catDemand) : null;
   });
   const categoryForecastDev = SC_CATEGORIES.map((_, index) => r2(0.06 + unit(mix(seed, 70 + index)) * 0.14));
   const dispositionUnits = [
@@ -441,10 +454,11 @@ function sumRaw(parts: Raw[]): Raw {
   const categoryIssued = splitExact(issuedTotal, SC_CATEGORIES.map((_, index) => 0.9 + unit(mix(seed, 30 + index))));
   const categoryBelowSafety = splitExact(last.closingBelowSafety, SC_CATEGORIES.map((_, index) => 0.7 + unit(mix(seed, 50 + index))));
   const days = periodMeta(2026, 'year').days; // overwritten in assemble via meta
-  const dailyDemand = Math.max(1, issuedTotal / Math.max(1, days));
+  const dailyDemand = issuedTotal / Math.max(1, days);
   const categoryDos = categoryAvailable.map((available, index) => {
-    const catDemand = Math.max(0.1, dailyDemand * (categoryIssued[index] / Math.max(1, issuedTotal)));
-    return r1(available / catDemand);
+    const share = issuedTotal > 0 ? categoryIssued[index] / issuedTotal : 0;
+    const catDemand = dailyDemand * share;
+    return catDemand > 0 ? r1(available / catDemand) : null;
   });
   return {
     months,
@@ -486,12 +500,12 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   raw.months.forEach((month) => addFlows(flows, month));
   const snap = raw.months[raw.months.length - 1];
 
-  // Recompute category DOS with correct period days
-  const dailyForecastDemand = Math.max(1, flows.forecastUnits / Math.max(1, meta.days));
+  // Recompute category DOS with correct period days (null when no demand — never invent huge finite DOS)
+  const dailyForecastDemand = flows.forecastUnits / Math.max(1, meta.days);
   const categoryDos = raw.categoryAvailable.map((available, index) => {
-    const share = raw.categoryIssued[index] / Math.max(1, flows.issuedUnits);
-    const catDemand = Math.max(0.1, dailyForecastDemand * share);
-    return r1(available / catDemand);
+    const share = flows.issuedUnits > 0 ? raw.categoryIssued[index] / flows.issuedUnits : 0;
+    const catDemand = dailyForecastDemand * share;
+    return catDemand > 0 ? r1(available / catDemand) : null;
   });
 
   const supplyAvailability = ratio(flows.availableSkuDays, flows.skuDays);
@@ -502,14 +516,18 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   const contractCompliance = ratio(flows.contractedSpend, flows.eligibleContractSpend);
   const defectiveDeliveryRate = ratio(flows.defectiveQty, flows.receivedQty);
   const avgOnHand = Math.max(1, (raw.months[0].closingAvailable + snap.closingAvailable) / 2);
-  // Approximate average: use first opening proxy + closing / 2 via first month opening ≈ first closing - net
+  // Recover first-month opening from roll-forward identity (includes quarantine outflow)
   const first = raw.months[0];
-  const firstOpening = first.closingAvailable - first.receiptsReceived - first.returnedUnits + first.issuedUnits + first.expiredUnits + first.damagedUnits + first.obsoleteUnits + first.recalledUnits;
+  const firstOpening = first.closingAvailable
+    - first.receiptsReceived - first.returnedUnits
+    + first.issuedUnits + first.expiredUnits + first.damagedUnits + first.obsoleteUnits + first.recalledUnits + first.quarantinedUnits;
   const avgUsable = Math.max(1, (Math.max(0, firstOpening) + snap.closingAvailable) / 2);
   const inventoryTurnover = r2(flows.issuedUnits / avgUsable);
-  const daysOfSupply = r1(snap.closingAvailable / dailyForecastDemand);
+  // Days of Supply = usable closing units ÷ forecast average daily unit demand. High year-grain DOS can reflect intentional excess inventory.
+  // Zero / missing demand → null (UI: "No demand"), never a huge invented finite cover.
+  const daysOfSupply = daysOfSupplyFrom(snap.closingAvailable, dailyForecastDemand);
   const consumptionPerEncounter = r2(flows.issuedUnits / Math.max(1, flows.encounters));
-  const forecastDeviation = ratio(Math.abs(flows.issuedUnits - flows.forecastUnits), flows.forecastUnits);
+  const forecastDeviation = ratio(Math.abs(flows.issuedUnits - flows.forecastUnits), Math.max(1, flows.forecastUnits));
   const poApprovalTat = r1(flows.approvalHoursSum / Math.max(1, flows.approvalCount));
   const poCycleTime = r1(flows.cycleDaysSum / Math.max(1, flows.cycleCount));
   const inventoryWasteRate = ratio(flows.expiredUnits + flows.damagedUnits + flows.obsoleteUnits, flows.issuedUnits);
@@ -536,7 +554,8 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   ].reduce((total, value) => total + value, 0);
 
   const addressableStockoutRisk = Math.round(snap.closingCriticalStockouts * 0.55 + snap.closingBelowSafety * 0.2);
-  const inventoryOptOpportunity = Math.round(Math.max(0, snap.closingValueSar - daysOfSupply * dailyForecastDemand * (snap.unitCostSar || 20)) * 0.15 + unit(mix(seed, 7)) * 80_000);
+  const targetCoverValue = (daysOfSupply ?? SC_TARGETS.daysOfSupply) * Math.max(dailyForecastDemand, 0) * (snap.unitCostSar || 20);
+  const inventoryOptOpportunity = Math.round(Math.max(0, snap.closingValueSar - targetCoverValue) * 0.15 + unit(mix(seed, 7)) * 80_000);
   const expiryAvoidanceOpportunity = Math.round(snap.closingNearExpiryValueSar * 0.4 + expiredValue * 0.25);
   const replenishmentImprovement = Math.round(snap.closingReplenishExceptions * 0.45);
   const supplierDiversificationOps = Math.max(1, Math.round(snap.criticalSkus * (1 - dualSourceCoverage) * 0.5));
@@ -585,11 +604,12 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   const monthlyExpired = raw.months.map((month) => month.expiredUnits);
   const monthlyTurnover = raw.months.map((month) => r2(month.issuedUnits / Math.max(1, month.closingAvailable)));
 
-  // Roll-forward identity for the full period (using first opening and last closing)
+  // Roll-forward identity for the full period (using first opening and last closing).
+  // Quarantine is an outflow from usable available. No inter-site transfers in this model —
+  // hospital ALL sums site snapshots without inventing transfer inflation.
   const openingAvailable = Math.max(0, firstOpening);
   const rollForwardClosing = openingAvailable + flows.receiptsReceived + flows.returnedUnits
-    - flows.issuedUnits - flows.expiredUnits - flows.damagedUnits - flows.obsoleteUnits - flows.recalledUnits;
-  // Allow small residual from quarantine timing / multi-site averaging
+    - flows.issuedUnits - flows.expiredUnits - flows.damagedUnits - flows.obsoleteUnits - flows.recalledUnits - flows.quarantinedUnits;
   const rollForwardDelta = Math.abs(rollForwardClosing - snap.closingAvailable);
 
   const kpiValues: Record<string, number> = {
@@ -602,7 +622,7 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     kpi_sc_available_units: snap.closingAvailable,
     kpi_sc_critical_below_safety: snap.closingBelowSafety,
     kpi_sc_inventory_turnover: inventoryTurnover,
-    kpi_sc_days_of_supply: daysOfSupply,
+    kpi_sc_days_of_supply: daysOfSupply ?? Number.NaN,
     kpi_sc_inventory_accuracy: inventoryAccuracy,
     kpi_sc_replenishment_exceptions: snap.closingReplenishExceptions,
     kpi_sc_open_pos: snap.closingOpenPos,
@@ -642,13 +662,21 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     belowSafetySum: sum(raw.categoryBelowSafety) === snap.closingBelowSafety,
     orderedGteReceived: flows.receiptsOrdered >= flows.receiptsReceived,
     receivedGteOnTime: flows.receiptsReceived >= flows.receiptsOnTime,
+    availableSkuDaysLtePlan: flows.availableSkuDays <= flows.skuDays,
+    supplyAvailabilityBounded: supplyAvailability >= 0 && supplyAvailability <= 1,
+    supplierOtdBounded: supplierOtd >= 0 && supplierOtd <= 1,
     poNotEqualReceipt: true, // conceptual — open POs and receipts are distinct ledgers
     receiptNotEqualInvoice: flows.receiptsReceived !== flows.receiptInvoices || flows.receiptsReceived === 0,
     invoiceNotEqualPayment: flows.receiptInvoices !== flows.paymentsPosted || flows.receiptInvoices === 0,
-    daysOfSupplyUsesUnits: daysOfSupply === r1(snap.closingAvailable / dailyForecastDemand),
+    daysOfSupplyUsesUnits: daysOfSupply === null
+      ? dailyForecastDemand <= 0
+      : daysOfSupply === r1(snap.closingAvailable / dailyForecastDemand),
+    daysOfSupplyExcludesQuarantine: true, // numerator is usable closingAvailable after quarantine outflow
     nearExpiryDistinctFromExpired: true,
-    rollForwardSane: rollForwardDelta <= Math.max(5, Math.round(snap.closingAvailable * 0.02) + SITE_CODES.length),
+    rollForwardExact: rollForwardDelta === 0,
+    rollForwardSane: rollForwardDelta === 0,
     snapshotsNotSummed: true, // stocks come from last month only
+    noInternalTransferInflation: true, // ALL mode sums site snapshots; no synthetic inter-site transfers
     cheapestNotSafest: true,
   };
 
@@ -673,11 +701,17 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     belowSafety: snap.closingBelowSafety,
     inventoryTurnover,
     daysOfSupply,
+    daysOfSupplyUnit: 'units' as const,
     inventoryAccuracy,
     replenishmentExceptions: snap.closingReplenishExceptions,
     openingAvailable,
     avgUsable,
     avgOnHand,
+    rollForwardClosing,
+    rollForwardDelta,
+    positiveAdjUnits: flows.returnedUnits,
+    negativeAdjUnits: flows.damagedUnits + flows.obsoleteUnits + flows.recalledUnits,
+    transferUnits: 0, // no inter-site transfers in this synthetic model
 
     openPos: snap.closingOpenPos,
     poApprovalTat,
@@ -721,7 +755,8 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     obsoleteUnits: flows.obsoleteUnits,
     returnedUnits: flows.returnedUnits,
     recalledUnits: flows.recalledUnits,
-    quarantinedUnits: snap.closingQuarantined,
+    quarantinedUnits: snap.closingQuarantined, // period-end quarantine stock (last month)
+    quarantineOutflowUnits: flows.quarantinedUnits, // period quarantine outflow from usable available
     unitCostSar: snap.unitCostSar || 20,
 
     addressableStockoutRisk,
@@ -746,8 +781,12 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
       belowSafety: raw.categoryBelowSafety[index],
       daysOfSupply: categoryDos[index],
       forecastDev: raw.categoryForecastDev[index],
+      empty: (raw.categoryAvailable[index] ?? 0) === 0 && (raw.categoryIssued[index] ?? 0) === 0,
     })),
-    dispositionRows: SC_DISPOSITION.map((name, index) => ({ name, units: raw.dispositionUnits[index] ?? 0 })),
+    dispositionRows: SC_DISPOSITION.map((name, index) => {
+      const units = raw.dispositionUnits[index] ?? 0;
+      return { name, units, empty: units === 0 };
+    }),
     supplierTierRows: SC_SUPPLIER_TIERS.map((name, index) => ({ name, fillRate: raw.supplierFill[index] })),
     exceptionRows: ['Stockout risk', 'Late receipt', 'Below safety', 'Price match', 'Quantity match'].map((name, index) => ({
       name,
@@ -758,13 +797,13 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     identities,
     methodology: {
       clinical: 'Supply chain and procurement operational intelligence only — not a clinical ordering system, formulary authority, or autonomous purchasing engine. Authorized human review remains required.',
-      inventory: 'On-hand inventory is a period-end snapshot — monthly snapshots are never summed. Available usable excludes quarantined, recalled, expired, and damaged stock. Units of measure are distinguishable by category.',
-      dos: 'Days of Supply = available usable quantity ÷ forecast average daily unit demand. Never value ÷ usage.',
+      inventory: 'On-hand inventory is a period-end snapshot — monthly snapshots are never summed. Available usable excludes quarantined, recalled, expired, and damaged stock. Roll-forward: opening + receipts + returns − consumption − negative adjustments − expired − quarantined (± transfers=0) = closing. Hospital ALL sums site snapshots without inter-site transfer inflation.',
+      dos: 'Days of Supply = available usable quantity (units) ÷ forecast average daily unit demand. Never value ÷ usage (SAR). Zero demand → undefined (No demand), not an invented finite cover. Elevated year-grain DOS can reflect intentional excess inventory at period-end vs average daily forecast.',
       procurement: 'Purchase order ≠ goods receipt ≠ invoice ≠ payment. Each is a distinct ledger event. Open PO backlog is a stock; receipts and invoices are flows.',
-      suppliers: 'Supplier on-time delivery is owned on Command. Fill rate = quantity received ÷ quantity ordered and is distinct from OTD. Cheapest supplier is not assumed safest.',
-      waste: 'Expired, near-expiry, damaged, recalled, quarantined, obsolete, and returned are separate dispositions. Do not conflate near-expiry exposure with expired write-offs.',
+      suppliers: 'Supplier on-time delivery is owned on Command. Fill rate = quantity received ÷ quantity ordered and is distinct from OTD. Availability and OTD rates are 0–1 ratios (monthly series stored as 0–100 percent for charts — not double-scaled). Cheapest supplier is not assumed safest.',
+      waste: 'Expired, near-expiry, damaged, recalled, quarantined, obsolete, and returned are separate dispositions. Empty disposition buckets stay empty — missing is not coerced to a fabricated non-zero. Do not conflate near-expiry exposure with expired write-offs.',
       optimization: 'Eight what-if scenarios overlap and must not be summed. Modeled values are illustrative. Never cut clinically critical safety stock solely for carrying cost.',
-      allMode: 'Hospital ALL sums H1–H5 period-end snapshots and period flows; rates are recomputed from summed numerators and denominators.',
+      allMode: 'Hospital ALL sums H1–H5 period-end snapshots and period flows; rates are recomputed from summed numerators and denominators. No synthetic internal transfers between hospitals.',
     },
   };
 }

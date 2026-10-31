@@ -93,14 +93,14 @@ All seeded defects below are **OPEN** with **evidence to verify** during inspect
 
 | ID | Sev | Title | Area | Status | Evidence (Phase 0 code pointers — verify in UI / tests next) |
 |---|---|---|---|---|---|
-| P0-001 | P0 | Independent Strategy revenue vs RCM | Strategy / RCM | OPEN | Strategy synthesizes `netRevenueSar` independently in `strategyView.ts` (`encounters * (420 + …)`); RCM computes `netPatientRevenue = grossCharges − contractualAllowances` in `rcmView.ts`. No shared revenue ledger identity between Strategy CM and RCM net patient revenue. Enterprise surfaces both (`st` + `rcm.netPatientRevenue`) without cross-reconcile. |
-| P1-001 | P1 | Supply Chain percentages >100% | Supply Chain | OPEN | KPI rates stored as 0–1 ratios; Command charts pre-scale `monthlyAvailability` / `monthlyOtd` as `ratio * 100` while Supplier Fill chart uses `fillRate * 1000 / 10`. Mixed 0–1 vs 0–100 series + `%` unit — verify any chart/path that double-scales or clamps incorrectly. |
-| P1-002 | P1 | Days of Supply ~565 days scrutiny | Supply Chain | OPEN | `daysOfSupply = closingAvailable / (forecastUnits / periodDays)` uses **period-end stock** over **average daily forecast for the whole period**. Year grain + large closing stock can yield hundreds of days. Category DOS floors demand at `0.1`, which can inflate per-category DOS further (`supplyChainView.ts`). |
-| P1-003 | P1 | Zero-value category investigation | Supply Chain | OPEN | Categories from `splitExact` on closing available / issued; disposition and chart series may show zero or near-zero slices. Verify which category/disposition renders as zero value and whether it is a data bug vs legitimate empty bucket. |
-| P1-004 | P1 | Inventory reconciliation | Supply Chain | OPEN | Month roll-forward identity exists; period assemble allows residual (`rollForwardDelta`) for “quarantine timing / multi-site averaging”. Confirm residual gates and whether UI claims full reconcile while delta ≠ 0. |
-| P1-005 | P1 | ICU staffing gap vs Strategy gap=0 | Enterprise / ICU / Strategy | OPEN | ICU: `staffingGapHours = max(0, requiredNurseHours − staffedNurseHours)` with coverage &lt; 1 → typically &gt; 0 (`icuView.ts`). Strategy: `staffingCapacityGap = max(0, demandHours − staffedAvailableHours)` where `demandHours` is derived from `availableHours` and often ≤ staffed available → **gap can be 0** while ICU shows a gap (`strategyView.ts`). Enterprise ops exception compares both (`enterpriseView.ts` ~509–518) and can show ICU gap with Strategy gap 0. |
-| P1-006 | P1 | Operating Contribution duplicate as Contribution Margin | Strategy | OPEN | `operatingContribution` and `serviceLineCm` assigned the **same value**; `contributionMargin` alias equals `operatingContribution` (`strategyView.ts` assemble). Ownership lists distinct KPI IDs: `kpi_st_operating_contribution` vs `kpi_st_service_line_cm` (`strategyOwnership.ts`). |
-| P1-007 | P1 | Financial terminology audit | Strategy / Enterprise | OPEN | Labels mix “Operating Contribution”, “Contribution Margin”, “Incremental Contribution”, “Recognized net revenue” — audit copy vs formula vs RCM “Net Patient Revenue” for executive clarity (seeded; expand during inspection). |
+| P0-001 | P0 | Independent Strategy revenue vs RCM | Strategy / RCM | FIXED | Strategy `recognizedNetRevenue` = RCM `netPatientRevenue`; SL allocation via `splitExact`; contribution from RCM NPR − eligible direct cost. See `01-p0-p1-fixes.md`, `st-rcm-revenue.test.ts`. |
+| P1-001 | P1 | Supply Chain percentages >100% | Supply Chain | FIXED | Generation hardened (`availableSkuDays ⊆ skuPlanDays`, `onTime ⊆ received`); KPI 0–1 / monthly 0–100; bounds tests in `sc-rate-bounds.test.ts`. |
+| P1-002 | P1 | Days of Supply ~565 days scrutiny | Supply Chain | FIXED | Usable units ÷ daily forecast; quarantine excluded; zero demand → null / “No demand”; elevated year-grain DOS documented as excess inventory scenario. |
+| P1-003 | P1 | Zero-value category investigation | Supply Chain | FIXED | Empty category/disposition buckets stay empty; inventory charts use empty-state instead of inventing values. |
+| P1-004 | P1 | Inventory reconciliation | Supply Chain | FIXED | Exact roll-forward including quarantine outflow; `transferUnits = 0`; ALL mode does not invent inter-site transfers. |
+| P1-005 | P1 | ICU staffing gap vs Strategy gap=0 | Enterprise / ICU / Strategy | FIXED | Dual scopes on StView/Enterprise; demand can exceed staffed available under pressure; ICU gap matches ICU view; surplus ≠ auto ICU fill. `st-icu-staffing.test.ts`. |
+| P1-006 | P1 | Operating Contribution duplicate as Contribution Margin | Strategy | FIXED | Command `kpi_st_service_line_cm` is CM Rate (%); Operating Contribution remains SAR. Ownership/ribbon/bind updated. |
+| P1-007 | P1 | Financial terminology audit | Strategy / Enterprise | FIXED | Methodology/labels: RCM NPR lineage, CM Rate vs Operating Contribution SAR, illustrative opportunities. |
 
 ### Room for additional defects
 
@@ -170,8 +170,8 @@ contributionMargin: operatingContribution,
 - [x] Branch `mvp-v1-remediation` created from latest `main`  
 - [x] Baseline tag `mvp-v1-baseline-57f37b5`  
 - [x] This defect register committed (docs only)  
-- [ ] Defects verified / fixed in later phases  
+- [x] Defects P0-001, P1-001…P1-007 fixed in Phases 1–4 (see `01-p0-p1-fixes.md`)  
 
 ---
 
-*End of Phase 0 baseline document.*
+*End of Phase 0 baseline document. Status updates for FIXED items applied during Phases 1–4.*

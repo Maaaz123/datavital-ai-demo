@@ -290,7 +290,18 @@ function scMapped(key: string, hospital: string, year: number): Raw | null {
     case 'kpi_sc_available_units': return count(v.availableUnits, 'up', 'Period-end usable available quantity from Inventory & Stock Availability.', GRAIN, 'units');
     case 'kpi_sc_critical_below_safety': return count(v.belowSafety, 'down', 'Critical SKUs below safety stock from Inventory & Stock Availability.', GRAIN, 'SKUs');
     case 'kpi_sc_inventory_turnover': return { value: v.inventoryTurnover, kind: 'index', unit: 'turns', numerator: Math.round(v.inventoryTurnover * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Issued units ÷ average on-hand usable units from Inventory. Unit turnover — not value/usage.' };
-    case 'kpi_sc_days_of_supply': return { value: v.daysOfSupply, kind: 'duration', unit: 'days', numerator: Math.round(v.daysOfSupply * 10), denominator: 10, grain: RATE_GRAIN, better: 'neutral', note: 'Available usable ÷ forecast average daily unit demand from Inventory. NOT value ÷ usage.' };
+    case 'kpi_sc_days_of_supply': return {
+      value: v.daysOfSupply ?? 0,
+      kind: 'duration',
+      unit: 'days',
+      numerator: Math.round((v.daysOfSupply ?? 0) * 10),
+      denominator: 10,
+      grain: RATE_GRAIN,
+      better: 'neutral',
+      note: v.daysOfSupply == null
+        ? 'No forecast demand — days of supply undefined (not invented). Units cover, NOT value ÷ usage.'
+        : 'Available usable units ÷ forecast average daily unit demand from Inventory. NOT value ÷ usage (SAR).',
+    };
     case 'kpi_sc_inventory_accuracy': return { value: v.inventoryAccuracy, kind: 'rate', unit: '%', numerator: Math.round(v.inventoryAccuracy * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Cycle-count lines within tolerance ÷ counted lines from Inventory.' };
     case 'kpi_sc_replenishment_exceptions': return count(v.replenishmentExceptions, 'down', 'Open replenishment exceptions from Inventory & Stock Availability.', GRAIN, 'exceptions');
     case 'kpi_sc_open_pos': return count(v.openPos, 'down', 'Open purchase orders from Procurement & Purchase Orders. PO ≠ receipt ≠ invoice ≠ payment.', GRAIN, 'POs');
@@ -331,17 +342,17 @@ function scMapped(key: string, hospital: string, year: number): Raw | null {
 function stMapped(key: string, hospital: string, year: number): Raw | null {
   const v = buildStView(hospital, year, 'year');
   switch (key) {
-    case 'kpi_st_operating_contribution': return money(v.operatingContribution, 'Recognized net revenue − eligible direct costs from Strategy Command. Contribution ≠ net profit.', 'up');
+    case 'kpi_st_operating_contribution': return money(v.operatingContribution, 'Recognized net revenue (RCM NPR) − eligible direct costs from Strategy Command. Contribution ≠ net profit.', 'up');
     case 'kpi_st_resource_utilization_index': return { value: v.resourceUtilizationIndex, kind: 'rate', unit: '%', numerator: Math.round(v.resourceUtilizationIndex * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Mean of staffing, equipment, and capacity utilization from Strategy Command.' };
     case 'kpi_st_capacity_constrained_sl': return count(v.capacityConstrainedSl, 'down', 'Service lines with demand above capacity from Strategy Command.', GRAIN, 'lines');
-    case 'kpi_st_service_line_cm': return money(v.serviceLineCm, 'Aggregate contribution margin from Strategy Command. Contribution ≠ net profit.', 'up');
-    case 'kpi_st_avoidable_resource_cost': return money(v.avoidableResourceCost, 'Illustrative avoidable overtime, agency, and supply inefficiency from Strategy Command. Scenarios overlap.', 'down');
+    case 'kpi_st_service_line_cm': return { value: v.contributionMarginRate, kind: 'rate', unit: '%', numerator: Math.round(v.contributionMarginRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Operating contribution ÷ recognized net revenue (RCM NPR) from Strategy Command. Distinct from Operating Contribution SAR. Contribution ≠ net profit.' };
+    case 'kpi_st_avoidable_resource_cost': return money(v.avoidableResourceCost, 'Illustrative avoidable overtime, agency, and supply inefficiency from Strategy Command. Scenarios overlap — not measured savings.', 'down');
     case 'kpi_st_investment_opportunity_coverage': return { value: v.investmentOpportunityCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.investmentOpportunityCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Feasible expansion candidates ÷ candidates reviewed from Strategy Command.' };
     case 'kpi_st_productive_clinical_hours': return count(v.productiveHours, 'up', 'Productive clinical hours from Workforce & Staffing Economics.', GRAIN, 'hours');
     case 'kpi_st_staffing_utilization': return { value: v.staffingUtilization, kind: 'rate', unit: '%', numerator: Math.round(v.staffingUtilization * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Productive ÷ available staffed hours from Workforce.' };
     case 'kpi_st_overtime_exposure': return money(v.overtimeExposure, 'Overtime hours × synthetic rate from Workforce. Distinct from agency.', 'down');
     case 'kpi_st_agency_staffing_cost': return money(v.agencyStaffingCost, 'Agency hours × synthetic rate from Workforce. Distinct from overtime.', 'down');
-    case 'kpi_st_staffing_capacity_gap': return count(v.staffingCapacityGap, 'down', 'Demand hours above available after minima from Workforce.', GRAIN, 'hours');
+    case 'kpi_st_staffing_capacity_gap': return count(v.enterpriseStaffingGapHours, 'down', 'Enterprise demand hours − staffed available (distinct from ICU credentialed nurse-hour gap).', GRAIN, 'hours');
     case 'kpi_st_workforce_allocation_opp': return count(v.workforceAllocationOpp, 'up', 'Illustrative redeployable FTE hours from Workforce — not additive to capital scenarios.', GRAIN, 'hours');
     case 'kpi_st_equipment_utilization': return { value: v.equipmentUtilization, kind: 'rate', unit: '%', numerator: Math.round(v.equipmentUtilization * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Used ÷ available operating hours. Available ≠ installed.' };
     case 'kpi_st_available_operating_hours': return count(v.availableOperatingHours, 'up', 'Available operating hours from Equipment & Asset Productivity.', GRAIN, 'hours');
@@ -355,9 +366,9 @@ function stMapped(key: string, hospital: string, year: number): Raw | null {
     case 'kpi_st_redeployable_capacity': return count(v.redeployableCapacity, 'up', 'Underutilized eligible capacity from Clinical Capacity.', GRAIN, 'hours');
     case 'kpi_st_constrained_service_lines': return count(v.constrainedServiceLines, 'down', 'Service lines with positive demand–capacity gap from Clinical Capacity.', GRAIN, 'lines');
     case 'kpi_st_allocation_opportunity': return count(v.allocationOpportunity, 'up', 'Illustrative reallocation-addressable capacity from Clinical Capacity.', GRAIN, 'hours');
-    case 'kpi_st_net_revenue_by_sl': return money(v.netRevenue, 'Recognized net revenue from Service-Line Profitability. Revenue ≠ profit.', 'up');
-    case 'kpi_st_direct_cost_by_sl': return money(v.eligibleDirectCost, 'Eligible direct costs from Service-Line Profitability. Synthetic cost model.', 'down');
-    case 'kpi_st_sl_cm_rate': return { value: v.slCmRate, kind: 'rate', unit: '%', numerator: Math.round(v.slCmRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Contribution margin ÷ recognized net revenue. Contribution ≠ net profit.' };
+    case 'kpi_st_net_revenue_by_sl': return money(v.recognizedNetRevenue, 'Recognized net revenue allocated from RCM NPR on Service-Line Profitability. Revenue ≠ profit.', 'up');
+    case 'kpi_st_direct_cost_by_sl': return money(v.eligibleDirectCost, 'Eligible direct costs from Service-Line Profitability. Synthetic cost model (not ERP).', 'down');
+    case 'kpi_st_sl_cm_rate': return { value: v.slCmRate, kind: 'rate', unit: '%', numerator: Math.round(v.slCmRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Contribution margin ÷ recognized net revenue (by-line rate detail). Contribution ≠ net profit.' };
     case 'kpi_st_cost_per_eligible_encounter': return money(v.costPerEligibleEncounter, 'Eligible direct cost ÷ eligible encounters from Service-Line Profitability.', 'down');
     case 'kpi_st_resource_cost_intensity': return { value: v.resourceCostIntensity, kind: 'index', unit: 'index', numerator: Math.round(v.resourceCostIntensity * 100), denominator: 100, grain: RATE_GRAIN, better: 'down', note: 'Direct resource cost intensity from Service-Line Profitability.' };
     case 'kpi_st_sl_margin_variance': return money(v.slMarginVariance, 'Actual CM − expected CM under intensity assumptions from Service-Line Profitability.', 'neutral');

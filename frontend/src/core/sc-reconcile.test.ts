@@ -101,17 +101,24 @@ describe('Supply Chain ledger identities', () => {
 
   it('uses Days of Supply = available usable ÷ forecast average daily unit demand', () => {
     const view = buildScView('H1', 2026, 'year');
+    expect(view.daysOfSupply).not.toBeNull();
     expect(view.daysOfSupply).toBeCloseTo(view.availableUnits / view.dailyForecastDemand, 1);
     expect(view.dailyForecastDemand).toBeCloseTo(view.forecastUnits / view.daysInPeriod, 5);
+    expect(view.daysOfSupplyUnit).toBe('units');
+    expect(view.methodology.dos).toMatch(/units/i);
+    expect(view.methodology.dos).not.toMatch(/value ÷ usage value/i);
   });
 
-  it('keeps stock opening/closing roll-forward sane', () => {
+  it('keeps stock opening/closing roll-forward exact (includes quarantine outflow)', () => {
     const view = buildScView('H1', 2026, 'year');
     const implied = view.openingAvailable + view.receiptsReceived + view.returnedUnits
-      - view.clinicalConsumption - view.expiredUnits - view.damagedUnits - view.obsoleteUnits - view.recalledUnits;
-    expect(Math.abs(implied - view.availableUnits)).toBeLessThanOrEqual(Math.max(5, Math.round(view.availableUnits * 0.02)));
+      - view.clinicalConsumption - view.expiredUnits - view.damagedUnits - view.obsoleteUnits - view.recalledUnits - view.quarantineOutflowUnits;
+    expect(implied).toBe(view.availableUnits);
+    expect(view.rollForwardDelta).toBe(0);
+    expect(view.identities.rollForwardExact).toBe(true);
     expect(view.identities.rollForwardSane).toBe(true);
     expect(view.identities.snapshotsNotSummed).toBe(true);
+    expect(view.transferUnits).toBe(0);
   });
 
   it('keeps PO ≠ Receipt ≠ Invoice ≠ Payment as distinct ledgers', () => {

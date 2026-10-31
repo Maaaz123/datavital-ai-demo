@@ -279,8 +279,8 @@ export function StCommandPage() {
           value: sar(view.operatingContribution),
           delta: compare(view, prior, (item) => item.operatingContribution),
           tone: view.operatingContribution > 0 ? 'good' : 'alert',
-          scope: `CM = net revenue − eligible direct costs · ${view.periodLabel}.`,
-          formula: 'Recognized net revenue − eligible direct costs',
+          scope: `RCM NPR ${sar(view.recognizedNetRevenue)} − direct costs · ${view.periodLabel}.`,
+          formula: 'Recognized net revenue (RCM NPR) − eligible direct costs',
           limitations: view.methodology.contribution,
         },
         kpi_st_resource_utilization_index: {
@@ -298,17 +298,18 @@ export function StCommandPage() {
           formula: 'Service lines with demand > available capacity',
         },
         kpi_st_service_line_cm: {
-          value: sar(view.serviceLineCm),
-          delta: compare(view, prior, (item) => item.serviceLineCm),
-          scope: `Aggregate CM · fictional SAR · ${view.periodLabel}. CM ≠ net profit.`,
-          formula: 'Aggregate contribution margin',
-          limitations: 'Not fully allocated margin.',
+          value: pct(view.contributionMarginRate),
+          delta: compare(view, prior, (item) => item.contributionMarginRate, true),
+          tone: high(view.contributionMarginRate, ST_TARGETS.contributionMarginRate, 0.05),
+          scope: `CM ÷ RCM NPR · target ≥ ${pct(ST_TARGETS.contributionMarginRate)}. Distinct from Operating Contribution SAR.`,
+          formula: 'Operating contribution ÷ recognized net revenue',
+          limitations: 'Rate view — not a second SAR duplicate. Not fully allocated margin.',
         },
         kpi_st_avoidable_resource_cost: {
           value: sar(view.avoidableResourceCost),
           delta: compare(view, prior, (item) => item.avoidableResourceCost),
           tone: 'watch',
-          scope: `Illustrative · ${view.periodLabel}.`,
+          scope: `Illustrative modeled opportunity · ${view.periodLabel}.`,
           formula: 'Avoidable overtime + idle equipment + agency',
           limitations: view.methodology.optimization,
         },
@@ -349,8 +350,8 @@ export function StCommandPage() {
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Contribution Margin Overview', ['Net revenue', 'Direct cost', 'Contribution'], [
-            { name: 'SAR', values: [view.netRevenue, view.eligibleDirectCost, view.serviceLineCm] },
-          ], 'SAR', `CM rate ${pct(view.slCmRate)}. CM ≠ net profit.`)} />
+            { name: 'SAR', values: [view.recognizedNetRevenue, view.eligibleDirectCost, view.operatingContribution] },
+          ], 'SAR', `CM rate ${pct(view.contributionMarginRate)} (Command KPI). Lineage: RCM NPR → SL allocation → CM. CM ≠ net profit.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Avoidable Resource Cost Opportunity', ['Avoidable resource', 'Avoidable cost', 'Efficiency opp'], [
@@ -415,16 +416,17 @@ export function StWorkforcePage() {
           formula: 'Agency / locum spend',
         },
         kpi_st_staffing_capacity_gap: {
-          value: num(view.staffingCapacityGap),
-          delta: compare(view, prior, (item) => item.staffingCapacityGap),
-          tone: view.staffingCapacityGap > 500 ? 'alert' : view.staffingCapacityGap > 200 ? 'watch' : 'good',
-          scope: `Demand − staffed available · ${view.periodLabel}.`,
-          formula: 'Demand hours − staffed available hours',
+          value: num(view.enterpriseStaffingGapHours),
+          delta: compare(view, prior, (item) => item.enterpriseStaffingGapHours),
+          tone: view.enterpriseStaffingGapHours > 500 ? 'alert' : view.enterpriseStaffingGapHours > 200 ? 'watch' : 'good',
+          scope: `Enterprise demand − staffed available · ICU gap ${num(view.icuStaffingGapHours)} h (distinct scope).`,
+          formula: 'Enterprise demand hours − staffed available hours',
+          limitations: 'Enterprise surplus ≠ automatic ICU fill without credentials. ICU owns credentialed nurse-hour gap.',
         },
         kpi_st_workforce_allocation_opp: {
           value: num(view.workforceAllocationOpp),
           delta: compare(view, prior, (item) => item.workforceAllocationOpp),
-          scope: `Illustrative reallocable hours · ${view.periodLabel}.`,
+          scope: `Illustrative reallocable hours · redeployable surplus ${num(view.redeployableHours)} h · ${view.periodLabel}.`,
           formula: 'Redeployable productive hours under credentialing',
           limitations: view.methodology.optimization,
         },
@@ -459,7 +461,7 @@ export function StWorkforcePage() {
           <Slot span={false} figure={fig('bars', 'Staffing Capacity Gap', view.serviceLineRows.slice(0, 6).map((row) => row.name), [
             { name: 'Demand hours', values: view.serviceLineRows.slice(0, 6).map((row) => row.demand) },
             { name: 'Capacity hours', values: view.serviceLineRows.slice(0, 6).map((row) => row.capacity) },
-          ], 'hours', `Staffing gap ${num(view.staffingCapacityGap)} hours.`)} />
+          ], 'hours', `Enterprise staffing gap ${num(view.enterpriseStaffingGapHours)} h · ICU gap ${num(view.icuStaffingGapHours)} h (scopes differ).`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Workforce Allocation Opportunity', ['Allocation opp', 'Redeployable capacity'], [
@@ -688,8 +690,8 @@ export function StServiceLinesPage() {
           value: pct(view.slCmRate),
           delta: compare(view, prior, (item) => item.slCmRate, true),
           tone: high(view.slCmRate, ST_TARGETS.contributionMarginRate, 0.05),
-          scope: `Rate view · Command owns SAR CM ${sar(view.serviceLineCm)}.`,
-          formula: 'Aggregate CM ÷ recognized net revenue',
+          scope: `By-line rate detail · Command owns executive CM Rate ${pct(view.contributionMarginRate)}.`,
+          formula: 'Aggregate CM ÷ recognized net revenue (RCM NPR)',
           limitations: 'Zero revenue → rate 0. Not fully allocated margin.',
         },
         kpi_st_cost_per_eligible_encounter: {
@@ -729,7 +731,7 @@ export function StServiceLinesPage() {
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Service-Line Contribution Margin Rate', view.serviceLineRows.map((row) => row.name), [
             { name: 'CM rate %', values: view.serviceLineRows.map((row) => Math.round(row.cmRate * 1000) / 10) },
-          ], '%', `Weighted CM rate ${pct(view.slCmRate)}. Command owns aggregate SAR CM.`)} />
+          ], '%', `Weighted CM rate ${pct(view.slCmRate)}. Command owns executive CM Rate; this chart is by-line detail.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Cost per Eligible Encounter', ['Cost / encounter', 'Intensity'], [
@@ -745,8 +747,8 @@ export function StServiceLinesPage() {
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Service-Line Margin Variance', ['Actual CM', 'Expected CM', 'Variance'], [
-            { name: 'SAR', values: [view.serviceLineCm, Math.round(view.netRevenue * ST_TARGETS.contributionMarginRate), view.slMarginVariance] },
-          ], 'SAR', 'Variance is illustrative under published intensity assumptions.')} />
+            { name: 'SAR', values: [view.operatingContribution, Math.round(view.recognizedNetRevenue * ST_TARGETS.contributionMarginRate), view.slMarginVariance] },
+          ], 'SAR', 'Variance is illustrative under published intensity assumptions. Modeled — not achieved.')} />
         </div>
       </div>
       <IndicatorIndex indicators={stIndicatorsFor(view).filter((item) => item.screen === 'Service-lines')} />

@@ -1825,7 +1825,7 @@ function answerSc(
     return pack(lang, {
       title: tx(lang, 'Outside autonomous purchasing', 'خارج الشراء الذاتي'),
       observation: tx(lang, 'Vital Assist is supply-chain operational intelligence — not an autonomous purchasing engine, formulary authority, or unsupervised safety-stock editor.', 'المساعد طبقة تشغيل إمداد وليس محرك شراء ذاتي.'),
-      evidence: tx(lang, `Observed facts for ${name}: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · days of supply ${n(view.daysOfSupply, 1)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
+      evidence: tx(lang, `Observed facts for ${name}: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · days of supply ${view.daysOfSupply == null ? 'No demand' : n(view.daysOfSupply, 1)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
       explanation: tx(lang, 'Never cut clinically critical safety stock solely for carrying cost. Every purchasing or cover change requires authorized human review.', 'لا تُخفّض مخزون الأمان السريري الحرج لمجرد التكلفة.'),
       action: tx(lang, 'Ask about availability, days of supply, fill rate, near-expiry, or dual-source coverage instead.', 'اسأل عن التوافر أو أيام التغطية أو معدل التعبئة أو قرب انتهاء الصلاحية.'),
       role: tx(lang, 'Materials management lead', 'قائد إدارة المواد'),
@@ -1836,7 +1836,7 @@ function answerSc(
   if (/days of supply|dos|available units|safety stock|stockout|inventory turnover|replenishment exception|inventory accuracy/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Inventory & availability · ${name} · ${view.periodLabel}`, `المخزون والتوافر · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Observed facts: available units ${n(view.availableUnits)} · days of supply ${n(view.daysOfSupply, 1)} (usable ÷ forecast daily demand ${n(view.dailyForecastDemand, 1)}) · below safety ${n(view.belowSafety)} · critical stockouts ${n(view.criticalStockouts)} · turnover ${n(view.inventoryTurnover, 1)} · accuracy ${p(view.inventoryAccuracy)}.`, `أيام التغطية ${n(view.daysOfSupply, 1)}.`),
+      observation: tx(lang, `Observed facts: available units ${n(view.availableUnits)} · days of supply ${view.daysOfSupply == null ? 'No demand' : n(view.daysOfSupply, 1)} (usable ÷ forecast daily demand ${n(view.dailyForecastDemand, 1)}) · below safety ${n(view.belowSafety)} · critical stockouts ${n(view.criticalStockouts)} · turnover ${n(view.inventoryTurnover, 1)} · accuracy ${p(view.inventoryAccuracy)}.`, `أيام التغطية ${view.daysOfSupply == null ? 'لا طلب' : n(view.daysOfSupply, 1)}.`),
       evidence: tx(lang, `${view.methodology.dos} ${view.methodology.inventory}`, view.methodology.dos),
       explanation: tx(lang, `Potential drivers / Hypotheses (not proven): replenishment lag and below-safety cover. Modeled (illustrative): addressable stockouts ${n(view.addressableStockoutRisk)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, 'Recommendations: review critical SKUs below safety stock and open replenishment exceptions. Never cut clinically critical safety stock solely for cost.', 'راجع مخزون الأمان واستثناءات التجديد.'),
