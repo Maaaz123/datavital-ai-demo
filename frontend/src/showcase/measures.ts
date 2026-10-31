@@ -50,10 +50,14 @@ export function formatMeasure(item: Measure, lang: 'en' | 'ar' = 'en'): string {
     return `${digits.format(pct)}%`;
   }
   if (item.kind === 'index') {
-    // Unit-aware index formatting: PX survey scores are 0–10; classic demo indexes stay /100.
+    // Unit-aware index formatting: PX survey scores are 0–10; density rates keep their unit; classic indexes stay /100.
     if (item.unit === 'score') return `${digits.format(item.value)} / 10`;
     if (item.unit === 'points') return `${digits.format(item.value)} pts`;
     if (item.unit === 'ratio') return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value);
+    if (item.unit.startsWith('/1k') || item.unit.includes('/1k')) {
+      return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value)} ${item.unit}`;
+    }
+    if (item.unit === '/1k gap') return `${digits.format(item.value)} /1k gap`;
     return `${digits.format(item.value)} / 100`;
   }
   if (item.kind === 'multiplier') return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(item.value)}×`;
