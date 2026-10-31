@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions' | 'sc' | 'sc-inventory' | 'sc-procurement' | 'sc-suppliers' | 'sc-consumption' | 'sc-waste';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions' | 'sc' | 'sc-inventory' | 'sc-procurement' | 'sc-suppliers' | 'sc-consumption' | 'sc-waste' | 'st' | 'st-workforce' | 'st-equipment' | 'st-capacity' | 'st-service' | 'st-cost' | 'st-expansion';
 };
 
 export type NavDomain = {
@@ -639,6 +639,71 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'strategy',
+    label: 'Strategy',
+    mark: 'ST',
+    match: (path) => path === '/strategy' || path.startsWith('/strategy/'),
+    screens: [
+      {
+        to: '/strategy',
+        short: 'Command',
+        title: 'Strategic Resource & Profitability Command Center',
+        purpose: 'Contribution, utilization, and investment coverage',
+        end: true,
+        glyph: 'st',
+      },
+      {
+        to: '/strategy/workforce',
+        short: 'Workforce',
+        title: 'Workforce & Staffing Economics',
+        purpose: 'Staffing utilization, overtime, and reallocation',
+        glyph: 'st-workforce',
+      },
+      {
+        to: '/strategy/equipment',
+        short: 'Equipment',
+        title: 'Equipment & Asset Productivity',
+        purpose: 'Serviceable hours, downtime, and replacement',
+        glyph: 'st-equipment',
+      },
+      {
+        to: '/strategy/capacity',
+        short: 'Capacity',
+        title: 'Clinical Capacity & Resource Allocation',
+        purpose: 'Effective capacity and reallocation opportunity',
+        glyph: 'st-capacity',
+      },
+      {
+        to: '/strategy/service-lines',
+        short: 'Service Lines',
+        title: 'Service-Line Profitability',
+        purpose: 'Contribution margin — not net profit',
+        glyph: 'st-service',
+      },
+      {
+        to: '/strategy/cost-efficiency',
+        short: 'Cost',
+        title: 'Cost Drivers & Efficiency',
+        purpose: 'Synthetic cost model and avoidable cost',
+        glyph: 'st-cost',
+      },
+      {
+        to: '/strategy/expansion',
+        short: 'Expansion',
+        title: 'Capital Planning & Expansion',
+        purpose: 'CapEx candidates and feasibility',
+        glyph: 'st-expansion',
+      },
+      {
+        to: '/strategy/optimization',
+        short: 'Optimize',
+        title: 'Strategic Optimization & What-if',
+        purpose: 'Illustrative reallocation and investment scenarios',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -654,10 +719,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs' || kind === 'sc') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention' || kind === 'sc-consumption') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents' || kind === 'sc-inventory' || kind === 'sc-procurement') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes' || kind === 'sc-suppliers') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions' || kind === 'sc-waste') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs' || kind === 'sc' || kind === 'st') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention' || kind === 'sc-consumption' || kind === 'st-capacity') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents' || kind === 'sc-inventory' || kind === 'sc-procurement' || kind === 'st-workforce' || kind === 'st-cost') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes' || kind === 'sc-suppliers' || kind === 'st-expansion') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions' || kind === 'sc-waste' || kind === 'st-equipment' || kind === 'st-service') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

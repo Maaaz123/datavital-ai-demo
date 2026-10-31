@@ -11,10 +11,11 @@ import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
+import { buildStView, ST_TARGETS } from '@/core/strategyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain' | 'Strategy';
 
 export type WhatIfResult = {
   id: string;
@@ -128,6 +129,18 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if surgical infection prevention process compliance improves by 10 points?',
     'What if CAPA effectiveness verification increases by 20 points?',
   ],
+  'Strategy': [
+    'What if nurses are reallocated across eligible units by 20% of redeployable hours?',
+    'What if operating room hours are extended by 10%?',
+    'What if outpatient clinic sessions increase by 8%?',
+    'What if diagnostic equipment utilization improves by 10 points?',
+    'What if a high-downtime asset is replaced or upgraded?',
+    'What if staffing increases in a constrained service line by 15%?',
+    'What if avoidable overtime decreases by 25%?',
+    'What if supply consumption efficiency improves by 10%?',
+    'What if a high-demand specialty service expands?',
+    'What if reallocation is compared against new capital investment?',
+  ],
   'Supply Chain': [
     'What if safety stock is adjusted for critical SKUs below cover?',
     'What if supplier lead time decreases by 20%?',
@@ -157,6 +170,22 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Strategy intents before Supply Chain / workforce generics that mention overtime, utilization, or capital.
+  const stAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
+  if (/reallocate nurses|nurse.*reallocat/.test(q)) return { kind: 'st-reallocate-nurses', amount: stAmount(0.2) };
+  if (/extend.*(?:operating room|or) hours|(?:operating room|or) hours.*extend/.test(q)) return { kind: 'st-extend-or-hours', amount: stAmount(0.15) };
+  if (/add.*clinic sessions|clinic sessions.*(increas|add)/.test(q)) return { kind: 'st-add-clinic-sessions', amount: stAmount(0.1) };
+  if (/diagnostic equipment utilization|diag(?:nostic)? util/.test(q) && /(improv|increas)/.test(q)) return { kind: 'st-improve-diag-util', amount: stAmount(0.08) };
+  if (/replace|upgrade/.test(q) && /(downtime|asset|equipment)/.test(q)) return { kind: 'st-replace-downtime-asset', amount: stAmount(0.4) };
+  if (/staffing.*(constrained|service line)|increase staffing/.test(q)) return { kind: 'st-staff-constrained-sl', amount: stAmount(0.15) };
+  if (/avoidable overtime|overtime.*(fell|decreas|reduc)/.test(q)) return { kind: 'st-reduce-overtime', amount: stAmount(0.25) };
+  if (/supply consumption efficiency|consumption efficiency/.test(q) && /(improv|increas)/.test(q)) return { kind: 'st-supply-efficiency', amount: stAmount(0.2) };
+  if (/expand.*(specialty|high-demand)|specialty service.*expand/.test(q)) return { kind: 'st-expand-specialty', amount: stAmount(0.3) };
+  if (/reallocation vs|reallocat.*(?:versus|vs).*capital|compare reallocation/.test(q)) return { kind: 'st-reallocate-vs-capital', amount: stAmount(0.3) };
+  if (/(strategy|contribution margin|capital investment|resource utilization)/.test(q) && /(fell|decreas|reduc|improv|reallocat|expand)/.test(q)) {
+    return { kind: 'st-reallocate-nurses', amount: stAmount(0.2) };
+  }
 
   // Supply Chain intents before Pharmacy generics that mention stock, expiry, or replenishment.
   const scAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
@@ -305,6 +334,7 @@ export function runWhatIf(
   if (domain === 'Revenue Cycle') return rcmWhatIf(hospital, year, period, resolved);
   if (domain === 'Quality & Safety') return qsWhatIf(hospital, year, period, resolved);
   if (domain === 'Supply Chain') return scWhatIf(hospital, year, period, resolved);
+  if (domain === 'Strategy') return stWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -322,6 +352,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Revenue Cycle') return { kind: 'rcm-denials-down', amount: 0.2 };
   if (domain === 'Quality & Safety') return { kind: 'qs-hh-up', amount: 0.08 };
   if (domain === 'Supply Chain') return { kind: 'sc-fill-rate-up', amount: 0.05 };
+  if (domain === 'Strategy') return { kind: 'st-reallocate-nurses', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1638,6 +1669,139 @@ function qsWhatIf(
     estimated: `Compliance near ${pct(next)} · about ${num(Math.round(view.hhEligible * amount))} additional compliant audited opportunities if realized`,
     implications: 'Audited sample only — not all care interactions. Observer bias and sampling limits apply. Compliance alone does not prove infection reduction.',
     followUp: 'Hand Hygiene Compliance, Prevention Gaps, and CLABSI / CAUTI rates',
+  };
+}
+
+/** Strategy what-ifs: illustrative only; scenarios overlap and must not be summed; investment outcomes are not claimed as achieved. */
+function stWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildStView(hospital, year, period);
+  const kind = intent.kind.startsWith('st-') ? intent.kind : 'st-reallocate-nurses';
+  const amount = Math.min(1, Math.max(0.05, intent.amount));
+  const opp = view.opportunities.find((item) => item.id === kind) ?? view.opportunities[0];
+  const modeled = Math.round(opp.eligibleValue * Math.min(1, amount / 0.25));
+  const framing = `Illustrative under documented assumptions — not measured improvement and not additive to other Strategy scenarios (they overlap). ${opp.assumption} Contribution margin ≠ net profit. Revenue ≠ profit. Investment outcomes are not claimed as achieved. AI does not approve CapEx, change rosters, or reallocate staff alone.`;
+  const common = {
+    id: kind,
+    assumptions: framing,
+    implications: 'Authorized human review remains required. Compare reallocation vs capital — do not sum overlapping benefits.',
+    owner: opp.owner,
+    followUp: opp.followUp,
+  };
+
+  if (kind === 'st-extend-or-hours') {
+    const next = Math.max(0, Math.round(view.demandCapacityGap * (1 - amount * 0.5)));
+    return {
+      ...common,
+      title: 'Extend operating room hours scenario',
+      current: `Demand–capacity gap ${num(view.demandCapacityGap)} h · effective capacity ${num(view.effectiveCapacity)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} extension of eligible OR hours with staffed anaesthesia/recovery`,
+      estimated: `Gap near ${num(next)} h · about ${num(modeled)} h addressable if realized`,
+      followUp: 'Effective Capacity, Demand-Capacity Gap, and Allocation Opportunity',
+    };
+  }
+  if (kind === 'st-add-clinic-sessions') {
+    const sessions = Math.max(1, Math.round(view.demandCapacityGap / 40));
+    const next = Math.max(0, Math.round(sessions * (1 - amount)));
+    return {
+      ...common,
+      title: 'Add outpatient clinic sessions scenario',
+      current: `Clinic session gap proxy ${num(sessions)} · redeployable ${num(view.redeployableCapacity)} h · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} increase in eligible outpatient clinic sessions`,
+      estimated: `Session gap near ${num(next)} · about ${num(modeled)} sessions addressable if realized`,
+      followUp: 'Allocation Opportunity, Staffing Utilization, and Operating Contribution',
+    };
+  }
+  if (kind === 'st-improve-diag-util') {
+    const next = Math.min(1, view.equipmentUtilization + amount);
+    return {
+      ...common,
+      title: 'Diagnostic equipment utilization scenario',
+      current: `Equipment utilization ${pct(view.equipmentUtilization)} (target ${pct(ST_TARGETS.equipmentUtilization, 0)}) · downtime exposure SAR ${num(view.assetDowntimeExposure)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in available-hour utilization`,
+      estimated: `Utilization near ${pct(next)} · about ${num(modeled)} available hours better used if realized`,
+      followUp: 'Equipment Utilization, Asset Downtime Exposure, and Equipment Capacity Gap',
+    };
+  }
+  if (kind === 'st-replace-downtime-asset') {
+    const next = Math.max(0, Math.round(view.assetDowntimeExposure * (1 - amount)));
+    return {
+      ...common,
+      title: 'Replace or upgrade high-downtime asset scenario',
+      current: `Downtime exposure SAR ${num(view.assetDowntimeExposure)} · CapEx proxy SAR ${num(Math.round(view.estimatedCapitalReq * 0.25))} · ${view.periodLabel}`,
+      change: `Illustrative replacement/upgrade addressing about ${pct(amount, 0)} of high-downtime exposure`,
+      estimated: `Downtime exposure near SAR ${num(next)} · about SAR ${num(modeled)} addressable if realized — not an achieved investment outcome`,
+      followUp: 'Asset Downtime Exposure, Estimated Capital Requirement, and Reallocation Potential',
+    };
+  }
+  if (kind === 'st-staff-constrained-sl') {
+    const next = Math.max(0, Math.round(view.staffingCapacityGap * (1 - amount)));
+    return {
+      ...common,
+      title: 'Increase staffing in constrained service line scenario',
+      current: `Staffing gap ${num(view.staffingCapacityGap)} h · constrained lines ${num(view.constrainedServiceLines)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} staffing uplift in constrained eligible lines`,
+      estimated: `Gap near ${num(next)} h · about ${num(modeled)} h addressable if realized (OpEx rises)`,
+      followUp: 'Staffing Capacity Gap, Constrained Service Lines, and Incremental Operating Cost',
+    };
+  }
+  if (kind === 'st-reduce-overtime') {
+    const next = Math.max(0, Math.round(view.overtimeExposure * (1 - amount)));
+    return {
+      ...common,
+      title: 'Reduce avoidable overtime scenario',
+      current: `Overtime exposure SAR ${num(view.overtimeExposure)} · agency SAR ${num(view.agencyStaffingCost)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in avoidable overtime (not below safe staffing)`,
+      estimated: `Overtime near SAR ${num(next)} · about SAR ${num(modeled)} addressable if realized`,
+      followUp: 'Overtime Exposure, Workforce Allocation Opportunity, and Avoidable Cost Opportunity',
+    };
+  }
+  if (kind === 'st-supply-efficiency') {
+    const next = Math.max(0, Math.round(view.avoidableCostOpportunity * (1 - amount * 0.4)));
+    return {
+      ...common,
+      title: 'Improve supply consumption efficiency scenario',
+      current: `Avoidable cost opp SAR ${num(view.avoidableCostOpportunity)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} improvement in eligible supply consumption efficiency`,
+      estimated: `Avoidable cost near SAR ${num(next)} · about SAR ${num(modeled)} addressable if realized`,
+      implications: 'Reads Supply Chain consumption intensity as input — does not reassign SC ownership. Never cut clinically critical safety stock solely for cost.',
+      followUp: 'Avoidable Cost Opportunity, Avoidable Resource Cost, and Resource Efficiency Opportunity',
+    };
+  }
+  if (kind === 'st-expand-specialty') {
+    const next = Math.round(view.incrementalContribution * (0.5 + amount * 0.5));
+    return {
+      ...common,
+      title: 'Expand high-demand specialty service scenario',
+      current: `Contribution potential SAR ${num(view.incrementalContribution)} · CapEx SAR ${num(view.estimatedCapitalReq)} · feasibility ${pct(view.investmentFeasibility)} · ${view.periodLabel}`,
+      change: `Illustrative specialty expansion under demand, staffing, equipment, space, and capital constraints`,
+      estimated: `Contribution potential near SAR ${num(next)} if assumptions hold — not an achieved investment outcome`,
+      followUp: 'Incremental Contribution Potential, Investment Feasibility, and Capacity Benefit',
+    };
+  }
+  if (kind === 'st-reallocate-vs-capital') {
+    return {
+      ...common,
+      title: 'Compare reallocation vs new capital investment scenario',
+      current: `Reallocation potential ${num(view.reallocationPotential)} h · contribution potential SAR ${num(view.incrementalContribution)} · CapEx SAR ${num(view.estimatedCapitalReq)} · ${view.periodLabel}`,
+      change: `Illustrative comparison of reallocating existing capacity versus new capital (do not sum both benefits)`,
+      estimated: `Compare ${num(view.reallocationPotential)} h reallocation vs SAR ${num(modeled)} capital-linked delta — neither outcome claimed as achieved`,
+      followUp: 'Reallocation Potential, Estimated Capital Requirement, and Decision Readiness',
+    };
+  }
+  const next = Math.max(0, Math.round(view.staffingCapacityGap * (1 - amount)));
+  return {
+    ...common,
+    id: 'st-reallocate-nurses',
+    title: 'Reallocate nurses across eligible units scenario',
+    current: `Staffing gap ${num(view.staffingCapacityGap)} h · allocation opportunity ${num(view.workforceAllocationOpp)} h · utilization ${pct(view.staffingUtilization)} · ${view.periodLabel}`,
+    change: `Illustrative reallocation of about ${pct(amount, 0)} of eligible nurse hours across units`,
+    estimated: `Gap near ${num(next)} h · about ${num(modeled)} h redeployable if realized`,
+    followUp: 'Workforce Allocation Opportunity, Staffing Capacity Gap, and Staffing Utilization',
   };
 }
 

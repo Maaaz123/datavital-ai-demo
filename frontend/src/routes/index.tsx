@@ -38,6 +38,16 @@ import {
   ScSuppliersPage,
   ScWastePage,
 } from '@/core/supplyChain';
+import {
+  StCapacityPage,
+  StCommandPage,
+  StCostEfficiencyPage,
+  StEquipmentPage,
+  StExpansionPage,
+  StOptimizationPage,
+  StServiceLinesPage,
+  StWorkforcePage,
+} from '@/core/strategy';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
@@ -126,6 +136,14 @@ export const routes = [
       { path: 'supply-chain/consumption', element: <ScConsumptionPage /> },
       { path: 'supply-chain/waste', element: <ScWastePage /> },
       { path: 'supply-chain/optimization', element: <ScOptimizationPage /> },
+      { path: 'strategy', element: <StCommandPage /> },
+      { path: 'strategy/workforce', element: <StWorkforcePage /> },
+      { path: 'strategy/equipment', element: <StEquipmentPage /> },
+      { path: 'strategy/capacity', element: <StCapacityPage /> },
+      { path: 'strategy/service-lines', element: <StServiceLinesPage /> },
+      { path: 'strategy/cost-efficiency', element: <StCostEfficiencyPage /> },
+      { path: 'strategy/expansion', element: <StExpansionPage /> },
+      { path: 'strategy/optimization', element: <StOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),

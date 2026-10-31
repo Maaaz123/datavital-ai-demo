@@ -1,0 +1,31 @@
+{
+  "domain": "Strategy",
+  "domain_number": 15,
+  "build_id": "v78-strategy-domain",
+  "kpi_count": 48,
+  "chart_count": 48,
+  "screens": 8,
+  "what_if_scenarios": 10,
+  "contribution_margin_formula": "Recognized Net Revenue − Eligible Direct Costs",
+  "disclosures": [
+    "Contribution margin ≠ net profit",
+    "Revenue ≠ profit",
+    "Synthetic cost model — not live ERP",
+    "What-if scenarios overlap and must not be summed",
+    "Investment outcomes are not claimed as achieved"
+  ],
+  "cost_categories": [
+    {"name": "Salaries", "direct": true, "variable": false},
+    {"name": "Overtime", "direct": true, "variable": true},
+    {"name": "Agency", "direct": true, "variable": true},
+    {"name": "Consumables", "direct": true, "variable": true},
+    {"name": "Drugs", "direct": true, "variable": true},
+    {"name": "Maintenance", "direct": true, "variable": false},
+    {"name": "Depreciation", "direct": true, "variable": false},
+    {"name": "Facility", "direct": false, "variable": false},
+    {"name": "Utilities", "direct": false, "variable": true},
+    {"name": "Shared services", "direct": false, "variable": false},
+    {"name": "Other direct", "direct": true, "variable": true}
+  ],
+  "product_owner_approval": "NOT RECORDED"
+}

@@ -13,6 +13,7 @@ import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
 import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
+import { buildStView, ST_TARGETS } from '@/core/strategyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -46,6 +47,7 @@ function siteName(code: string, lang: Lang): string {
 }
 
 export function promptForPath(path: string): string {
+  if (/strategy|contribution|expansion|workforce economics|service-line/.test(path)) return 'Where are the largest resource and profitability concerns?';
   if (/supply-chain|procurement|stockout|near-expir|supplier fill/.test(path)) return 'Where are the largest supply chain concerns?';
   if (/quality|infection|incident|capa|hai|clabsi/.test(path)) return 'Where are the largest quality and safety concerns?';
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
@@ -138,6 +140,29 @@ export function answerQuestion(
       return {
         ...answer,
         approval: tx(lang, 'Management approval required. AI does not diagnose, order isolation, or close CAPA alone. Modeled reductions are not measured improvement.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يشخص ولا يأمر بالعزل ولا يغلق الإجراءات التصحيحية وحده.'),
+      };
+    }
+  }
+
+
+  if (department === 'Strategy') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('st-')) {
+      const result = runWhatIf('Strategy', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not approve CapEx, change rosters, or reallocate staff alone. Modeled values are not measured improvement or achieved investment outcomes.', 'يلزم اعتماد إداري.'),
       };
     }
   }
@@ -236,6 +261,7 @@ export function answerQuestion(
   if (department === 'Revenue Cycle') return answerRcm(q, hospital, year, name, lang, period);
   if (department === 'Quality & Safety') return answerQs(q, hospital, year, name, lang, period);
   if (department === 'Supply Chain') return answerSc(q, hospital, year, name, lang, period);
+  if (department === 'Strategy') return answerSt(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1919,3 +1945,91 @@ function pack(
       ?? tx(lang, 'Expected impact is illustrative. Monitor the follow-up indicator separately. Not a validated forecast.', 'الأثر المتوقع توضيحي. راقب مؤشر المتابعة منفصلاً. ليس توقعاً متحققاً.'),
   };
 }
+
+function answerSt(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildStView(hospital, year, period);
+  const n = (value: number, digits = 0) => value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const sar = (value: number) => `SAR ${n(Math.round(value))}`;
+  const modeledNote = 'Modeled figures are illustrative under documented assumptions — not measured improvement and not achieved investment outcomes.';
+
+  if (/claim denial|net collection|hand.?hygiene|clabsi|patient satisfaction|stockout|supplier fill|days of supply/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Strategy focus', 'خارج تركيز الاستراتيجية'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Denials stay in Revenue Cycle, HAI in Quality & Safety, satisfaction in Patient Experience, and stockouts in Supply Chain.', 'كل دومين يملك مؤشراته.'),
+      explanation: tx(lang, 'Strategy owns resource utilization, contribution margin (not net profit), capacity allocation, cost efficiency, and illustrative expansion scenarios. It references other domains as inputs only.', 'الاستراتيجية تملك الموارد والمساهمة والتوسع.'),
+      action: tx(lang, 'Stay on Strategy screens for contribution, capacity, workforce economics, and capital planning questions.', 'ابقَ في شاشات الاستراتيجية.'),
+      role: tx(lang, 'Chief strategy officer', 'رئيس الاستراتيجية'),
+      benefit: tx(lang, 'Clear ownership prevents duplicating clinical or RCM dashboards inside Strategy.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/auto-?approve|reallocate (?:nurses|staff) alone|change rosters alone|claim.*(?:roi|outcome).*achieved|autonomous capital|CapEx.*alone/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside autonomous CapEx / rostering', 'خارج اعتماد رأس المال أو الجدولة الذاتية'),
+      observation: tx(lang, 'Vital Assist is strategic decision support — not an autonomous CapEx approver, rostering engine, or staff reallocator. Investment outcomes are not claimed as achieved. Human review remains required.', 'المساعد طبقة قرار استراتيجي وليس اعتماداً ذاتياً.'),
+      evidence: tx(lang, `Observed facts for ${name}: contribution ${sar(view.operatingContribution)} · utilization ${p(view.resourceUtilizationIndex)} · feasibility ${p(view.investmentFeasibility)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
+      explanation: tx(lang, 'Contribution margin ≠ net profit. Revenue ≠ profit. AI does not approve CapEx, change rosters, or reallocate staff alone.', 'هامش المساهمة ليس صافي ربح.'),
+      action: tx(lang, 'Ask about contribution margin, reallocation vs capital, overtime exposure, or equipment utilization instead.', 'اسأل عن هامش المساهمة أو إعادة التوزيع أو رأس المال.'),
+      role: tx(lang, 'Capital planning committee', 'لجنة تخطيط رأس المال'),
+      benefit: tx(lang, 'Keeps strategic analytics separate from unsupervised investment actions.', 'يفصل التحليل عن الإجراءات غير المراقبة.'),
+    });
+  }
+
+  if (/contribution margin|operating contribution|net profit|direct cost|service.?line/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Contribution & service lines · ${name} · ${view.periodLabel}`, `المساهمة وخطوط الخدمة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: contribution ${sar(view.operatingContribution)} (= ${sar(view.netRevenue)} revenue − ${sar(view.eligibleDirectCost)} direct cost) · CM rate ${p(view.slCmRate)} · cost/encounter ${sar(view.costPerEligibleEncounter)}.`, `المساهمة ${sar(view.operatingContribution)}.`),
+      evidence: tx(lang, `${view.methodology.contribution} ${view.methodology.cost}`, view.methodology.contribution),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): overtime, agency, and supply intensity. Modeled (illustrative): addressable contribution ${sar(view.addressableContribution)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: review service-line contribution and avoidable cost before treating contribution as net profit.', 'راجع المساهمة والتكلفة القابلة للتجنب.'),
+      role: tx(lang, 'Chief financial officer', 'المدير المالي'),
+      benefit: tx(lang, 'Keeping contribution distinct from net profit prevents false investment claims.', 'فصل المساهمة عن صافي الربح يمنع ادعاءات الاستثمار الخاطئة.'),
+    });
+  }
+
+  if (/workforce|staffing|overtime|agency|reallocate nurses|nurse/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Workforce economics · ${name} · ${view.periodLabel}`, `اقتصاد القوى العاملة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: staffing utilization ${p(view.staffingUtilization)} · overtime ${sar(view.overtimeExposure)} · agency ${sar(view.agencyStaffingCost)} · gap ${n(view.staffingCapacityGap)} h · realloc opp ${n(view.workforceAllocationOpp)} h.`, `استخدام التوظيف ${p(view.staffingUtilization)}.`),
+      evidence: tx(lang, view.methodology.workforce, view.methodology.workforce),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): constrained lines and overtime. Modeled (illustrative): ${modeledNote}`, 'أسباب محتملة.'),
+      action: tx(lang, 'Recommendations: reallocate eligible nurses where safe; reduce avoidable overtime without breaching minima.', 'أعد توزيع الممرضين المؤهلين بأمان.'),
+      role: tx(lang, 'Chief nursing officer', 'رئيس التمريض'),
+      benefit: tx(lang, 'Respecting safe staffing keeps workforce scenarios clinically coherent.', 'احترام الحد الأدنى الآمن يحافظ على التماسك السريري.'),
+    });
+  }
+
+  if (/equipment|downtime|utilization|capital|expansion|reallocation vs|invest/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Capacity, equipment & expansion · ${name} · ${view.periodLabel}`, `الطاقة والمعدات والتوسع · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: resource util ${p(view.resourceUtilizationIndex)} · equip util ${p(view.equipmentUtilization)} · demand gap ${n(view.demandCapacityGap)} h · CapEx ${sar(view.estimatedCapitalReq)} · realloc potential ${n(view.reallocationPotential)} h · readiness ${p(view.decisionReadiness)}.`, `استخدام الموارد ${p(view.resourceUtilizationIndex)}.`),
+      evidence: tx(lang, `${view.methodology.capacity} ${view.methodology.expansion}`, view.methodology.expansion),
+      explanation: tx(lang, `Compare reallocation vs capital — do not sum. Target utilization ${p(ST_TARGETS.resourceUtilization)}. ${modeledNote}`, 'قارن ولا تجمع.'),
+      action: tx(lang, 'Recommendations: improve utilization and reallocate eligible capacity before approving new capital.', 'حسّن الاستخدام قبل اعتماد رأس المال.'),
+      role: tx(lang, 'Capital planning committee', 'لجنة تخطيط رأس المال'),
+      benefit: tx(lang, 'Comparing alternatives prevents double-counting overlapping scenario benefits.', 'المقارنة تمنع الجمع المزدوج.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year, period).filter((alert) => alert.department === 'Strategy' && alert.severity !== 'info');
+  const lead = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Strategy at ${name} · ${view.periodLabel}`, `الاستراتيجية في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, `Observed facts: contribution ${sar(view.operatingContribution)} · utilization ${p(view.resourceUtilizationIndex)} · constrained lines ${n(view.capacityConstrainedSl)} · priority signals ${n(view.prioritySignals)}${lead ? ` · lead alert: ${lead.title}` : ''}.`, `المساهمة ${sar(view.operatingContribution)}.`),
+    evidence: tx(lang, `${view.methodology.contribution} ${view.methodology.capacity} Prior-domain operational facts are inputs only.`, view.methodology.contribution),
+    explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): capacity misallocation, overtime, and underutilized equipment move together across Strategy screens.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, 'Recommendations: open workforce, capacity, or optimization screens and compare reallocation vs capital before investment review.', 'افتح شاشات القوى العاملة أو التحسين.'),
+    role: tx(lang, 'Chief strategy officer', 'رئيس الاستراتيجية'),
+    benefit: tx(lang, 'Strategic coherence keeps contribution, capacity, and capital decisions auditable.', 'التماسك الاستراتيجي يبقي القرارات قابلة للتدقيق.'),
+  });
+}
+

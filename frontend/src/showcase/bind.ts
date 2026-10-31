@@ -8,6 +8,7 @@ import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView } from '@/core/qualitySafetyView';
 import { buildRcmView } from '@/core/rcmView';
 import { buildScView } from '@/core/supplyChainView';
+import { buildStView } from '@/core/strategyView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
@@ -325,6 +326,63 @@ function scMapped(key: string, hospital: string, year: number): Raw | null {
   }
 }
 
+
+/** Strategy KPIs bound to the shared ST view. Contribution ≠ net profit; revenue ≠ profit; cost model is synthetic. */
+function stMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildStView(hospital, year, 'year');
+  switch (key) {
+    case 'kpi_st_operating_contribution': return money(v.operatingContribution, 'Recognized net revenue − eligible direct costs from Strategy Command. Contribution ≠ net profit.', 'up');
+    case 'kpi_st_resource_utilization_index': return { value: v.resourceUtilizationIndex, kind: 'rate', unit: '%', numerator: Math.round(v.resourceUtilizationIndex * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Mean of staffing, equipment, and capacity utilization from Strategy Command.' };
+    case 'kpi_st_capacity_constrained_sl': return count(v.capacityConstrainedSl, 'down', 'Service lines with demand above capacity from Strategy Command.', GRAIN, 'lines');
+    case 'kpi_st_service_line_cm': return money(v.serviceLineCm, 'Aggregate contribution margin from Strategy Command. Contribution ≠ net profit.', 'up');
+    case 'kpi_st_avoidable_resource_cost': return money(v.avoidableResourceCost, 'Illustrative avoidable overtime, agency, and supply inefficiency from Strategy Command. Scenarios overlap.', 'down');
+    case 'kpi_st_investment_opportunity_coverage': return { value: v.investmentOpportunityCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.investmentOpportunityCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Feasible expansion candidates ÷ candidates reviewed from Strategy Command.' };
+    case 'kpi_st_productive_clinical_hours': return count(v.productiveHours, 'up', 'Productive clinical hours from Workforce & Staffing Economics.', GRAIN, 'hours');
+    case 'kpi_st_staffing_utilization': return { value: v.staffingUtilization, kind: 'rate', unit: '%', numerator: Math.round(v.staffingUtilization * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Productive ÷ available staffed hours from Workforce.' };
+    case 'kpi_st_overtime_exposure': return money(v.overtimeExposure, 'Overtime hours × synthetic rate from Workforce. Distinct from agency.', 'down');
+    case 'kpi_st_agency_staffing_cost': return money(v.agencyStaffingCost, 'Agency hours × synthetic rate from Workforce. Distinct from overtime.', 'down');
+    case 'kpi_st_staffing_capacity_gap': return count(v.staffingCapacityGap, 'down', 'Demand hours above available after minima from Workforce.', GRAIN, 'hours');
+    case 'kpi_st_workforce_allocation_opp': return count(v.workforceAllocationOpp, 'up', 'Illustrative redeployable FTE hours from Workforce — not additive to capital scenarios.', GRAIN, 'hours');
+    case 'kpi_st_equipment_utilization': return { value: v.equipmentUtilization, kind: 'rate', unit: '%', numerator: Math.round(v.equipmentUtilization * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Used ÷ available operating hours. Available ≠ installed.' };
+    case 'kpi_st_available_operating_hours': return count(v.availableOperatingHours, 'up', 'Available operating hours from Equipment & Asset Productivity.', GRAIN, 'hours');
+    case 'kpi_st_asset_downtime_exposure': return money(v.assetDowntimeExposure, 'Downtime hours × illustrative opportunity cost from Equipment.', 'down');
+    case 'kpi_st_equipment_cost_per_proc': return money(v.equipmentCostPerProc, 'Eligible equipment cost ÷ procedures from Equipment.', 'down');
+    case 'kpi_st_maintenance_cost_exposure': return money(v.maintenanceCostExposure, 'Synthetic maintenance cost from Equipment.', 'down');
+    case 'kpi_st_equipment_capacity_gap': return count(v.equipmentCapacityGap, 'down', 'Demand hours above available operating hours from Equipment.', GRAIN, 'hours');
+    case 'kpi_st_effective_capacity': return count(v.effectiveCapacity, 'up', 'Effective available capacity from Clinical Capacity. Cross-domain inputs.', GRAIN, 'hours');
+    case 'kpi_st_capacity_utilization': return { value: v.capacityUtilization, kind: 'rate', unit: '%', numerator: Math.round(v.capacityUtilization * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Used ÷ effective capacity from Clinical Capacity.' };
+    case 'kpi_st_demand_capacity_gap': return count(v.demandCapacityGap, 'down', 'Demand above effective capacity from Clinical Capacity.', GRAIN, 'hours');
+    case 'kpi_st_redeployable_capacity': return count(v.redeployableCapacity, 'up', 'Underutilized eligible capacity from Clinical Capacity.', GRAIN, 'hours');
+    case 'kpi_st_constrained_service_lines': return count(v.constrainedServiceLines, 'down', 'Service lines with positive demand–capacity gap from Clinical Capacity.', GRAIN, 'lines');
+    case 'kpi_st_allocation_opportunity': return count(v.allocationOpportunity, 'up', 'Illustrative reallocation-addressable capacity from Clinical Capacity.', GRAIN, 'hours');
+    case 'kpi_st_net_revenue_by_sl': return money(v.netRevenue, 'Recognized net revenue from Service-Line Profitability. Revenue ≠ profit.', 'up');
+    case 'kpi_st_direct_cost_by_sl': return money(v.eligibleDirectCost, 'Eligible direct costs from Service-Line Profitability. Synthetic cost model.', 'down');
+    case 'kpi_st_sl_cm_rate': return { value: v.slCmRate, kind: 'rate', unit: '%', numerator: Math.round(v.slCmRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Contribution margin ÷ recognized net revenue. Contribution ≠ net profit.' };
+    case 'kpi_st_cost_per_eligible_encounter': return money(v.costPerEligibleEncounter, 'Eligible direct cost ÷ eligible encounters from Service-Line Profitability.', 'down');
+    case 'kpi_st_resource_cost_intensity': return { value: v.resourceCostIntensity, kind: 'index', unit: 'index', numerator: Math.round(v.resourceCostIntensity * 100), denominator: 100, grain: RATE_GRAIN, better: 'down', note: 'Direct resource cost intensity from Service-Line Profitability.' };
+    case 'kpi_st_sl_margin_variance': return money(v.slMarginVariance, 'Actual CM − expected CM under intensity assumptions from Service-Line Profitability.', 'neutral');
+    case 'kpi_st_total_eligible_op_cost': return money(v.totalEligibleOpCost, 'Sum of synthetic operating cost categories from Cost Drivers & Efficiency.', 'down');
+    case 'kpi_st_variable_cost_per_activity': return money(v.variableCostPerActivity, 'Variable direct cost ÷ eligible activities from Cost Efficiency.', 'down');
+    case 'kpi_st_fixed_cost_exposure': return money(v.fixedCostExposure, 'Fixed synthetic categories from Cost Efficiency.', 'neutral');
+    case 'kpi_st_cost_variance': return money(v.costVariance, 'Actual − plan operating cost from Cost Efficiency.', 'down');
+    case 'kpi_st_avoidable_cost_opportunity': return money(v.avoidableCostOpportunity, 'Illustrative avoidable cost from Cost Efficiency — scenarios overlap.', 'up');
+    case 'kpi_st_resource_efficiency_opp': return money(v.resourceEfficiencyOpp, 'Illustrative efficiency opportunity from Cost Efficiency.', 'up');
+    case 'kpi_st_candidate_expansion_ops': return count(v.candidateExpansionOps, 'neutral', 'Documented expansion proposals from Capital Planning & Expansion.', GRAIN, 'proposals');
+    case 'kpi_st_estimated_capital_req': return money(v.estimatedCapitalReq, 'Illustrative CapEx from Expansion — not an approved investment.', 'neutral');
+    case 'kpi_st_incremental_opex': return money(v.incrementalOpex, 'Illustrative incremental OpEx from Expansion.', 'down');
+    case 'kpi_st_incremental_contribution': return money(v.incrementalContribution, 'Illustrative contribution uplift from Expansion — not achieved investment outcome.', 'up');
+    case 'kpi_st_capacity_benefit': return count(v.capacityBenefit, 'up', 'Illustrative incremental capacity units from Expansion.', GRAIN, 'units');
+    case 'kpi_st_investment_feasibility': return { value: v.investmentFeasibility, kind: 'rate', unit: '%', numerator: Math.round(v.investmentFeasibility * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Share of candidates passing constraint checks from Expansion.' };
+    case 'kpi_st_addressable_contribution': return money(v.addressableContribution, 'Illustrative contribution opportunity from Strategic Optimization — scenarios overlap.', 'up');
+    case 'kpi_st_reallocation_potential': return count(v.reallocationPotential, 'up', 'Illustrative reallocable hours — do not sum with CapEx for the same bottleneck.', GRAIN, 'hours');
+    case 'kpi_st_scenario_capital_readiness': return { value: v.scenarioCapitalReadiness, kind: 'rate', unit: '%', numerator: Math.round(v.scenarioCapitalReadiness * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Share of modeled investment scenarios with complete documentation from Optimization.' };
+    case 'kpi_st_modeled_operating_impact': return money(v.modeledOperatingImpact, 'Illustrative lead-scenario impact from Optimization — not achieved.', 'up');
+    case 'kpi_st_decision_readiness': return { value: v.decisionReadiness, kind: 'rate', unit: '%', numerator: Math.round(v.decisionReadiness * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Share of strategic cases with complete evidence from Optimization.' };
+    case 'kpi_st_priority_scenario_coverage': return { value: v.priorityScenarioCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.priorityScenarioCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Documented what-if scenarios ÷ required scenario set from Optimization.' };
+    default: return null;
+  }
+}
+
 /** Revenue Cycle KPIs bound to the shared RCM view. Amounts are fictional SAR; modeled values are illustrative, not collected cash. */
 function rcmMapped(key: string, hospital: string, year: number): Raw | null {
   const v = buildRcmView(hospital, year, 'year');
@@ -381,6 +439,7 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   if (key.startsWith('kpi_rcm_') && kpi.origin === 'demo_assumption') return rcmMapped(key, hospital, year);
   if (key.startsWith('kpi_qs_')) return qsMapped(key, hospital, year);
   if (key.startsWith('kpi_sc_')) return scMapped(key, hospital, year);
+  if (key.startsWith('kpi_st_')) return stMapped(key, hospital, year);
   if (key.startsWith('kpi_px_')) return pxMapped(key, hospital, year);
   if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);

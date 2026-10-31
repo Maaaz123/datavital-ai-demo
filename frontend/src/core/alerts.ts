@@ -3,6 +3,7 @@ import { formatDelta, formatMeasure, measure } from '@/showcase/measures';
 import { buildQsView } from './qualitySafetyView';
 import { buildRcmView } from './rcmView';
 import { buildScView } from './supplyChainView';
+import { buildStView } from './strategyView';
 import type { ReportPeriod } from './period';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'info';
@@ -1623,6 +1624,168 @@ const RULES: Rule[] = [
     high: 0.16,
     medium: 0.12,
   },
+  {
+    kpi: 'kpi_st_operating_contribution',
+    department: 'Strategy',
+    screen: 'strategy',
+    title: 'Operating contribution under pressure',
+    owner: 'Chief Financial Officer',
+    investigation: 'Operating Contribution = recognized net revenue − eligible direct costs. Contribution ≠ net profit. Revenue ≠ profit.',
+    action: 'Review service-line direct cost intensity and avoidable overtime/agency before any CapEx decision.',
+    rule: 'Critical when contribution is at or below zero, high below SAR 2M, medium below SAR 5M (per-hospital scale; ALL sums five hospitals).',
+    threshold: 'Management watch below SAR 5M · high below SAR 2M · critical ≤ 0',
+    consequence: 'Weak contribution constrains reinvestment and expansion feasibility.',
+    whyMatters: 'Operating Contribution is the primary Strategy command financial signal.',
+    followUp: 'Operating Contribution, Service-Line CM, and Avoidable Resource Cost',
+    worse: false,
+    critical: 0,
+    high: 2000000,
+    medium: 5000000,
+  },
+  {
+    kpi: 'kpi_st_resource_utilization_index',
+    department: 'Strategy',
+    screen: 'strategy',
+    title: 'Resource utilization below target',
+    owner: 'Chief Operating Officer',
+    investigation: 'Resource Utilization Index averages staffing, equipment, and capacity utilization. Installed ≠ staffed ≠ available ≠ used.',
+    action: 'Compare workforce, equipment, and clinical capacity pages before approving new capital.',
+    rule: 'Critical at 70% or below, high at 76%, medium at 82% utilization index.',
+    threshold: 'Operating target 82% · high at 76% · critical at 70%',
+    consequence: 'Low utilization with CapEx pressure risks redundant investment.',
+    whyMatters: 'Resource Utilization Index is the primary composite capacity signal on Command.',
+    followUp: 'Resource Utilization Index, Capacity Utilization, and Equipment Utilization',
+    worse: false,
+    critical: 0.7,
+    high: 0.76,
+    medium: 0.82,
+  },
+  {
+    kpi: 'kpi_st_capacity_constrained_sl',
+    department: 'Strategy',
+    screen: 'strategy',
+    title: 'Capacity-constrained service lines elevated',
+    owner: 'Chief Strategy Officer',
+    investigation: 'Counts service lines where demand exceeds available operational capacity. Reads cross-domain capacity inputs without reassigning ownership.',
+    action: 'Sequence reallocation before CapEx; open Capacity and Expansion pages for evidence.',
+    rule: 'Critical at 5 or more, high at 4, medium at 3 constrained lines.',
+    threshold: 'Management threshold 3 · high at 4 · critical at 5',
+    consequence: 'Persistent constraints raise access risk and CapEx pressure.',
+    whyMatters: 'Capacity-Constrained Service Lines is the primary executive constraint count on Command.',
+    followUp: 'Constrained Lines, Demand-Capacity Gap, and Allocation Opportunity',
+    worse: true,
+    critical: 5,
+    high: 4,
+    medium: 3,
+  },
+  {
+    kpi: 'kpi_st_overtime_exposure',
+    department: 'Strategy',
+    screen: 'strategy-workforce',
+    title: 'Overtime exposure elevated',
+    owner: 'Chief Nursing Officer',
+    investigation: 'Overtime Exposure is overtime hours × synthetic premium. Distinct from agency cost. Never reduce below minimum safe staffing solely for cost.',
+    action: 'Review redeployable hours and agency mix before increasing overtime budgets.',
+    rule: 'Critical at SAR 900k or more, high at SAR 600k, medium at SAR 350k (per-hospital scale).',
+    threshold: 'Management threshold SAR 350k · high at SAR 600k · critical at SAR 900k',
+    consequence: 'Elevated overtime raises avoidable cost and workforce fatigue risk.',
+    whyMatters: 'Overtime Exposure is the primary workforce cost-pressure signal.',
+    followUp: 'Overtime Exposure, Agency Cost, and Workforce Allocation Opportunity',
+    worse: true,
+    critical: 900000,
+    high: 600000,
+    medium: 350000,
+  },
+  {
+    kpi: 'kpi_st_equipment_utilization',
+    department: 'Strategy',
+    screen: 'strategy-equipment',
+    title: 'Equipment utilization below target',
+    owner: 'Biomedical Engineering',
+    investigation: 'Equipment Utilization = used ÷ available operating hours (available ≠ installed). Downtime is distinct from unused capacity.',
+    action: 'Review downtime exposure and replacement candidates before new CapEx.',
+    rule: 'Critical at 65% or below, high at 70%, medium at 78% equipment utilization.',
+    threshold: 'Operating target 78% · high at 70% · critical at 65%',
+    consequence: 'Low utilization with downtime elevates unjustified replacement risk.',
+    whyMatters: 'Equipment Utilization is the primary asset productivity signal.',
+    followUp: 'Equipment Utilization, Asset Downtime Exposure, and Available Operating Hours',
+    worse: false,
+    critical: 0.65,
+    high: 0.7,
+    medium: 0.78,
+  },
+  {
+    kpi: 'kpi_st_demand_capacity_gap',
+    department: 'Strategy',
+    screen: 'strategy-capacity',
+    title: 'Demand-capacity gap elevated',
+    owner: 'Chief Operating Officer',
+    investigation: 'Demand-Capacity Gap = demand hours − effective available capacity. Installed ≠ available.',
+    action: 'Sequence reallocation of redeployable capacity before new capital where constraints allow.',
+    rule: 'Critical at 800 or more, high at 500, medium at 300 demand-capacity gap hours.',
+    threshold: 'Management threshold 300 · high at 500 · critical at 800',
+    consequence: 'Large gaps elevate access delays and expansion pressure.',
+    whyMatters: 'Demand-Capacity Gap is the primary Capacity constraint magnitude signal.',
+    followUp: 'Demand-Capacity Gap, Effective Capacity, and Redeployable Resource Capacity',
+    worse: true,
+    critical: 800,
+    high: 500,
+    medium: 300,
+  },
+  {
+    kpi: 'kpi_st_sl_cm_rate',
+    department: 'Strategy',
+    screen: 'strategy-service-lines',
+    title: 'Contribution margin rate below target',
+    owner: 'Service Line Finance',
+    investigation: 'CM Rate = contribution margin ÷ recognized net revenue. Contribution ≠ net profit. Fully allocated margin is not invented.',
+    action: 'Review direct cost intensity by service line; do not equate revenue with profit.',
+    rule: 'Critical at 15% or below, high at 20%, medium at 28% CM rate.',
+    threshold: 'Operating target 28% · high at 20% · critical at 15%',
+    consequence: 'Weak CM rate constrains sustainable expansion.',
+    whyMatters: 'Service-Line CM Rate is the primary profitability-rate signal on Service Lines.',
+    followUp: 'CM Rate, Direct Cost by Service Line, and Cost per Eligible Encounter',
+    worse: false,
+    critical: 0.15,
+    high: 0.2,
+    medium: 0.28,
+  },
+  {
+    kpi: 'kpi_st_investment_feasibility',
+    department: 'Strategy',
+    screen: 'strategy-expansion',
+    title: 'Investment feasibility below target',
+    owner: 'Capital Planning Committee',
+    investigation: 'Investment Feasibility is the share of candidates meeting CapEx/OpEx/ramp/contribution gates. Outcomes are not claimed achieved.',
+    action: 'Complete demand, staffing, equipment, space, and sensitivity evidence before board review.',
+    rule: 'Critical at 40% or below, high at 50%, medium at 60% feasibility.',
+    threshold: 'Operating target 60% · high at 50% · critical at 40%',
+    consequence: 'Low feasibility elevates poorly evidenced CapEx risk.',
+    whyMatters: 'Investment Feasibility is the primary expansion gate signal.',
+    followUp: 'Investment Feasibility, Estimated Capital Requirement, and Incremental Contribution',
+    worse: false,
+    critical: 0.4,
+    high: 0.5,
+    medium: 0.6,
+  },
+  {
+    kpi: 'kpi_st_decision_readiness',
+    department: 'Strategy',
+    screen: 'strategy-optimization',
+    title: 'Decision readiness below target',
+    owner: 'Hospital Board / Strategy Office',
+    investigation: 'Decision Readiness = share of priority scenarios with owner, constraints, sensitivity, and opportunity-cost documented.',
+    action: 'Close evidence gaps on incomplete scenarios before board investment review.',
+    rule: 'Critical at 50% or below, high at 60%, medium at 75% decision readiness.',
+    threshold: 'Operating target 75% · high at 60% · critical at 50%',
+    consequence: 'Incomplete evidence increases likelihood of approving unsupported investment claims.',
+    whyMatters: 'Decision Readiness is the primary Optimization governance signal.',
+    followUp: 'Decision Readiness, Addressable Contribution Opportunity, and Reallocation Potential',
+    worse: false,
+    critical: 0.5,
+    high: 0.6,
+    medium: 0.75,
+  },
 ];
 
 const SCREEN_DEPARTMENT: Record<string, string> = {
@@ -1646,6 +1809,14 @@ const SCREEN_DEPARTMENT: Record<string, string> = {
   'supply-chain-consumption': 'Supply Chain',
   'supply-chain-waste': 'Supply Chain',
   'supply-chain-optimization': 'Supply Chain',
+  strategy: 'Strategy',
+  'strategy-workforce': 'Strategy',
+  'strategy-equipment': 'Strategy',
+  'strategy-capacity': 'Strategy',
+  'strategy-service-lines': 'Strategy',
+  'strategy-cost-efficiency': 'Strategy',
+  'strategy-expansion': 'Strategy',
+  'strategy-optimization': 'Strategy',
   icu: 'ICU',
   'icu-flow': 'ICU',
   'icu-capacity': 'ICU',
@@ -1709,13 +1880,14 @@ function periodLabel(year: number, period: ReportPeriod): string {
 
 /**
  * Build demo alerts. Domains 1–11 keep full-year measure() values.
- * Revenue Cycle, Quality & Safety, and Supply Chain alerts optionally use the selected reporting period
- * via buildRcmView / buildQsView / buildScView so quarterly cards and alerts share the same cohort.
+ * Revenue Cycle, Quality & Safety, Supply Chain, and Strategy alerts optionally use the selected reporting period
+ * via buildRcmView / buildQsView / buildScView / buildStView so quarterly cards and alerts share the same cohort.
  */
 export function alertsFor(hospital: string, year: number, period: ReportPeriod = 'year'): DemoAlert[] {
   const rcmView = period === 'year' ? null : buildRcmView(hospital, year, period);
   const qsView = period === 'year' ? null : buildQsView(hospital, year, period);
   const scView = period === 'year' ? null : buildScView(hospital, year, period);
+  const stView = period === 'year' ? null : buildStView(hospital, year, period);
   const label = periodLabel(year, period);
   return RULES.map((rule) => {
     const kpi = findKpi(rule.kpi);
@@ -1723,7 +1895,8 @@ export function alertsFor(hospital: string, year: number, period: ReportPeriod =
     const useRcmPeriod = Boolean(rcmView && rule.department === 'Revenue Cycle' && rule.kpi.startsWith('kpi_rcm_'));
     const useQsPeriod = Boolean(qsView && rule.department === 'Quality & Safety' && rule.kpi.startsWith('kpi_qs_'));
     const useScPeriod = Boolean(scView && rule.department === 'Supply Chain' && rule.kpi.startsWith('kpi_sc_'));
-    const usePeriodView = useRcmPeriod || useQsPeriod || useScPeriod;
+    const useStPeriod = Boolean(stView && rule.department === 'Strategy' && rule.kpi.startsWith('kpi_st_'));
+    const usePeriodView = useRcmPeriod || useQsPeriod || useScPeriod || useStPeriod;
     const item = measure(kpi, hospital, year, 'All');
     const periodValue = useRcmPeriod
       ? Number(rcmView!.kpiValues[rule.kpi] ?? item.value)
@@ -1731,7 +1904,9 @@ export function alertsFor(hospital: string, year: number, period: ReportPeriod =
         ? Number(qsView!.kpiValues[rule.kpi] ?? item.value)
         : useScPeriod
           ? Number(scView!.kpiValues[rule.kpi] ?? item.value)
-          : item.value;
+          : useStPeriod
+            ? Number(stView!.kpiValues[rule.kpi] ?? item.value)
+            : item.value;
     const value = usePeriodView ? periodValue : item.value;
     const observedItem = usePeriodView ? { ...item, value } : item;
     const severity = severityFor(value, rule);
@@ -1774,7 +1949,7 @@ export function visibleAlerts(
   period: ReportPeriod = 'year',
 ): { alerts: DemoAlert[]; note: string } {
   const scopedDept = screenDepartment(screenId);
-  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' || scopedDept === 'Supply Chain' ? period : 'year';
+  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' || scopedDept === 'Supply Chain' || scopedDept === 'Strategy' ? period : 'year';
   const all = alertsFor(hospital, year, usePeriod);
   const scoped = scopedDept;
   const scopeNote = usePeriod === 'year'
@@ -1798,7 +1973,7 @@ export function badgeCount(
   statuses: Record<string, AlertStatus>,
   period: ReportPeriod = 'year',
 ): number {
-  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' ? period : 'year';
+  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' || department === 'Strategy' ? period : 'year';
   return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (department !== 'All' && alert.department !== department) return false;
     if (alert.severity === 'info') return false;
@@ -1836,6 +2011,16 @@ export function screenFromPath(path: string): string | null {
     if (path.startsWith('/supply-chain/waste')) return 'supply-chain-waste';
     if (path.startsWith('/supply-chain/optimization')) return 'supply-chain-optimization';
     return 'supply-chain';
+  }
+  if (path.startsWith('/strategy')) {
+    if (path.startsWith('/strategy/workforce')) return 'strategy-workforce';
+    if (path.startsWith('/strategy/equipment')) return 'strategy-equipment';
+    if (path.startsWith('/strategy/capacity')) return 'strategy-capacity';
+    if (path.startsWith('/strategy/service-lines')) return 'strategy-service-lines';
+    if (path.startsWith('/strategy/cost-efficiency')) return 'strategy-cost-efficiency';
+    if (path.startsWith('/strategy/expansion')) return 'strategy-expansion';
+    if (path.startsWith('/strategy/optimization')) return 'strategy-optimization';
+    return 'strategy';
   }
   if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);

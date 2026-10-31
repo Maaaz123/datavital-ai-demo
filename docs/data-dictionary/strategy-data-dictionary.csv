@@ -1,0 +1,27 @@
+canonical_column,data_type,description,grain,readiness,notes
+hospital_code,string,Site code H1–H5 or ALL,site,Demo Available,Synthetic
+period_label,string,Full year or quarter label,period,Demo Available,From reporting period selector
+net_revenue_sar,number,Recognized net revenue fictional SAR,flow,Demo Available,Revenue ≠ profit; RCM-aligned input where referenced
+eligible_direct_cost_sar,number,Eligible direct costs fictional SAR,flow,Demo Available,Not fully allocated P&L
+operating_contribution_sar,number,Net revenue − eligible direct costs,flow,Demo Available,CM ≠ net profit
+sl_cm_rate,number,Aggregate CM ÷ net revenue,rate,Demo Available,Zero revenue → 0
+resource_utilization_index,number,Composite staffing/equip/capacity util,index,Demo Available,Mean of component rates
+installed_hours,number,Installed capacity hours,ladder,Demo Available,≠ staffed
+staffed_hours,number,Staffed capacity hours,ladder,Demo Available,≠ operational
+operational_hours,number,Operational capacity hours,ladder,Demo Available,≠ available
+available_hours,number,Available/effective capacity hours,ladder,Demo Available,Effective capacity
+used_hours,number,Used capacity hours,ladder,Demo Available,≤ available
+productive_clinical_hours,number,Productive clinical hours,flow,Demo Available,Excludes non-productive paid time
+overtime_exposure_sar,number,Overtime premium cost fictional SAR,flow,Demo Available,Direct variable workforce
+agency_staffing_cost_sar,number,Agency/locum spend fictional SAR,flow,Demo Available,Distinct from overtime
+equipment_utilization,number,Used equip hours ÷ available operating hours,rate,Demo Available,Available ≠ installed calendar
+available_operating_hours,number,Staffed+maintained equip hours,flow,Demo Available,Excludes downtime
+maintenance_cost_sar,number,Maintenance spend fictional SAR,flow,Demo Available,Synthetic
+depreciation_sar,number,Attributable depreciation fictional SAR,flow,Demo Available,Synthetic; not ERP
+facility_utilities_shared_sar,number,Facility + utilities + shared services,flow,Demo Available,Fixed/semi-fixed; synthetic
+capacity_constrained_sl,integer,Executive constrained service-line count,count,Demo Available,Command ownership
+constrained_service_lines,integer,Operational constrained line count,count,Demo Available,Capacity screen
+candidate_expansion_ops,integer,Expansion candidates under review,count,Demo Available,Not approved investment
+estimated_capital_req_sar,number,Illustrative CapEx ask fictional SAR,scenario,Scenario Only,Not achieved outcome
+incremental_contribution_sar,number,Illustrative incremental CM fictional SAR,scenario,Scenario Only,≠ net profit
+opportunity_id,string,One of ten ST what-if ids,scenario,Scenario Only,Non-additive; do not sum
