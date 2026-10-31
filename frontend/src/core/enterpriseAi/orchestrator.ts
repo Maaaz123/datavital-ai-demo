@@ -391,6 +391,7 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
         : ['ent-bed-assign-flow', 'st-supply-efficiency', 'st-reduce-overtime', 'ent-staffing-uplift'],
       objective: 'strongest_operational_improvement',
       noAdditionalStaffingCost: noStaff,
+      preferredScenarioId: scenario.available ? scenario.scenarioId : null,
     })
     : null;
 

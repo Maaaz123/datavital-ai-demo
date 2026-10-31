@@ -156,7 +156,13 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
     metricId: d.relatedMetricId,
   }));
 
-  if (args.focus.mode === 'clarification') {
+  // Ambiguous focus — but a concrete what-if / optimization selection still surfaces as preferred.
+  const clarificationWithoutIntervention =
+    args.focus.mode === 'clarification'
+    && !(args.scenario.available && args.scenario.scenarioId)
+    && !args.optimization?.selected;
+
+  if (clarificationWithoutIntervention) {
     return {
       A_executiveSummary:
         'The question is ambiguous for a single management focus. Choose a clarification topic below, or review the labeled hospital-wide risk overview — Emergency Waiting Time is not assumed by default.',
@@ -178,40 +184,33 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
     };
   }
 
+  // Question-aligned scenario wins when feasible under constraints (optimization preferredScenarioId).
+  const scenarioId = args.scenario.available ? args.scenario.scenarioId : null;
+  const preferredId = args.optimization?.selected
+    ?? scenarioId
+    ?? null;
+
   const actions: ExecutiveAction[] = [];
-  if (args.optimization?.selected) {
+  const pushAction = (id: string, kind: 'primary' | 'alt') => {
+    if (!id || actions.some((a) => a.id === id) || actions.length >= 3) return;
     actions.push({
-      id: args.optimization.selected,
-      label: `Recommended Management Action: ${args.optimization.selected}`,
-      owner: ownerFor(args.optimization.selected),
-      feasibility: args.optimization.feasible ? 'Feasible under stated constraints' : 'Currently infeasible',
-      constraints: (args.optimization.constraintsApplied ?? []).join('; ') || 'None listed',
+      id,
+      label: kind === 'primary'
+        ? `Recommended Management Action: ${id === scenarioId ? (args.scenario.label ?? id) : id}`
+        : `Alternative: ${id}`,
+      owner: ownerFor(id),
+      feasibility: args.optimization?.feasible === false && id === args.optimization.selected
+        ? 'Currently infeasible'
+        : 'Feasible under stated constraints',
+      constraints: (args.optimization?.constraintsApplied ?? []).join('; ')
+        || (args.noAdditionalStaffingCost ? 'No additional staffing cost preferred' : 'None listed'),
     });
-  }
-  for (const alt of args.optimization?.alternatives ?? []) {
-    if (actions.length >= 3) break;
-    actions.push({
-      id: alt,
-      label: `Alternative: ${alt}`,
-      owner: ownerFor(alt),
-      feasibility: 'Feasible alternative under comparison',
-      constraints: (args.optimization?.constraintsApplied ?? []).join('; ') || 'None listed',
-    });
-  }
-  if (args.scenario.available && args.scenario.scenarioId && !actions.some((a) => a.id === args.scenario.scenarioId)) {
-    if (actions.length < 3) {
-      actions.unshift({
-        id: args.scenario.scenarioId,
-        label: `Recommended Management Action: ${args.scenario.label}`,
-        owner: ownerFor(args.scenario.scenarioId),
-        feasibility: 'Supported by existing what-if model',
-        constraints: args.noAdditionalStaffingCost ? 'No additional staffing cost preferred' : 'Staffing cost constraint not applied',
-      });
-      actions.splice(3);
-    }
+  };
+  if (preferredId) pushAction(preferredId, 'primary');
+  for (const alt of [scenarioId, ...(args.optimization?.alternatives ?? [])]) {
+    if (alt) pushAction(alt, preferredId === alt ? 'primary' : 'alt');
   }
 
-  const preferredId = args.optimization?.selected ?? (args.scenario.available ? args.scenario.scenarioId : null);
   const preferredLabel = preferredId
     ? (actions.find((a) => a.id === preferredId)?.label ?? preferredId)
     : (args.scenario.available === false && /intervention|what[- ]?if|scenario/i.test(args.question)

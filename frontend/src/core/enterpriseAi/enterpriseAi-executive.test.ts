@@ -69,6 +69,38 @@ describe('Enterprise AI executive remediation', () => {
     expect(ids).not.toContain('ent-ed-congestion');
   });
 
+  it('prefers topic-aligned scenario over generic bed-assign flow', () => {
+    const denialsQ = 'What if we reduce claim denials?';
+    const supplyQ = 'What if we improve supply efficiency without adding staff?';
+    const overtimeQ = 'What if we reduce avoidable overtime?';
+
+    const denials = orchestrate({ question: denialsQ, hospital: 'H1', year: 2026, period: 'year' });
+    expect(denials.executive?.F_preferredOption.id).toBe('rcm-denials-down');
+    expect(denials.executive?.F_preferredOption.id).not.toBe('ent-bed-assign-flow');
+    expect(denials.investigationState?.selectedOptionId).toBe('rcm-denials-down');
+
+    const supply = orchestrate({ question: supplyQ, hospital: 'H1', year: 2026, period: 'year' });
+    expect(supply.executive?.F_preferredOption.id).toBe('st-supply-efficiency');
+    expect(supply.investigationState?.selectedOptionId).toBe('st-supply-efficiency');
+
+    const overtime = orchestrate({ question: overtimeQ, hospital: 'H1', year: 2026, period: 'year' });
+    expect(overtime.executive?.F_preferredOption.id).toBe('st-reduce-overtime');
+    expect(overtime.investigationState?.selectedOptionId).toBe('st-reduce-overtime');
+
+    // Direct optimization path: preferredScenarioId must win when feasible.
+    const optDenials = runOptimization({
+      hospital: 'H1',
+      year: 2026,
+      period: 'year',
+      decisionVariables: ['ent-bed-assign-flow', 'st-supply-efficiency', 'st-reduce-overtime', 'rcm-denials-down'],
+      objective: 'strongest_operational_improvement',
+      noAdditionalStaffingCost: true,
+      preferredScenarioId: 'rcm-denials-down',
+    });
+    expect(optDenials.selected).toBe('rcm-denials-down');
+    expect(optDenials.selected).not.toBe('ent-bed-assign-flow');
+  });
+
   it('includes executive response sections A–G', () => {
     const answer = orchestrate({
       question: FLAGSHIP_QUESTION,
