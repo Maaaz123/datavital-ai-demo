@@ -574,6 +574,8 @@ export function buildEnterpriseView(hospital: string, year: number, period: Repo
       redeployableHours: st.redeployableHours,
       labels: beds.labels,
       monthlyOccupancy: beds.monthlyOccupancy,
+      contributionLabels: st.labels,
+      monthlyContribution: st.monthlyContribution,
     },
     lineage: {
       beds: 'Beds & Capacity census stocks',

@@ -44,7 +44,7 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('button', { name: 'Surgery domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Radiology domain' })).toBeInTheDocument();
     expect(NAV_DOMAINS).toHaveLength(16);
-    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(86);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(83);
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
   });
 

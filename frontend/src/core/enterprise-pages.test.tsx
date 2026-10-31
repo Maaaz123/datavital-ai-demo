@@ -45,7 +45,7 @@ describe('Enterprise integration pages', () => {
 
   it('renders Hospital Command Center with operational exception tiles', () => {
     renderAt('/command');
-    expect(screen.getByTestId('hospital-command-center')).toBeInTheDocument();
+    expect(screen.getByTestId('command-center')).toBeInTheDocument();
     expect(screen.getByTestId('command-center-ribbon')).toBeInTheDocument();
     expect(screen.getByTestId('ops-exceptions')).toBeInTheDocument();
     expect(document.body.textContent).toMatch(/Bed pressure|ED wait|Theatre|Critical stockouts|QS overdue/i);
