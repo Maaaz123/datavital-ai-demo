@@ -93,10 +93,10 @@ export const NAV_DOMAINS: NavDomain[] = [
     id: 'emergency',
     label: 'Emergency',
     mark: 'ED',
-    match: (path) => path === '/' || path.startsWith('/emergency'),
+    match: (path) => path === '/emergency' || path.startsWith('/emergency/'),
     screens: [
       {
-        to: '/',
+        to: '/emergency',
         short: 'Snapshot',
         title: 'Emergency Snapshot',
         purpose: 'ED visits, acuity, wait, boarding, and disposition',

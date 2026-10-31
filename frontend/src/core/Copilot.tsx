@@ -100,7 +100,7 @@ function domainCount(
 }
 
 function domainFromPath(path: string): { screenId: 'executive' | 'command' | 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience' | 'rcm' | 'quality' | 'supply-chain' | 'strategy'; department: DomainName; page: string; askScope: string } {
-  if (path === '/executive' || path.startsWith('/executive/')) {
+  if (path === '/' || path === '' || path === '/executive' || path.startsWith('/executive/')) {
     return { screenId: 'executive', department: 'Enterprise', page: 'Executive Dashboard', askScope: 'Enterprise Executive' };
   }
   if (path === '/command' || path.startsWith('/command/')) {

@@ -2044,7 +2044,8 @@ export function screenFromPath(path: string): string | null {
     if (path.startsWith('/strategy/optimization')) return 'strategy-optimization';
     return 'strategy';
   }
-  if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
+  if (path === '/' || path === '') return 'executive';
+  if (path === '/emergency' || path.startsWith('/emergency/')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);
   if (story) return story[1];
   const board = path.match(/\/board\/([^/]+)/);

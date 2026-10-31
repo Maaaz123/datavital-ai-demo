@@ -74,7 +74,7 @@ export const routes = [
     path: '/',
     element: <CoreApp />,
     children: [
-      { index: true, element: <OverviewPage /> },
+      { index: true, element: <Navigate to="/executive" replace /> },
       { path: 'executive', element: <ExecutiveDashboardPage /> },
       { path: 'command', element: <HospitalCommandPage /> },
       { path: 'enterprise-ai', element: <EnterpriseAiPage /> },
@@ -85,7 +85,7 @@ export const routes = [
       { path: 'enterprise-ai/governance', element: <EnterpriseAiGovernancePage /> },
       { path: 'dashboard', element: <Navigate to="/executive" replace /> },
       { path: 'command-center', element: <Navigate to="/command" replace /> },
-      { path: 'emergency', element: <Navigate to="/" replace /> },
+      { path: 'emergency', element: <OverviewPage /> },
       { path: 'emergency/flow', element: <FlowPage /> },
       { path: 'emergency/quality', element: <QualityPage /> },
       { path: 'beds', element: <BedsOverviewPage /> },
