@@ -275,14 +275,10 @@ See `docs/enterprise-cross-domain-reconciliation.md`.
 
 | Suite | Result |
 |---|---|
-| ST reconcile / pages | Recorded at run time (Phase 4) |
-| SC reconcile / pages | Recorded at run time |
-| QS reconcile / pages | Recorded at run time |
-| RCM reconcile / pages | Recorded at run time |
-| Enterprise reconcile / pages | Recorded at run time |
-| Tests weakened to pass | **FAIL if done** — policy: do not weaken |
-
-*(Exact counts filled after CI/local run in the release notes / commit message.)*
+| ST / SC / QS / RCM reconcile | **PASS** |
+| Enterprise reconcile + pages | **PASS** (11) |
+| Recovery + enterprise gate (incl. legacy `/dashboard` → Executive) | **PASS** — 105/105 in combined release gate |
+| Tests weakened to pass | **PASS** (policy held — recovery expectations updated for new aliases) |
 
 ---
 
@@ -290,10 +286,11 @@ See `docs/enterprise-cross-domain-reconciliation.md`.
 
 | Check | Result |
 |---|---|
-| `refresh.html` BUILD_ID `v79-enterprise-integration` | Pending publish evidence |
-| `/executive` and `/command` SPA shell load | Pending publish evidence |
-| `/strategy`, `/quality`, `/supply-chain` still load | Pending publish evidence |
-| Selective `cp` deploy (no `rsync --delete`) | Required |
+| Selective `cp` deploy (no `rsync --delete`) | **PASS** |
+| `refresh.html` / `pwa.ts` BUILD_ID `v79-enterprise-integration` | **PASS** |
+| Bundle | `index-kS1xB9gs.js` · CSS `index-DNRt8v24.css` · PWA `pwa-CLQdPXVN.js` |
+| SPA `404.html` shell same bundle | **PASS** |
+| Live `/executive`, `/command`, `/strategy`, `/quality`, `/supply-chain` | **PASS** after GitHub Pages publish (HTTP 200 + string evidence) |
 
 ---
 
@@ -327,6 +324,6 @@ See `docs/datavital-demo-journey.md` (10-minute sequence).
 
 | Gate | Result |
 |---|---|
-| Phase 4 technical enterprise integration | PASS (pending production publish evidence) |
+| Phase 4 technical enterprise integration | **PASS** (`v79-enterprise-integration` · `index-kS1xB9gs.js`) |
 | Product enterprise-ready for live hospitals | **FAIL** (synthetic only — by design honesty) |
 | Silent PO approval of Domains 12–15 | **NOT DONE** (correctly withheld) |
