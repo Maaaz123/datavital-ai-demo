@@ -90,8 +90,27 @@ export function runOptimization(req: OptimizationRequest): OptimizationResult {
     noAdditionalStaffingCost: noStaff,
   });
 
-  const selected = comparison.ranking[0]?.id ?? surviving[0] ?? null;
-  const alternatives = comparison.ranking.slice(1, 3).map((r) => r.id);
+  // Re-rank from real comparison scores with objective weighting (not a static best-option).
+  const ranked = [...comparison.ranking].map((row) => {
+    let score = row.score;
+    if (req.objective === 'minimize_staffing_cost') {
+      score += row.increasesStaffingCost ? -20 : 12;
+      if (row.id === 'st-reduce-overtime') score += 8;
+    } else if (req.objective === 'balanced') {
+      if (row.id === 'st-supply-efficiency' || row.id === 'st-reduce-overtime') score += 4;
+      if (row.id === 'ent-bed-assign-flow') score += 2;
+    } else {
+      // strongest_operational_improvement — prefer flow / denial / supply evidence-backed levers
+      if (row.id === 'ent-bed-assign-flow' || row.id === 'ed-boarding-down') score += 6;
+      if (row.id === 'rcm-denials-down') score += 3;
+    }
+    return { ...row, score };
+  }).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+
+  comparison.ranking = ranked;
+
+  const selected = ranked[0]?.id ?? surviving[0] ?? null;
+  const alternatives = ranked.slice(1, 3).map((r) => r.id);
 
   const tradeoffs: string[] = [
     'Flow-side bed assignment improves ED wait without adding FTEs; occupancy may rise slightly.',

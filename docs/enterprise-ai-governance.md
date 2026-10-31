@@ -1,18 +1,21 @@
 # Enterprise AI — Governance
 
-**Status:** Stage 6–7 partial acceptance  
+**Status:** Stage 6–7 + v82 executive UX remediation  
+**BUILD_ID:** `v82-enterprise-ai-executive`  
 **Routes:** `/enterprise-ai/governance`, decision panel on `/enterprise-ai`
 
 ## AI mode
 
 | Mode | Public demo | Notes |
 |---|---|---|
-| `deterministic` | **Required** | Tool orchestration with explicit label |
+| `deterministic` | **Required** | Tool orchestration with explicit Analysis Mode label |
 | `llm` | Disabled | Stubbed unless secure backend flag is set; no frontend API keys |
 
 Disclosure string (UI + answers):
 
-> AI mode: Deterministic tool orchestration (labeled). No unrestricted LLM reasoning in the public demo. Numeric claims cite tool results from existing domain views only.
+> Analysis Mode: Deterministic management analytics on illustrative hospital demo data — not an unrestricted live LLM. Numeric claims cite tool results from existing domain views only.
+
+Technical IDs and tool result citations live in the expandable **Technical audit** panel — not flooded into the primary executive brief.
 
 ## Decision lifecycle
 
@@ -34,6 +37,10 @@ Expected vs simulated vs observed. Observed defaults to **“Outcome not yet mea
 4. Investigation drivers never assert definitive root cause from correlation alone
 5. Forecasts and what-ifs labeled illustrative / Scenario Only where appropriate
 6. Cross-domain numeric answers should cite reconciliation gate
+7. Focus metric and scenario ID derived from the question — never silent Emergency / `ent-ed-congestion` defaults for unrelated topics
+8. No fabricated financial losses or clinical causality in executive sections
+9. Role selector is presentation-only (no fake auth)
+10. “Approve” phrasing opens confirmation — no silent approval; approval does not mutate KPI ledgers
 
 ## Human accountability
 

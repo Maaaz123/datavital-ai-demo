@@ -1,17 +1,19 @@
 # Enterprise AI — Tool Contracts
 
-**Status:** Stages 2–7 implemented  
-**Code:** `frontend/src/core/enterpriseAi/tools.ts`, `intent.ts`, `orchestrator.ts`, `gateway.ts`  
+**Status:** Stages 2–7 + v82 executive remediation  
+**BUILD_ID:** `v82-enterprise-ai-executive`  
+**Code:** `frontend/src/core/enterpriseAi/tools.ts`, `intent.ts`, `orchestrator.ts`, `focus.ts`, `scenarioSelect.ts`, `riskIntelligence.ts`, `gateway.ts`  
 **Depends on:** Stage 1 registry, knowledge graph, reconciliation gate
 
 ## Principles
 
 1. Tools read **only** registry / existing `build*View` / what-if values — never invent numbers.
-2. Every numeric answer cites a tool result ID (`toolId#n`) plus metric id, hospital, year, period where applicable.
+2. Every numeric answer cites a tool result ID (`toolId#n`) plus metric id, hospital, year, period where applicable (Technical audit).
 3. Cross-domain answers pass or disclose reconciliation gate results.
 4. Causal language limited to graph `causalClaim` (`associative` | `operational-link`).
-5. What-if remains illustrative — never mutates historical domain ledgers.
-6. Public demo mode is **deterministic tool orchestration** (explicit label). LLM mode is stubbed unless a secure backend exists. No API keys in the frontend.
+5. What-if remains illustrative — never mutates historical domain ledgers. `run_what_if` requires an explicit `kind`; missing kind → scenario unavailable.
+6. Public demo mode is **deterministic tool orchestration** (explicit Analysis Mode label). LLM mode is stubbed unless a secure backend exists. No API keys in the frontend.
+7. Orchestrator derives `focusMetricId` via `resolveFocusFromQuestion` and scenario via `selectScenarioFromQuestion` before planning tools.
 
 ## Implemented tools
 
@@ -47,4 +49,13 @@ Method: deterministic pattern scoring. Disclosure always states this is not unre
 
 ## Mode disclosure (public demo)
 
-> AI mode: Deterministic tool orchestration (labeled). No unrestricted LLM reasoning in the public demo. Numeric claims cite tool results from existing domain views only.
+> Analysis Mode: Deterministic management analytics on illustrative hospital demo data — not an unrestricted live LLM. Numeric claims cite tool results from existing domain views only.
+
+## Executive remediation helpers (not separate tools)
+
+| Helper | Contract |
+|---|---|
+| `resolveFocusFromQuestion` | Topic → metric; ambiguous → clarification / hospital-wide risk (never silent ED) |
+| `selectScenarioFromQuestion` | Intervention → distinct scenario ID or unavailable message |
+| `rankHospitalRisks` | Period-scoped risks via documented `RISK_RULES` thresholds |
+| `buildExecutiveResponse` | Sections A–G business language; no fabricated losses |

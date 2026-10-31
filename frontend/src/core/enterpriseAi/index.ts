@@ -65,6 +65,42 @@ export {
 } from './intent';
 
 export {
+  driverStatusLabel,
+  executiveMetricLabel,
+  isAmbiguousHospitalQuestion,
+  resolveFocusFromQuestion,
+  type FocusResolution,
+} from './focus';
+
+export {
+  interventionCandidatesForQuestion,
+  selectScenarioFromQuestion,
+  type ScenarioSelection,
+} from './scenarioSelect';
+
+export {
+  RISK_RULES,
+  rankHospitalRisks,
+  type RankedRisk,
+  type RiskIntelligenceResult,
+} from './riskIntelligence';
+
+export {
+  buildExecutiveResponse,
+  roleEmphasis,
+  type ExecutiveRole,
+  type ExecutiveResponse,
+} from './executiveResponse';
+
+export {
+  formatForecastPoint,
+  formatMetricValue,
+  formatMinutes,
+  formatPercent,
+  formatSar,
+} from './format';
+
+export {
   executeTool,
   getTool,
   listTools,

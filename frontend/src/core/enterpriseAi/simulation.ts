@@ -84,11 +84,24 @@ export function getScenarioBaseline(args: {
 
 function resolveWhatIf(req: SimulationRequest): WhatIfResult {
   const amount = req.amount ?? 0.2;
-  const kind = req.kind ?? 'ent-ed-congestion';
+  const kind = req.kind;
+  if (!kind) {
+    return {
+      id: 'scenario-unavailable',
+      title: 'Scenario unavailable',
+      current: 'No scenario kind provided.',
+      change: 'n/a',
+      estimated: 'Scenario unavailable with the current evidence and model.',
+      assumptions: 'Caller must select a distinct intervention scenario ID.',
+      implications: 'Ask a supported intervention question.',
+      followUp: 'n/a',
+      owner: 'Hospital Operations',
+    };
+  }
   const domain = (req.domain ?? 'Enterprise') as DomainName;
 
-  if (kind === 'ent-bed-assign-flow' || kind === 'ent-staffing-uplift') {
-    return enterpriseWhatIf(req.hospital, req.year, req.period, { kind: 'ent-ed-congestion', amount });
+  if (kind === 'ent-bed-assign-flow' || kind === 'ent-staffing-uplift' || kind === 'ent-ed-congestion') {
+    return enterpriseWhatIf(req.hospital, req.year, req.period, { kind, amount });
   }
   if (kind.startsWith('st-')) {
     return runWhatIf('Strategy', req.hospital, req.year, { kind, amount }, req.period);
@@ -99,6 +112,27 @@ function resolveWhatIf(req: SimulationRequest): WhatIfResult {
   if (kind.startsWith('rcm-') || domain === 'Revenue Cycle') {
     return runWhatIf('Revenue Cycle', req.hospital, req.year, { kind, amount }, req.period);
   }
+  if (kind.startsWith('sc-') || domain === 'Supply Chain') {
+    return runWhatIf('Supply Chain', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('qs-') || domain === 'Quality & Safety') {
+    return runWhatIf('Quality & Safety', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('px-') || domain === 'Patient Experience') {
+    return runWhatIf('Patient Experience', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('icu-') || domain === 'ICU') {
+    return runWhatIf('ICU', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('surg-') || domain === 'Surgery') {
+    return runWhatIf('Surgery', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('beds-') || domain === 'Beds') {
+    return runWhatIf('Beds', req.hospital, req.year, { kind, amount }, req.period);
+  }
+  if (kind.startsWith('ipd-') || domain === 'Inpatient') {
+    return runWhatIf('Inpatient', req.hospital, req.year, { kind, amount }, req.period);
+  }
   if (domain === 'Enterprise') {
     return enterpriseWhatIf(req.hospital, req.year, req.period, { kind, amount });
   }
@@ -106,7 +140,20 @@ function resolveWhatIf(req: SimulationRequest): WhatIfResult {
 }
 
 export function runSimulation(req: SimulationRequest): SimulationResult {
-  const kind = req.kind ?? req.opportunityId ?? 'ent-ed-congestion';
+  const kind = req.kind ?? req.opportunityId;
+  if (!kind) {
+    const unavailable = resolveWhatIf({ ...req, kind: undefined });
+    return {
+      id: `sim:unavailable:${req.hospital}:${req.year}`,
+      title: unavailable.title,
+      domain: String(req.domain ?? 'Enterprise'),
+      kind: 'scenario-unavailable',
+      increasesStaffingCost: false,
+      whatIf: unavailable,
+      overlapGroup: 'solo:unavailable',
+      illustrative: true,
+    };
+  }
   const whatIf = resolveWhatIf({ ...req, kind });
   return {
     id: `sim:${kind}:${req.hospital}:${req.year}`,
@@ -114,7 +161,7 @@ export function runSimulation(req: SimulationRequest): SimulationResult {
     domain: String(req.domain ?? 'Enterprise'),
     kind,
     increasesStaffingCost: STAFFING_COST_OPTIONS.has(kind),
-    whatIf,
+    whatIf: { ...whatIf, id: kind },
     overlapGroup: overlapGroupFor(kind),
     illustrative: true,
   };

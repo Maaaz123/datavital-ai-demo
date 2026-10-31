@@ -117,6 +117,59 @@ export type ToolResultCitation = {
   metricId?: string;
 };
 
+/** Lightweight optimization shape for executive response builders (avoids circular imports). */
+export type OptimizationResultLike = {
+  feasible: boolean;
+  selected: string | null;
+  alternatives: string[];
+  constraintsApplied: string[];
+  infeasibleReason?: string;
+};
+
+export type ExecutiveResponseSections = {
+  A_executiveSummary: string;
+  B_riskAssessment: { severity: string; rationale: string; rules: string[] };
+  C_whyThisIsHappening: {
+    title: string;
+    status: string;
+    technicalStatus: DriverStatus;
+    evidence: string;
+    metricId: string;
+  }[];
+  D_businessImpact: string;
+  E_recommendedActions: {
+    id: string;
+    label: string;
+    owner: string;
+    feasibility: string;
+    constraints: string;
+  }[];
+  F_preferredOption: { id: string | null; label: string; rationale: string };
+  G_followUpMeasurement: string;
+  clarificationTopics?: string[];
+  focusLabel: string;
+  focusMetricId: string | null;
+  scenarioId: string | null;
+  modeDisclosure: string;
+};
+
+/** Shared multi-turn investigation state (demo session). */
+export type InvestigationState = {
+  subject: string;
+  focusMetricId: string | null;
+  focusLabel: string;
+  hospital: string;
+  year: number;
+  period: ReportPeriod;
+  constraints: { noAdditionalStaffingCost: boolean };
+  candidates: string[];
+  selectedOptionId: string | null;
+  evidenceRefs: string[];
+  scenarioId: string | null;
+  decisionProposalId?: string;
+  pendingApprovalConfirm?: boolean;
+};
+
 export type GroundedAnswer = {
   question: string;
   intent: IntentClassification;
@@ -131,6 +184,18 @@ export type GroundedAnswer = {
   investigationId?: string;
   decisionProposalId?: string;
   flagship?: boolean;
+  focusMetricId?: string | null;
+  focusLabel?: string;
+  scenarioId?: string | null;
+  executive?: ExecutiveResponseSections;
+  investigationState?: InvestigationState;
+  risks?: {
+    id: string;
+    title: string;
+    severity: string;
+    metricId: string;
+    evidence: string;
+  }[];
 };
 
 export type ToolExecutionRecord = {
@@ -214,7 +279,7 @@ export type OutcomeRecord = {
 };
 
 export const AI_MODE_DISCLOSURE =
-  'AI mode: Deterministic tool orchestration (labeled). No unrestricted LLM reasoning in the public demo. Numeric claims cite tool results from existing domain views only.';
+  'Analysis Mode: Deterministic management analytics on illustrative hospital demo data — not an unrestricted live LLM. Numeric claims cite tool results from existing domain views only.';
 
 export const REFUSAL_CLINICAL =
   'Refused: unsupported clinical diagnosis or patient-level inference. Enterprise AI stays at operational/aggregate scope.';

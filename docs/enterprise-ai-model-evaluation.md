@@ -1,10 +1,11 @@
 # Enterprise AI — Model Evaluation
 
-**Status:** Stage 8 acceptance  
+**Status:** Stage 8 + v82 executive remediation  
 **Code:** `frontend/src/core/enterpriseAi/`  
-**BUILD_ID:** `v81-enterprise-ai-domain`  
-**AI mode:** Deterministic tool orchestration (labeled)  
-**Forecast model version:** `enterprise-ai-forecast-v1-seasonal-naive-ma`
+**BUILD_ID:** `v82-enterprise-ai-executive` (prior acceptance: `v81-enterprise-ai-domain`)  
+**AI mode:** Deterministic tool orchestration (labeled Analysis Mode)  
+**Forecast model version:** `enterprise-ai-forecast-v1-seasonal-naive-ma`  
+**Management pack:** `docs/enterprise-ai-management-questions.json` (85 questions) — see `enterprise-ai-management-question-evaluation.md`
 
 ## Scope
 
