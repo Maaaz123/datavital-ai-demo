@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions' | 'sc' | 'sc-inventory' | 'sc-procurement' | 'sc-suppliers' | 'sc-consumption' | 'sc-waste' | 'st' | 'st-workforce' | 'st-equipment' | 'st-capacity' | 'st-service' | 'st-cost' | 'st-expansion' | 'exec' | 'ops';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions' | 'sc' | 'sc-inventory' | 'sc-procurement' | 'sc-suppliers' | 'sc-consumption' | 'sc-waste' | 'st' | 'st-workforce' | 'st-equipment' | 'st-capacity' | 'st-service' | 'st-cost' | 'st-expansion' | 'exec' | 'ops' | 'eai' | 'eai-inv' | 'eai-fc' | 'eai-opt' | 'eai-dec' | 'eai-gov';
 };
 
 export type NavDomain = {
@@ -27,7 +27,7 @@ export const NAV_DOMAINS: NavDomain[] = [
     id: 'enterprise',
     label: 'Enterprise',
     mark: 'ENT',
-    match: (path) => path === '/executive' || path === '/command' || path.startsWith('/executive/') || path.startsWith('/command/'),
+    match: (path) => path === '/executive' || path === '/command' || path.startsWith('/executive/') || path.startsWith('/command/') || path.startsWith('/enterprise-ai'),
     screens: [
       {
         to: '/executive',
@@ -43,6 +43,49 @@ export const NAV_DOMAINS: NavDomain[] = [
         title: 'Hospital Command Center',
         purpose: 'COO actionable exceptions across operations',
         glyph: 'ops',
+      },
+      {
+        to: '/enterprise-ai',
+        short: 'Enterprise AI',
+        title: 'Enterprise AI Investigation',
+        purpose: 'Grounded multi-domain investigate → simulate → decide',
+        end: true,
+        glyph: 'eai',
+      },
+      {
+        to: '/enterprise-ai/investigations',
+        short: 'Investigations',
+        title: 'Enterprise AI Investigations',
+        purpose: 'Structured RCA with driver evidence statuses',
+        glyph: 'eai-inv',
+      },
+      {
+        to: '/enterprise-ai/forecasting',
+        short: 'Forecast',
+        title: 'Enterprise AI Forecasting',
+        purpose: 'Seasonal naive / MA on operational monthly series',
+        glyph: 'eai-fc',
+      },
+      {
+        to: '/enterprise-ai/optimization',
+        short: 'Optimize',
+        title: 'Enterprise AI Optimization',
+        purpose: 'Constrained intervention comparison',
+        glyph: 'eai-opt',
+      },
+      {
+        to: '/enterprise-ai/decisions',
+        short: 'Decisions',
+        title: 'Enterprise AI Decisions',
+        purpose: 'Human decision lifecycle and outcome tracking',
+        glyph: 'eai-dec',
+      },
+      {
+        to: '/enterprise-ai/governance',
+        short: 'Governance',
+        title: 'Enterprise AI Governance',
+        purpose: 'Mode disclosure, refusals, and guardrails',
+        glyph: 'eai-gov',
       },
     ],
   },
@@ -742,10 +785,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs' || kind === 'sc' || kind === 'st' || kind === 'exec') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention' || kind === 'sc-consumption' || kind === 'st-capacity' || kind === 'ops') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents' || kind === 'sc-inventory' || kind === 'sc-procurement' || kind === 'st-workforce' || kind === 'st-cost') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes' || kind === 'sc-suppliers' || kind === 'st-expansion') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions' || kind === 'sc-waste' || kind === 'st-equipment' || kind === 'st-service') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs' || kind === 'sc' || kind === 'st' || kind === 'exec' || kind === 'eai') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention' || kind === 'sc-consumption' || kind === 'st-capacity' || kind === 'ops' || kind === 'eai-fc') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents' || kind === 'sc-inventory' || kind === 'sc-procurement' || kind === 'st-workforce' || kind === 'st-cost' || kind === 'eai-inv') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes' || kind === 'sc-suppliers' || kind === 'st-expansion' || kind === 'eai-opt' || kind === 'eai-dec') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions' || kind === 'sc-waste' || kind === 'st-equipment' || kind === 'st-service' || kind === 'eai-gov') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

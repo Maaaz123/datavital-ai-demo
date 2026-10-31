@@ -49,6 +49,14 @@ import {
   StWorkforcePage,
 } from '@/core/strategy';
 import { ExecutiveDashboardPage, HospitalCommandPage } from '@/core/enterprise';
+import {
+  EnterpriseAiDecisionsPage,
+  EnterpriseAiForecastingPage,
+  EnterpriseAiGovernancePage,
+  EnterpriseAiInvestigationsPage,
+  EnterpriseAiOptimizationPage,
+  EnterpriseAiPage,
+} from '@/core/enterpriseAi';
 
 const LEGACY = [
   '/login', '/demo', '/copilot',
@@ -69,6 +77,12 @@ export const routes = [
       { index: true, element: <OverviewPage /> },
       { path: 'executive', element: <ExecutiveDashboardPage /> },
       { path: 'command', element: <HospitalCommandPage /> },
+      { path: 'enterprise-ai', element: <EnterpriseAiPage /> },
+      { path: 'enterprise-ai/investigations', element: <EnterpriseAiInvestigationsPage /> },
+      { path: 'enterprise-ai/forecasting', element: <EnterpriseAiForecastingPage /> },
+      { path: 'enterprise-ai/optimization', element: <EnterpriseAiOptimizationPage /> },
+      { path: 'enterprise-ai/decisions', element: <EnterpriseAiDecisionsPage /> },
+      { path: 'enterprise-ai/governance', element: <EnterpriseAiGovernancePage /> },
       { path: 'dashboard', element: <Navigate to="/executive" replace /> },
       { path: 'command-center', element: <Navigate to="/command" replace /> },
       { path: 'emergency', element: <Navigate to="/" replace /> },

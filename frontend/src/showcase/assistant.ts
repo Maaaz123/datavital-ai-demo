@@ -2072,6 +2072,18 @@ function answerEnterprise(
   const sar = (value: number) => `SAR ${n(Math.round(value))}`;
   const f = view.facts;
 
+  if (/deteriorat/.test(q) && /intervention|staffing/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Enterprise AI flagship path · ${name} · ${view.periodLabel}`, `مسار الذكاء المؤسسي · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: ED wait ${n(f.edWaitMedianMin, 1)} min · occupancy ${p(f.occupancy)} · ICU gap ${n(f.icuStaffingGapHours)} h · NPR ${sar(f.netPatientRevenue)} · stockouts ${n(f.criticalStockouts)}.`, `انتظار الطوارئ ${n(f.edWaitMedianMin, 1)} د.`),
+      evidence: tx(lang, 'Open /enterprise-ai for deterministic tool orchestration (Investigate → reconcile → compare no-staffing-cost options → simulate → decide). Mode: Deterministic tool orchestration — not unrestricted LLM reasoning.', 'افتح /enterprise-ai للتحقيق المنظم.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): multi-domain pressure; correlation ≠ definitive root cause. Prefer flow-side bed assignment vs staffing uplift under no-additional-staffing-cost.', 'فرضيات متعددة المجالات.'),
+      action: tx(lang, 'Recommendations: run the flagship question on Enterprise AI Investigation; approve/reject/defer as a human — approval does not mutate RCM NPR.', 'شغّل سؤال العلم على Enterprise AI.'),
+      role: tx(lang, 'COO / CFO', 'مدير العمليات / المالي'),
+      benefit: tx(lang, 'Keeps Vital Assist lightweight while Enterprise AI owns the grounded multi-step path.', 'يبقي المساعد خفيفاً.'),
+    });
+  }
+
   if (/ed congestion|bed assignment versus|staffing uplift|what if.*(?:bed|icu|ed)/.test(q) && /(what if|interven|compar|simulat)/.test(q)) {
     const result = runWhatIf('Enterprise', hospital, year, { kind: 'ent-ed-congestion', amount: 0.2 }, period);
     const body = formatWhatIfAnswer(result);

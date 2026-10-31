@@ -1791,6 +1791,12 @@ const RULES: Rule[] = [
 const SCREEN_DEPARTMENT: Record<string, string> = {
   executive: 'Enterprise',
   command: 'Enterprise',
+  'enterprise-ai': 'Enterprise',
+  'enterprise-ai-investigations': 'Enterprise',
+  'enterprise-ai-forecasting': 'Enterprise',
+  'enterprise-ai-optimization': 'Enterprise',
+  'enterprise-ai-decisions': 'Enterprise',
+  'enterprise-ai-governance': 'Enterprise',
   emergency: 'Emergency',
   stability: 'Emergency',
   beds: 'Beds',
@@ -1991,6 +1997,14 @@ export function badgeCount(
 export function screenFromPath(path: string): string | null {
   if (path === '/executive' || path.startsWith('/executive/')) return 'executive';
   if (path === '/command' || path.startsWith('/command/')) return 'command';
+  if (path.startsWith('/enterprise-ai')) {
+    if (path.startsWith('/enterprise-ai/investigations')) return 'enterprise-ai-investigations';
+    if (path.startsWith('/enterprise-ai/forecasting')) return 'enterprise-ai-forecasting';
+    if (path.startsWith('/enterprise-ai/optimization')) return 'enterprise-ai-optimization';
+    if (path.startsWith('/enterprise-ai/decisions')) return 'enterprise-ai-decisions';
+    if (path.startsWith('/enterprise-ai/governance')) return 'enterprise-ai-governance';
+    return 'enterprise-ai';
+  }
   if (path.startsWith('/beds')) return 'beds';
   if (path.startsWith('/inpatient')) return 'inpatient';
   if (path.startsWith('/outpatient')) return 'outpatient';

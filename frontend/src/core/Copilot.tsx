@@ -106,6 +106,15 @@ function domainFromPath(path: string): { screenId: 'executive' | 'command' | 'em
   if (path === '/command' || path.startsWith('/command/')) {
     return { screenId: 'command', department: 'Enterprise', page: 'Hospital Command Center', askScope: 'Enterprise Operations' };
   }
+  if (path.startsWith('/enterprise-ai')) {
+    const page = path.startsWith('/enterprise-ai/investigations') ? 'Enterprise AI Investigations'
+      : path.startsWith('/enterprise-ai/forecasting') ? 'Enterprise AI Forecasting'
+        : path.startsWith('/enterprise-ai/optimization') ? 'Enterprise AI Optimization'
+          : path.startsWith('/enterprise-ai/decisions') ? 'Enterprise AI Decisions'
+            : path.startsWith('/enterprise-ai/governance') ? 'Enterprise AI Governance'
+              : 'Enterprise AI Investigation';
+    return { screenId: 'executive', department: 'Enterprise', page, askScope: 'Enterprise AI' };
+  }
   if (path.startsWith('/beds')) {
     const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
       : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
