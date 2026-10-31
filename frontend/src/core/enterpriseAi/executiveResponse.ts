@@ -83,6 +83,37 @@ function ownerFor(optionId: string): string {
   return 'Hospital Operations / COO';
 }
 
+function ownerForDomain(domain: string): string {
+  switch (domain) {
+    case 'Revenue Cycle': return 'Revenue Cycle / CFO office';
+    case 'Quality & Safety': return 'Quality & Safety / CMO';
+    case 'Supply Chain': return 'Supply Chain / COO';
+    case 'ICU': return 'Critical Care / CNO';
+    case 'Emergency': return 'Emergency Operations / COO';
+    case 'Beds': return 'Bed Management / COO';
+    case 'Strategy': return 'Workforce / COO';
+    default: return `${domain} leadership`;
+  }
+}
+
+/** Map a ranked risk to a feasible management action ID (existing scenario catalogue). */
+function actionForRisk(metricId: string): { id: string; label: string } {
+  const map: Record<string, { id: string; label: string }> = {
+    'ed.wait.median_min': { id: 'ent-bed-assign-flow', label: 'Faster bed assignment / discharge pull' },
+    'beds.occupancy': { id: 'ent-bed-assign-flow', label: 'Faster bed assignment / discharge pull' },
+    'icu.staffing_gap_hours': { id: 'icu-flow-up', label: 'Improve ICU flow coordination' },
+    'rcm.gross_denial_rate': { id: 'rcm-denials-down', label: 'Reduce claim denials' },
+    'rcm.net_patient_revenue': { id: 'rcm-denials-down', label: 'Reduce claim denials' },
+    'sc.critical_stockouts': { id: 'st-supply-efficiency', label: 'Supply consumption efficiency' },
+    'qs.overdue_high_risk_actions': { id: 'qs-capa-overdue-down', label: 'Reduce overdue CAPA actions' },
+    'st.enterprise_staffing_gap_hours': { id: 'st-reduce-overtime', label: 'Reduce avoidable overtime' },
+    'rx.stockout_skus': { id: 'st-supply-efficiency', label: 'Supply consumption efficiency' },
+    'surg.or_utilization': { id: 'surg-turnover-down', label: 'Reduce OR turnover time' },
+    'ipd.los_median_days': { id: 'ipd-longstay-down', label: 'Reduce long-stay pressure' },
+  };
+  return map[metricId] ?? { id: 'ent-bed-assign-flow', label: 'Cross-domain capacity & flow review' };
+}
+
 function severityFromRisks(risks: RankedRisk[], focusMetricId: string | null): { severity: string; rationale: string; rules: string[] } {
   const relevant = focusMetricId
     ? risks.filter((r) => r.metricId === focusMetricId).concat(risks.slice(0, 3))
@@ -156,6 +187,63 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
     metricId: d.relatedMetricId,
   }));
 
+  // Hospital-wide risk / board questions: return top distinct risks with management actions.
+  if (args.focus.mode === 'hospital_wide_risk') {
+    const top = args.risks.filter((r) => r.severity === 'critical' || r.severity === 'high' || r.severity === 'watch').slice(0, 3);
+    const riskDrivers: ExecutiveDriver[] = top.map((r) => ({
+      title: `Main Risk: ${r.title} (${r.domain})`,
+      status: r.severity === 'critical' || r.severity === 'high' ? 'Supported' : 'Partially Supported',
+      technicalStatus: r.value == null ? 'insufficient_evidence' : 'supported',
+      evidence: r.evidence,
+      metricId: r.metricId,
+    }));
+    const riskActions: ExecutiveAction[] = top.map((r) => {
+      const act = actionForRisk(r.metricId);
+      return {
+        id: act.id,
+        label: `${act.label} — addresses ${r.title}`,
+        owner: ownerForDomain(r.domain),
+        feasibility: 'Feasible under stated constraints',
+        constraints: args.noAdditionalStaffingCost ? 'No additional staffing cost preferred' : 'None listed',
+      };
+    });
+    const preferred = riskActions[0];
+    const names = top.map((r) => r.title).join('; ') || 'No ranked risks with period evidence';
+    return {
+      A_executiveSummary:
+        `Hospital-wide risk overview for ${args.hospital} · ${args.period} ${args.year}. Top management risks: ${names}. `
+        + 'Leadership should assign owners and follow-up measures before acting. Emergency Waiting Time is not assumed as the sole priority.',
+      B_riskAssessment: severityFromRisks(args.risks, null),
+      C_whyThisIsHappening: riskDrivers.length
+        ? riskDrivers
+        : [{
+            title: 'Other Factors to Consider',
+            status: 'More Evidence Needed',
+            technicalStatus: 'insufficient_evidence',
+            evidence: 'Insufficient ranked risk evidence for this hospital and period.',
+            metricId: 'none',
+          }],
+      D_businessImpact: businessImpact(args.focus, args.investigation, args.risks),
+      E_recommendedActions: riskActions.slice(0, 3),
+      F_preferredOption: {
+        id: preferred?.id ?? null,
+        label: preferred?.label ?? 'No preferred option selected',
+        rationale: preferred
+          ? `Highest-ranked period risk (${top[0]?.title ?? 'n/a'}) — preferred management option pending human decision.`
+          : 'No preferred option — more evidence needed.',
+      },
+      G_followUpMeasurement:
+        top[0]
+          ? `Re-measure ${executiveMetricLabel(top[0].metricId)} and the other listed risk metrics after the next reporting checkpoint. Outcome remains not yet measured until evidence is recorded. Approval does not change published hospital figures.`
+          : 'Follow-up remains not yet measured until evidence is recorded after a human decision.',
+      clarificationTopics: undefined,
+      focusLabel,
+      focusMetricId: null,
+      scenarioId: preferred?.id ?? null,
+      modeDisclosure: MODE_SOFT,
+    };
+  }
+
   // Ambiguous focus — but a concrete what-if / optimization selection still surfaces as preferred.
   const clarificationWithoutIntervention =
     args.focus.mode === 'clarification'
@@ -175,7 +263,7 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
         label: 'Clarification required',
         rationale: 'Preferred option awaits a defined investigation focus.',
       },
-      G_followUpMeasurement: 'Outcome remains unmeasured until an investigation focus and decision are recorded.',
+      G_followUpMeasurement: 'Outcome remains not yet measured until an investigation focus and decision are recorded.',
       clarificationTopics: args.focus.clarificationTopics,
       focusLabel,
       focusMetricId: null,
@@ -227,13 +315,11 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
       : `Investigation focus: ${focusLabel}.`,
     args.investigation?.observedValue != null && args.focus.focusMetricId
       ? `Observed ${executiveMetricLabel(args.focus.focusMetricId)} is ${formatMetricValue(args.focus.focusMetricId, args.investigation.observedValue)} for ${args.hospital} · ${args.period} ${args.year}.`
-      : args.focus.mode === 'hospital_wide_risk'
-        ? `Hospital-wide risk overview for ${args.hospital} · ${args.period} ${args.year}.`
-        : null,
-    preferredHuman
-      ? `Under current constraints${args.noAdditionalStaffingCost ? ' (without adding staff cost)' : ''}, the preferred management option is ${preferredHuman}.`
       : null,
-    'Outcome remains unmeasured until follow-up evidence is recorded after a human decision.',
+    preferredHuman
+      ? `Under current constraints${args.noAdditionalStaffingCost ? ' (without adding staffing cost)' : ''}, the preferred management option is ${preferredHuman}.`
+      : null,
+    'Outcome remains not yet measured until follow-up evidence is recorded after a human decision.',
   ].filter(Boolean);
 
   return {
@@ -258,7 +344,7 @@ export function buildExecutiveResponse(args: BuildExecutiveArgs): ExecutiveRespo
         : args.scenario.reason,
     },
     G_followUpMeasurement:
-      'Follow-up remains unmeasured until evidence is recorded after a human decision. Approval does not change published hospital figures.',
+      'Follow-up remains not yet measured until evidence is recorded after a human decision. Approval does not change published hospital figures.',
     clarificationTopics: args.focus.clarificationTopics,
     focusLabel,
     focusMetricId: args.focus.focusMetricId,

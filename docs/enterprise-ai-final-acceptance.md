@@ -1,23 +1,39 @@
 # Domain 16 — Enterprise AI Command & Decision Intelligence Final Acceptance
 
 **Domain:** Enterprise AI Command & Decision Intelligence  
-**BUILD_ID:** `v81-enterprise-ai-domain`  
-**Date:** 2026-10-30  
+**BUILD_ID:** `v91-enterprise-routing` (P0 context routing; prior Stage-8 acceptance `v81-enterprise-ai-domain`; UX density baseline `v90-decision-density`)  
+**Date:** 2026-10-31  
 **Production URL:** https://demo.datavital.io/enterprise-ai  
 **Refresh:** https://demo.datavital.io/refresh.html  
-**Source commit (pre-Stage-8 tip):** `3ce6d19`  
-**Feat commit:** `6bdeb81`  
-**Deploy commit:** `889e0b0`  
-**Merge commit (main):** `d5ca4fa787f2e0acd3bfb6dd35ac8ef6deb33a79` (`d5ca4fa`)  
-**Final docs evidence commit:** _(this commit)_  
-**JS bundle:** `assets/index-B6hOKRJh.js`  
-**PWA helper:** `assets/pwa-b8vElP5Y.js`  
+**Baseline HEAD before P0:** `091bde1` (`v90-decision-density`)  
+**P0 docs:** `docs/enterprise-ai-context-routing-audit.md`, `docs/enterprise-ai-vital-assist-regression.md`, `docs/enterprise-ai-management-acceptance.md`, `docs/enterprise-ai-visual-regression.md`  
 **AI mode:** **Deterministic** (labeled tool orchestration; no unrestricted LLM in public demo)  
 **Product-owner approval:** **NOT RECORDED**
 
 **Legend:** PASS / FAIL / NOT TESTED / NOT APPLICABLE
 
 **Critical:** Technical PASS ≠ product-owner approval.
+
+---
+
+## P0 addendum — Enterprise AI & Vital Assist context routing (2026-10-31)
+
+| Gate | Result |
+|---|---|
+| CEO hospital-wide top-3 risks (not ED-only) | **PASS** (automated) |
+| CFO claims denials → RCM (`rcm-denials-down`) | **PASS** (automated) |
+| COO overtime / no staffing cost | **PASS** (automated) |
+| CMO patient safety → Quality | **PASS** (automated) |
+| Same-conversation topic switch | **PASS** (automated) |
+| Vital Assist Enterprise uses `orchestrate` (not Emergency remap) | **PASS** |
+| UI/UX freeze (no CSS redesign) | **PASS** |
+| Domain 16 vitest | **PASS** 63/63 |
+| Live production BUILD_ID `v91-enterprise-routing` | Pending push + live verify |
+| Bundle hashes (build) | `index-BNTfTqOb.js` · `pwa-C8S7gw3P.js` |
+| Six-route browser matrix (viewports) | **NOT TESTED** until post-deploy browser pass |
+| Product-owner approval | **NOT RECORDED** |
+
+**Historical Stage-8 record (unchanged below):** original `v81-enterprise-ai-domain` acceptance evidence.
 
 ---
 

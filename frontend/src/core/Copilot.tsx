@@ -6,6 +6,11 @@ import { HOSPITALS } from '@/showcase/engine';
 import { decisionKey, useShowcase } from '@/showcase/state';
 import { runWhatIf, WHAT_IF_PROMPTS, type DomainName as WhatIfDomain } from '@/showcase/whatIf';
 import { alertsFor, visibleAlerts, type AlertStatus, type DemoAlert, type Severity } from './alerts';
+import {
+  formatEnterpriseAssistBody,
+  orchestrate,
+  type InvestigationState,
+} from './enterpriseAi';
 import { usePeriod } from './period';
 
 type Tab = 'overview' | 'alerts' | 'investigate' | 'predictions' | 'actions' | 'approvals' | 'ask';
@@ -728,6 +733,10 @@ function Ask({ label, department, askScope, page }: { label: string; department:
   const { period } = usePeriod();
   const [draft, setDraft] = useState('');
   const [typing, setTyping] = useState(false);
+  const enterprisePriorRef = useRef<Partial<InvestigationState> | null>(null);
+  useEffect(() => {
+    enterprisePriorRef.current = null;
+  }, [store.hospital, store.year, period, department]);
   const beds = department === 'Beds';
   const ipd = department === 'Inpatient';
   const opd = department === 'Outpatient';
@@ -1079,11 +1088,42 @@ function Ask({ label, department, askScope, page }: { label: string; department:
     setDraft('');
     setTyping(true);
     window.setTimeout(() => {
+      // Enterprise AI / Executive / Command: same orchestrate path as Domain 16 — never remap to Emergency.
+      if (department === 'Enterprise') {
+        const result = orchestrate({
+          question: text,
+          hospital: store.hospital,
+          year: store.year,
+          period,
+          priorState: enterprisePriorRef.current ?? undefined,
+        });
+        if (result.investigationState) {
+          enterprisePriorRef.current = result.investigationState;
+        }
+        const packed = result.executive
+          ? formatEnterpriseAssistBody({
+            summary: result.summary,
+            executive: result.executive,
+            periodLabel: `${store.hospital} · ${periodLabel}`,
+          })
+          : {
+            title: `Hospital Performance · ${store.hospital} · ${periodLabel}`,
+            body: [result.summary || 'No executive brief available for this question.'],
+          };
+        setMessages((prev) => [...prev, {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          title: packed.title,
+          body: packed.body,
+        }]);
+        setTyping(false);
+        return;
+      }
       const answer = answerQuestion(
         text,
         store.hospital,
         store.year,
-        department === 'Enterprise' ? 'Emergency' : department,
+        department,
         store.lang,
         period,
       );

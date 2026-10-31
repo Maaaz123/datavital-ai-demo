@@ -12,6 +12,7 @@ export type {
   IntentClassification,
   InvestigationDriver,
   InvestigationReport,
+  InvestigationState,
   KnowledgeEdge,
   MetricAggregation,
   MetricDefinition,
@@ -123,6 +124,13 @@ export {
   orchestrate,
   type OrchestrateRequest,
 } from './orchestrator';
+
+export {
+  buildEnterpriseQuestionContext,
+  domainLabelFromFocus,
+  formatEnterpriseAssistBody,
+  type EnterpriseQuestionContext,
+} from './enterpriseQuestionContext';
 
 export {
   evaluateContradiction,

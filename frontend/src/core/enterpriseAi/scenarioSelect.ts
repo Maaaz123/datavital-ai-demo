@@ -77,7 +77,7 @@ const SCENARIO_RULES: ScenarioRule[] = [
     label: 'Reduce claim denials',
     weight: 5,
     amount: 0.2,
-    re: /denials?|denied\s+claim|first[- ]pass|clean\s+claim/i,
+    re: /denials?|\bdenied\b|claims?\s+(being\s+)?denied|denied\s+claims?|first[- ]pass|clean\s+claim|revenue\s+leak/i,
   },
   {
     id: 'rcm-ar-accelerate',
@@ -133,7 +133,7 @@ const SCENARIO_RULES: ScenarioRule[] = [
     label: 'Reduce overdue CAPA actions',
     weight: 4,
     amount: 0.4,
-    re: /\b(capa|overdue\s+(corrective|action)|safety\s+action)\b/i,
+    re: /\b(capa|overdue\s+(corrective|action)|safety\s+action|patient\s+safety|high[- ]risk\s+safety)\b/i,
   },
   {
     id: 'qs-hh-up',
@@ -236,9 +236,30 @@ export function scenarioLabelForId(id: string | null | undefined): string {
   return SCENARIO_RULES.find((rule) => rule.id === id)?.label ?? id;
 }
 
+/** Topic → preferred intervention when the question names a domain but not an explicit what-if. */
+const TOPIC_PRIMARY: Record<string, string> = {
+  denials_rcm: 'rcm-denials-down',
+  supply: 'st-supply-efficiency',
+  overtime_workforce: 'st-reduce-overtime',
+  quality: 'qs-capa-overdue-down',
+  icu: 'icu-flow-up',
+  ed_wait: 'ed-boarding-down',
+  beds: 'ent-bed-assign-flow',
+  contribution: 'st-supply-efficiency',
+  pharmacy: 'st-supply-efficiency',
+  surgery: 'surg-turnover-down',
+  inpatient: 'ipd-longstay-down',
+};
+
+export function primaryScenarioForTopic(topic: string | null | undefined): string | null {
+  if (!topic) return null;
+  return TOPIC_PRIMARY[topic] ?? null;
+}
+
 export function interventionCandidatesForQuestion(
   question: string,
   noAdditionalStaffingCost: boolean,
+  topicHint?: string | null,
 ): string[] {
   const selected = selectScenarioFromQuestion(question);
   const pool = [
@@ -253,10 +274,15 @@ export function interventionCandidatesForQuestion(
   if (!noAdditionalStaffingCost) {
     pool.push('ent-staffing-uplift', 'st-reallocate-nurses');
   }
-  const primary = selected.scenarioId && selected.available ? selected.scenarioId : 'ent-bed-assign-flow';
-  const rest = pool.filter((id) => id !== primary);
-  // Prefer distinct alternatives for comparison.
-  const options = [primary, ...rest].filter((id) => {
+  const topicPrimary = primaryScenarioForTopic(topicHint);
+  // Never silently prefer bed-flow for finance/quality/supply questions.
+  const primary = selected.scenarioId && selected.available
+    ? selected.scenarioId
+    : topicPrimary;
+  const ordered = primary
+    ? [primary, ...pool.filter((id) => id !== primary)]
+    : pool.filter((id) => id !== 'ent-bed-assign-flow').concat(['ent-bed-assign-flow']);
+  const options = ordered.filter((id) => {
     if (noAdditionalStaffingCost && (id === 'ent-staffing-uplift' || id === 'st-reallocate-nurses' || id === 'st-staff-constrained-sl')) {
       return false;
     }

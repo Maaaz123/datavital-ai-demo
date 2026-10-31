@@ -12,6 +12,8 @@ import { runOptimization } from './optimization';
 import { rankHospitalRisks } from './riskIntelligence';
 import {
   interventionCandidatesForQuestion,
+  primaryScenarioForTopic,
+  scenarioLabelForId,
   selectScenarioFromQuestion,
 } from './scenarioSelect';
 import { executeTool, type EnterpriseAiToolId } from './tools';
@@ -286,6 +288,7 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
 
   const flagship = isFlagshipQuestion(follow.question);
   let focus = resolveFocusFromQuestion(follow.question);
+  // Only inherit prior focus for genuine follow-ups — never let stale ED pin a new topic.
   if (follow.inheritFocus && req.priorState?.focusMetricId) {
     focus = {
       ...focus,
@@ -297,14 +300,36 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
   }
 
   const risks = rankHospitalRisks({ hospital: req.hospital, year: req.year, period, limit: 10 });
-  // Hospital-wide / ambiguous: use top risk metric as investigation anchor (labeled), never silent ED.
+  // Hospital-wide: keep investigation multi-domain; do not collapse focusMetricId to a single ED metric in the answer contract.
   let focusMetricId = focus.focusMetricId;
-  if (!focusMetricId && (focus.mode === 'hospital_wide_risk' || focus.mode === 'flagship_multi')) {
+  if (!focusMetricId && focus.mode === 'flagship_multi') {
     focusMetricId = risks.risks[0]?.metricId ?? 'beds.occupancy';
   }
+  // hospital_wide_risk keeps focusMetricId null for the executive contract; investigate top risk for evidence only.
+  const investigationFocusId = focusMetricId
+    ?? (focus.mode === 'hospital_wide_risk' ? (risks.risks[0]?.metricId ?? 'beds.occupancy') : null);
 
-  const scenario = selectScenarioFromQuestion(follow.question);
-  const optionIds = interventionCandidatesForQuestion(follow.question, noStaff);
+  let scenario = selectScenarioFromQuestion(follow.question);
+  if (!scenario.available) {
+    const topicScenario = primaryScenarioForTopic(focus.topic);
+    if (topicScenario && focus.mode === 'topic') {
+      const domainGuess = topicScenario.startsWith('rcm-') ? 'Revenue Cycle'
+        : topicScenario.startsWith('qs-') ? 'Quality & Safety'
+          : topicScenario.startsWith('sc-') || topicScenario === 'st-supply-efficiency' ? 'Supply Chain'
+            : topicScenario.startsWith('icu-') ? 'ICU'
+              : topicScenario.startsWith('st-') ? 'Strategy'
+                : 'Enterprise';
+      scenario = {
+        available: true,
+        scenarioId: topicScenario,
+        domain: domainGuess,
+        amount: 0.2,
+        label: scenarioLabelForId(topicScenario),
+        reason: `Selected scenario ${topicScenario} from investigation topic "${focus.topic}".`,
+      };
+    }
+  }
+  const optionIds = interventionCandidatesForQuestion(follow.question, noStaff, focus.topic);
   const maxTools = req.maxTools ?? (flagship ? 24 : 12);
   const plan = planForIntent({
     intentPrimary: intent.primary,
@@ -313,7 +338,7 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
     year: req.year,
     period,
     flagship,
-    focusMetricId,
+    focusMetricId: investigationFocusId,
     scenarioId: scenario.available ? scenario.scenarioId : null,
     scenarioDomain: scenario.domain,
     scenarioAmount: scenario.amount,
@@ -359,16 +384,16 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
     }
   }
 
-  const investigation = focus.mode === 'clarification' && !focusMetricId
+  const investigation = focus.mode === 'clarification' && !investigationFocusId
     ? null
     : runInvestigation({
       hospital: req.hospital,
       year: req.year,
       period,
-      focusMetricId: focusMetricId ?? 'beds.occupancy',
+      focusMetricId: investigationFocusId ?? 'beds.occupancy',
       additionalMetricIds: focus.additionalMetricIds
-        ?? (flagship
-          ? ['beds.occupancy', 'icu.staffing_gap_hours', 'rcm.net_patient_revenue', 'sc.critical_stockouts', 'surg.or_utilization', 'px.overall_satisfaction']
+        ?? (flagship || focus.mode === 'hospital_wide_risk'
+          ? ['beds.occupancy', 'icu.staffing_gap_hours', 'rcm.net_patient_revenue', 'sc.critical_stockouts', 'surg.or_utilization', 'px.overall_satisfaction', 'qs.overdue_high_risk_actions']
           : undefined),
     });
   if (investigation) {
@@ -379,9 +404,12 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
     || intent.primary === 'what_if'
     || intent.primary === 'resource_allocation'
     || intent.primary === 'decision_prep'
-    || intent.secondary.includes('what_if');
+    || intent.primary === 'financial'
+    || intent.primary === 'root_cause'
+    || intent.secondary.includes('what_if')
+    || (scenario.available && !!scenario.scenarioId);
 
-  const optimization = shouldOptimize
+  const optimization = shouldOptimize && focus.mode !== 'hospital_wide_risk'
     ? runOptimization({
       hospital: req.hospital,
       year: req.year,
@@ -403,10 +431,16 @@ export function orchestrate(req: OrchestrateRequest): GroundedAnswer {
     );
   }
 
+  const topicChanged = Boolean(
+    req.priorState?.focusMetricId
+    && focusMetricId
+    && req.priorState.focusMetricId !== focusMetricId
+    && !follow.inheritFocus,
+  );
   const decisionResult = toolResults.find((r) => r.toolId === 'create_decision_proposal' && r.ok);
   const decisionProposalId = decisionResult && typeof decisionResult.output.decisionId === 'string'
     ? decisionResult.output.decisionId
-    : req.priorState?.decisionProposalId;
+    : (follow.inheritFocus && !topicChanged ? req.priorState?.decisionProposalId : undefined);
 
   const executive = buildExecutiveResponse({
     question: follow.question,

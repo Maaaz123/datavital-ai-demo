@@ -56,8 +56,9 @@ const FLAGSHIP_METRICS = [
   'px.overall_satisfaction',
 ] as const;
 
+/** Hospital-wide / board-level phrasing — must not fall through to clarification or silent ED. */
 const AMBIGUOUS_RE =
-  /\b(something\s+interesting|how\s+is\s+(the\s+)?hospital\s+performing|top\s+risks?|what\s+should\s+i\s+(look\s+at|focus\s+on)|give\s+me\s+an\s+overview|hospital[- ]wide|overall\s+performance)\b/i;
+  /\b(something\s+interesting|how\s+is\s+(the\s+)?hospital\s+performing|(three|top)\s+(biggest\s+)?risks?|biggest\s+risks?|main\s+risks?|hospital\s+risks?|what\s+should\s+(i|management|leadership|the\s+board|executives?)\s+(look\s+at|focus\s+on|do|prioriti[sz]e)|which\s+departments?\s+need|immediate\s+attention|give\s+me\s+an\s+overview|hospital[- ]wide|enterprise[- ]wide|overall\s+performance|leadership\s+prioriti)\b/i;
 
 const CLARIFICATION_TOPICS = [
   'Emergency waiting time and boarding',

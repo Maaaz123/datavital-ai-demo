@@ -1,7 +1,7 @@
 import { registerSW } from 'virtual:pwa-register';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v90-decision-density';
+const BUILD_ID = 'v91-enterprise-routing';
 const BUILD_KEY = 'datavital-build-id';
 
 /**
