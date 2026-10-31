@@ -4,9 +4,9 @@
 **BUILD_ID:** `v78-strategy-domain`  
 **Routes:** `/strategy` (+ workforce, equipment, capacity, service-lines, cost-efficiency, expansion, optimization)  
 **Date:** 2026-10-30  
-**Commits:** `f008982` (feat) · `fdcf274` (deploy)  
+**Commits:** `f008982` (feat) · `fdcf274` (deploy) · _(this docs commit cites production evidence)_  
 **Production:** https://demo.datavital.io/strategy  
-**Production deploy:** PASS — `refresh.html` BUILD_ID `v78-strategy-domain`; SPA 404 shell serves `index-WbcHhHYx.js` HTTP 200; all 10 ST what-if kinds present in live JS  
+**Production deploy:** PASS — `refresh.html` BUILD_ID `v78-strategy-domain`; bundle `index-WbcHhHYx.js` HTTP 200; SPA 404 shell serves same bundle for `/strategy`, `/strategy/workforce`, `/strategy/optimization`; live JS contains 48 `kpi_st_*` KPIs, all 10 ST opportunity IDs, Command/Workforce/Optimization titles, and CM ≠ net profit / Contribution Margin = Recognized disclosures  
 **Product-owner approval:** **NOT RECORDED**
 
 ## Status summary
@@ -31,6 +31,15 @@
 | Domains 1–11 layout ownership untouched | PASS (additive only) |
 | Live production `/strategy` | PASS — SPA 404 shell serves `index-WbcHhHYx.js`; BUILD_ID `v78-strategy-domain` |
 | Product-owner approval | NOT RECORDED |
+
+## Production verification evidence (2026-10-30)
+
+- `https://demo.datavital.io/refresh.html` → `BUILD_ID = 'v78-strategy-domain'`
+- `https://demo.datavital.io/index.html` → `/assets/index-WbcHhHYx.js`
+- `https://demo.datavital.io/404.html` → `/assets/index-WbcHhHYx.js` (SPA deep-link shell)
+- Deep links `/strategy`, `/strategy/workforce`, `/strategy/optimization` return the SPA shell referencing `index-WbcHhHYx.js` (GitHub Pages 404 → SPA pattern)
+- Live bundle HTTP 200; contains `Strategic Resource & Profitability Command Center`, `Workforce & Staffing`, `Strategic Optimization`, `CM ≠ net profit`, `Contribution Margin = Recognized`, `synthetic cost`, 48 unique `kpi_st_*`, and opportunities: `st-reallocate-nurses`, `st-extend-or-hours`, `st-add-clinic-sessions`, `st-improve-diag-util`, `st-replace-downtime-asset`, `st-staff-constrained-sl`, `st-reduce-overtime`, `st-supply-efficiency`, `st-expand-specialty`, `st-reallocate-vs-capital`
+- Interactive browser MCP tab was unavailable in this session; production PASS is from live HTTP + SPA-shell + bundle string verification (same deploy artifact)
 
 ## Safeguards verified
 
