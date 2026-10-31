@@ -52,4 +52,32 @@ describe('illustrative what-if scenarios', () => {
     expect(answer.title).toMatch(/Outside Outpatient|Outpatient/i);
     expect(answer.observation + answer.evidence).not.toMatch(/boarding beyond 4 hours/i);
   });
+
+  it('runs enterprise ED congestion scenario comparing ≥2 interventions without summing benefits', () => {
+    const intent = parseWhatIfIntent(
+      'What if ED congestion is relieved by faster bed assignment versus ICU staffing uplift under financial constraints?',
+    );
+    expect(intent?.kind).toBe('ent-ed-congestion');
+    const result = runWhatIf('Enterprise', 'H1', 2026, intent, 'year');
+    expect(result.id).toBe('ent-ed-congestion');
+    expect(result.change).toMatch(/Compare two|A\)|B\)/i);
+    expect(result.assumptions).toMatch(/must not be summed|not summed/i);
+    expect(result.assumptions).toMatch(/does not mutate|Approval does not mutate/i);
+    expect(result.estimated).toMatch(/A\)|B\)/);
+    expect(result.followUp).toMatch(/ED|occupancy|ICU|contribution/i);
+
+    const a = runWhatIf('Enterprise', 'H1', 2026, { kind: 'ent-ed-congestion', amount: 0.15 }, 'year');
+    const b = runWhatIf('Enterprise', 'H1', 2026, { kind: 'ent-ed-congestion', amount: 0.35 }, 'year');
+    expect(a.estimated).not.toBe(b.estimated);
+  });
+
+  it('grounds Enterprise Assist in hospital/year/period financial and staffing facts', () => {
+    const fin = answerQuestion('What is driving net revenue and contribution?', 'H1', 2026, 'Enterprise', 'en', 'year');
+    expect(fin.observation).toMatch(/Net patient revenue|NPR|contribution/i);
+    expect(fin.evidence).toMatch(/RCM|recognized/i);
+
+    const staff = answerQuestion('What is driving increasing staffing pressure in ICU?', 'H2', 2025, 'Enterprise', 'en', 'Q1');
+    expect(staff.observation).toMatch(/ICU|enterprise Strategy gap/i);
+    expect(staff.title).toMatch(/2025|Q1|staffing/i);
+  });
 });

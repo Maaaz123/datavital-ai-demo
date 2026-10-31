@@ -1,0 +1,28 @@
+domain,scenario_id,title,baseline_source,arithmetic_test,non_additive,approval_preserves_history,status,evidence
+Quality & Safety,qs-hh-up,Hand-hygiene compliance uplift,qs.handHygiene,PASS,true,true,PASS,qs-reconcile.test.ts + whatIf qsWhatIf
+Quality & Safety,qs-bundle-up,Device bundle compliance uplift,min(clBundle,ucBundle),PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-infection-review-down,Infection case review delay reduction,surveillanceCoverage,PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-investigation-up,Investigation timeliness uplift,investigationTimeliness,PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-capa-overdue-down,Overdue CAPA reduction,overdueHighRiskActions,PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-observation-up,High-risk unit observation coverage,observation proxy,PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-ssi-prevention-up,SSI prevention process compliance,1 - ssiRate,PASS,true,true,PASS,qs-reconcile.test.ts
+Quality & Safety,qs-effectiveness-up,CAPA effectiveness verification,effectivenessReviewRate,PASS,true,true,PASS,qs-reconcile.test.ts
+Supply Chain,sc-safety-stock,Safety stock adjustment,belowSafety,PASS,true,true,PASS,sc-reconcile / whatIf scWhatIf
+Supply Chain,sc-lead-time-down,Supplier lead-time reduction,replenishmentLeadTime,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-fill-rate-up,Supplier fill rate improvement,supplierFillRate,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-consolidate-po,Eligible procurement consolidation,openPos,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-near-expiry-down,Near-expiry inventory reduction,nearExpiryExposure,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-critical-replenish,Critical SKU replenishment,criticalStockouts,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-diversify-suppliers,High-risk supplier diversification,dualSourceCoverage,PASS,true,true,PASS,sc-reconcile
+Supply Chain,sc-forecast-error-down,Consumption forecast error reduction,forecastDeviation,PASS,true,true,PASS,sc-reconcile
+Strategy,st-reallocate-nurses,Reallocate nurses across eligible units,staffingCapacityGap,PASS,true,true,PASS,st-reconcile / whatIf stWhatIf
+Strategy,st-extend-or-hours,Extend operating room hours,demandCapacityGap,PASS,true,true,PASS,st-reconcile
+Strategy,st-add-clinic-sessions,Add outpatient clinic sessions,demandCapacityGap proxy,PASS,true,true,PASS,st-reconcile
+Strategy,st-improve-diag-util,Diagnostic equipment utilization,equipmentUtilization,PASS,true,true,PASS,st-reconcile
+Strategy,st-replace-downtime-asset,Replace/upgrade high-downtime asset (CapEx),assetDowntimeExposure,PASS,true,true,PASS,st-reconcile (CapEx/OpEx/ramp labeled)
+Strategy,st-staff-constrained-sl,Increase staffing in constrained service line,staffingCapacityGap,PASS,true,true,PASS,st-reconcile
+Strategy,st-reduce-overtime,Reduce avoidable overtime,overtimeExposure,PASS,true,true,PASS,st-reconcile
+Strategy,st-supply-efficiency,Improve supply consumption efficiency,avoidableCostOpportunity,PASS,true,true,PASS,st-reconcile
+Strategy,st-expand-specialty,Expand high-demand specialty (CapEx+OpEx+ramp),incrementalContribution,PASS,true,true,PASS,st-reconcile
+Strategy,st-reallocate-vs-capital,Compare reallocation vs new capital,reallocationPotential vs CapEx,PASS,true,true,PASS,st-reconcile (alternatives not summed)
+Enterprise,ent-ed-congestion,ED Congestion → Beds → ICU/Staffing → Financial Constraints,enterprise facts (ED wait/occ/ICU gap/NPR/CM),PASS,true,true,PASS,whatIf.test.ts enterprise scenario

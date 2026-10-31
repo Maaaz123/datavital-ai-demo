@@ -16,6 +16,7 @@ import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
 import { buildStView, ST_TARGETS } from '@/core/strategyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
+import { buildEnterpriseView } from '@/core/enterpriseView';
 import { type ReportPeriod } from '@/core/period';
 import { formatWhatIfAnswer, parseWhatIfIntent, runWhatIf, type DomainName as WhatIfDomain } from './whatIf';
 
@@ -167,6 +168,28 @@ export function answerQuestion(
     }
   }
 
+  if (department === 'Enterprise') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('ent-')) {
+      const result = runWhatIf('Enterprise', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. Overlapping intervention benefits must not be summed. Approval does not mutate historical domain ledgers.', 'يلزم اعتماد إداري. لا تُجمع منافع التدخلات المتداخلة.'),
+      };
+    }
+  }
+
   if (department === 'Supply Chain') {
     const intent = parseWhatIfIntent(q);
     if (intent?.kind.startsWith('sc-')) {
@@ -262,6 +285,7 @@ export function answerQuestion(
   if (department === 'Quality & Safety') return answerQs(q, hospital, year, name, lang, period);
   if (department === 'Supply Chain') return answerSc(q, hospital, year, name, lang, period);
   if (department === 'Strategy') return answerSt(q, hospital, year, name, lang, period);
+  if (department === 'Enterprise') return answerEnterprise(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1825,7 +1849,7 @@ function answerSc(
     return pack(lang, {
       title: tx(lang, 'Outside autonomous purchasing', 'خارج الشراء الذاتي'),
       observation: tx(lang, 'Vital Assist is supply-chain operational intelligence — not an autonomous purchasing engine, formulary authority, or unsupervised safety-stock editor.', 'المساعد طبقة تشغيل إمداد وليس محرك شراء ذاتي.'),
-      evidence: tx(lang, `Observed facts for ${name}: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · days of supply ${n(view.daysOfSupply, 1)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
+      evidence: tx(lang, `Observed facts for ${name}: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · days of supply ${view.daysOfSupply == null ? 'No demand' : n(view.daysOfSupply, 1)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
       explanation: tx(lang, 'Never cut clinically critical safety stock solely for carrying cost. Every purchasing or cover change requires authorized human review.', 'لا تُخفّض مخزون الأمان السريري الحرج لمجرد التكلفة.'),
       action: tx(lang, 'Ask about availability, days of supply, fill rate, near-expiry, or dual-source coverage instead.', 'اسأل عن التوافر أو أيام التغطية أو معدل التعبئة أو قرب انتهاء الصلاحية.'),
       role: tx(lang, 'Materials management lead', 'قائد إدارة المواد'),
@@ -1836,7 +1860,7 @@ function answerSc(
   if (/days of supply|dos|available units|safety stock|stockout|inventory turnover|replenishment exception|inventory accuracy/.test(q)) {
     return pack(lang, {
       title: tx(lang, `Inventory & availability · ${name} · ${view.periodLabel}`, `المخزون والتوافر · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Observed facts: available units ${n(view.availableUnits)} · days of supply ${n(view.daysOfSupply, 1)} (usable ÷ forecast daily demand ${n(view.dailyForecastDemand, 1)}) · below safety ${n(view.belowSafety)} · critical stockouts ${n(view.criticalStockouts)} · turnover ${n(view.inventoryTurnover, 1)} · accuracy ${p(view.inventoryAccuracy)}.`, `أيام التغطية ${n(view.daysOfSupply, 1)}.`),
+      observation: tx(lang, `Observed facts: available units ${n(view.availableUnits)} · days of supply ${view.daysOfSupply == null ? 'No demand' : n(view.daysOfSupply, 1)} (usable ÷ forecast daily demand ${n(view.dailyForecastDemand, 1)}) · below safety ${n(view.belowSafety)} · critical stockouts ${n(view.criticalStockouts)} · turnover ${n(view.inventoryTurnover, 1)} · accuracy ${p(view.inventoryAccuracy)}.`, `أيام التغطية ${view.daysOfSupply == null ? 'لا طلب' : n(view.daysOfSupply, 1)}.`),
       evidence: tx(lang, `${view.methodology.dos} ${view.methodology.inventory}`, view.methodology.dos),
       explanation: tx(lang, `Potential drivers / Hypotheses (not proven): replenishment lag and below-safety cover. Modeled (illustrative): addressable stockouts ${n(view.addressableStockoutRisk)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
       action: tx(lang, 'Recommendations: review critical SKUs below safety stock and open replenishment exceptions. Never cut clinically critical safety stock solely for cost.', 'راجع مخزون الأمان واستثناءات التجديد.'),
@@ -2030,6 +2054,84 @@ function answerSt(
     action: tx(lang, 'Recommendations: open workforce, capacity, or optimization screens and compare reallocation vs capital before investment review.', 'افتح شاشات القوى العاملة أو التحسين.'),
     role: tx(lang, 'Chief strategy officer', 'رئيس الاستراتيجية'),
     benefit: tx(lang, 'Strategic coherence keeps contribution, capacity, and capital decisions auditable.', 'التماسك الاستراتيجي يبقي القرارات قابلة للتدقيق.'),
+  });
+}
+
+/** Enterprise Executive / Command Assist — grounded in shared enterprise facts only. */
+function answerEnterprise(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildEnterpriseView(hospital, year, period);
+  const n = (value: number, digits = 0) => value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const sar = (value: number) => `SAR ${n(Math.round(value))}`;
+  const f = view.facts;
+
+  if (/ed congestion|bed assignment versus|staffing uplift|what if.*(?:bed|icu|ed)/.test(q) && /(what if|interven|compar|simulat)/.test(q)) {
+    const result = runWhatIf('Enterprise', hospital, year, { kind: 'ent-ed-congestion', amount: 0.2 }, period);
+    const body = formatWhatIfAnswer(result);
+    return pack(lang, {
+      title: tx(lang, `${result.title} · ${name} · ${view.periodLabel}`, `${result.title} · ${name} · ${view.periodLabel}`),
+      observation: body.observation,
+      evidence: body.evidence,
+      explanation: body.explanation,
+      action: body.action,
+      role: body.role,
+      benefit: body.benefit,
+      outcomeOverride: body.outcome,
+    });
+  }
+
+  if (/staffing|icu gap|workforce|nurse/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Enterprise staffing scopes · ${name} · ${view.periodLabel}`, `نطاقات التوظيف المؤسسية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: ICU credentialed nurse-hour gap ${n(f.icuStaffingGapHours)} h (required ${n(f.icuRequiredHours)} − available ${n(f.icuAvailableHours)}) · enterprise Strategy gap ${n(f.enterpriseStaffingGapHours)} h (demand ${n(f.enterpriseRequiredHours)} − staffed ${n(f.enterpriseAvailableHours)}) · redeployable ${n(f.redeployableHours)} h.`, `فجوة العناية المركزة ${n(f.icuStaffingGapHours)} س.`),
+      evidence: tx(lang, 'ICU gap is credentialed critical-care nurse hours. Enterprise gap is Strategy-wide demand vs staffed available hours. Redeployable surplus ≠ automatic ICU fill without credentials.', 'النطاقان مختلفان.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): ED boarding, bed blocking, and ICU credential mix. Do not invent patient-level conclusions.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: open ICU Capacity and Strategy Workforce; compare scopes before approving roster changes.', 'افتح العناية المركزة واستراتيجية القوى العاملة.'),
+      role: tx(lang, 'COO / CNO', 'مدير العمليات / التمريض'),
+      benefit: tx(lang, 'Dual scopes prevent false zero-gap conclusions when ICU still has credentialed shortfalls.', 'النطاقان يمنعان الاستنتاج الخاطئ.'),
+    });
+  }
+
+  if (/revenue|contribution|denial|financial|profit/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Enterprise financial signals · ${name} · ${view.periodLabel}`, `الإشارات المالية المؤسسية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: Net patient revenue ${sar(f.netPatientRevenue)} (RCM) · recognized Strategy revenue ${sar(f.recognizedNetRevenue)} · operating contribution ${sar(f.operatingContribution)} · CM rate ${p(f.contributionMarginRate)} · gross denial ${p(f.grossDenialRate)}.`, `صافي إيراد المريض ${sar(f.netPatientRevenue)}.`),
+      evidence: tx(lang, 'Executive Net Revenue is RCM NPR. Strategy recognized revenue equals RCM NPR. Contribution = RCM NPR − synthetic eligible direct costs. Revenue ≠ profit.', 'الإيراد من دورة الإيرادات.'),
+      explanation: tx(lang, 'Hypotheses only: denials and capacity constraints can pressure contribution without inventing a second executive ledger.', 'فرضيات فقط.'),
+      action: tx(lang, 'Recommendations: drill to /rcm for NPR/denials and /strategy/service-lines for contribution. Do not invent executive totals.', 'راجع دورة الإيرادات والاستراتيجية.'),
+      role: tx(lang, 'CFO / CEO', 'المدير المالي / التنفيذي'),
+      benefit: tx(lang, 'Single revenue lineage keeps Executive, Strategy, and RCM coherent.', 'خط إيراد واحد يحافظ على التماسك.'),
+    });
+  }
+
+  if (/supply|stockout|quality|capa|safety|deteriorat|performance/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Enterprise operational & safety signals · ${name} · ${view.periodLabel}`, `إشارات التشغيل والسلامة · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: occupancy ${p(f.occupancy)} · ED wait ${n(f.edWaitMedianMin, 1)} min · supply availability ${p(f.supplyAvailability)} · critical stockouts ${n(f.criticalStockouts)} · validated event rate ${n(f.validatedEventRate, 1)}/1k · overdue high-risk CAPA ${n(f.overdueHighRiskActions)}.`, `التوافر ${p(f.supplyAvailability)}.`),
+      evidence: tx(lang, 'Signals are read from Beds, Emergency, Supply Chain, and Quality & Safety owners — Executive does not invent independent totals. Not a live real-time feed.', 'من المجالات المالكة.'),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): capacity pressure, supply interruptions, and overdue CAPA can co-move. Reporting ≠ validated harm.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: open the owning domain for the loudest signal; use the enterprise ED-congestion what-if only as an illustrative comparison.', 'افتح المجال المالك للإشارة الأوضح.'),
+      role: tx(lang, 'COO', 'مدير العمليات'),
+      benefit: tx(lang, 'Cross-domain grounding keeps Investigate answers tied to hospital/year/period facts.', 'الربط عبر المجالات يحمي التحقيق.'),
+    });
+  }
+
+  const top = view.priorities[0];
+  return pack(lang, {
+    title: tx(lang, `Enterprise overview · ${name} · ${view.periodLabel}`, `نظرة مؤسسية · ${name} · ${view.periodLabel}`),
+    observation: tx(lang, `Observed facts: NPR ${sar(f.netPatientRevenue)} · contribution ${sar(f.operatingContribution)} · occupancy ${p(f.occupancy)} · ED wait ${n(f.edWaitMedianMin, 1)} min · ICU gap ${n(f.icuStaffingGapHours)} h · supply availability ${p(f.supplyAvailability)}${top ? ` · top priority: ${top.issue}` : ''}.`, `صافي الإيراد ${sar(f.netPatientRevenue)}.`),
+    evidence: tx(lang, `${view.disclaimer} Signals cite source domains; no independent executive ledger.`, view.disclaimer),
+    explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): priorities are evidence-linked. What-if math is deterministic illustration — not validated predictive AI.', 'فرضيات فقط.'),
+    action: tx(lang, top?.decision ?? 'Review Executive ribbon and Command exceptions, then drill to owning domains.', top?.decision ?? 'راجع لوحة القيادة ثم المجالات المالكة.'),
+    role: tx(lang, 'CEO / COO', 'المدير التنفيذي / العمليات'),
+    benefit: tx(lang, 'Enterprise Assist preserves OBSERVE → INVESTIGATE → SIMULATE → DECIDE → MEASURE without fabricating patient-level conclusions.', 'يحافظ على مسار القرار دون اختلاق استنتاجات على مستوى المريض.'),
   });
 }
 

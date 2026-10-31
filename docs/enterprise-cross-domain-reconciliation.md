@@ -1,9 +1,10 @@
 # Enterprise Cross-Domain Reconciliation Report
 
-**BUILD_ID:** `v79-enterprise-integration`  
+**BUILD_ID:** `v80-mvp-v1-remediation` (was v79 at enterprise launch)  
 **Scope:** Domains 1–15 + Enterprise Executive / Command surfaces  
 **Rule:** Do not force totals to match when grains or populations differ. Document valid differences.  
-**Data class:** Synthetic demonstration — **Demo Available**. **Not** Production Source Verified.
+**Data class:** Synthetic demonstration — **Demo Available**. **Not** Production Source Verified.  
+**Automated matrix:** `docs/mvp-v1-remediation/cross-domain-reconciliation.csv` + `frontend/src/core/enterprise-cross-domain.test.ts` (15 mandatory pairs).
 
 ## Status legend
 

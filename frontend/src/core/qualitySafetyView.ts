@@ -179,8 +179,21 @@ function ratio(numerator: number, denominator: number): number {
   return denominator > 0 ? numerator / denominator : 0;
 }
 
+/** Incidence density per 1,000 device-days. Null when the device-day denominator is missing/zero (not a true zero rate). */
+export function incidenceDensity(events: number, deviceDays: number): number | null {
+  if (!(deviceDays > 0)) return null;
+  return (events / deviceDays) * 1000;
+}
+
+/** Procedure incidence rate. Null when the eligible procedure denominator is missing/zero. */
+export function procedureIncidence(events: number, procedures: number): number | null {
+  if (!(procedures > 0)) return null;
+  return events / procedures;
+}
+
 function density(events: number, days: number): number {
-  return days > 0 ? (events / days) * 1000 : 0;
+  const value = incidenceDensity(events, days);
+  return value == null ? 0 : value;
 }
 
 function sum(values: number[]): number {
@@ -432,10 +445,17 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   const haiCases = totals.clabsi + totals.cauti + totals.ssi + totals.cdi;
   const haiBurdenRate = density(haiCases, totals.patientDays);
   const qualityCompliance = ratio(totals.qualityNumerator, totals.qualityDenominator);
-  const clabsiRate = density(totals.clabsi, totals.centralLineDays);
-  const cautiRate = density(totals.cauti, totals.catheterDays);
-  const ssiRate = ratio(totals.ssi, totals.procedures);
+  const clabsiDeviceDaysMissing = !(totals.centralLineDays > 0);
+  const cautiDeviceDaysMissing = !(totals.catheterDays > 0);
+  const ssiProceduresMissing = !(totals.procedures > 0);
+  const clabsiRateRaw = incidenceDensity(totals.clabsi, totals.centralLineDays);
+  const cautiRateRaw = incidenceDensity(totals.cauti, totals.catheterDays);
+  const ssiRateRaw = procedureIncidence(totals.ssi, totals.procedures);
+  const clabsiRate = clabsiRateRaw == null ? 0 : clabsiRateRaw;
+  const cautiRate = cautiRateRaw == null ? 0 : cautiRateRaw;
+  const ssiRate = ssiRateRaw == null ? 0 : ssiRateRaw;
   const surveillanceCoverage = ratio(sum(raw.unitCovered), sum(raw.unitSurveillance));
+  const surveillanceIncomplete = surveillanceCoverage < 1;
   const handHygiene = ratio(totals.hhCompliant, totals.hhEligible);
   const isolationCompliance = ratio(totals.isolationCompliant, totals.isolationEligible);
   const ipAuditCompletion = ratio(totals.auditsComplete, totals.auditsScheduled);
@@ -587,7 +607,13 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     clabsiUsesDeviceDays: totals.centralLineDays > 0,
     cautiUsesDeviceDays: totals.catheterDays > 0,
     ssiUsesProcedures: totals.procedures > 0,
+    reportedGteValidated: totals.reported >= totals.validated,
+    validatedGteNearMiss: totals.validated >= totals.nearMiss,
+    validatedGteWithHarm: totals.validated >= totals.withHarm,
+    capaClosedLteDecided: totals.capaClosed <= totals.capaDecided,
+    capaEffectivenessLteClosed: totals.capaEffectiveness <= totals.capaClosed,
     sirNotFabricated: sirAvailable === false,
+    zeroDeviceDaysDoNotInventRate: clabsiDeviceDaysMissing ? clabsiRateRaw == null : true,
   };
 
   return {
@@ -627,6 +653,10 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     clabsiRate: r2(clabsiRate),
     cautiRate: r2(cautiRate),
     ssiRate,
+    clabsiDeviceDaysMissing,
+    cautiDeviceDaysMissing,
+    ssiProceduresMissing,
+    surveillanceIncomplete,
     surveillanceCoverage,
     sirAvailable,
     sirNote,
@@ -700,10 +730,10 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     methodology: {
       clinical: 'Clinical governance and operational intelligence only — not a diagnostic system, medical device, or autonomous infection-control engine. Authorized human review remains required.',
       incidents: 'Reporting volume ≠ underlying harm. Validated events are a reviewed subset of reports. Near miss ≠ harm event. The demo does not auto-classify sentinel events for regulation.',
-      infections: 'CLABSI and CAUTI use device-day denominators; SSI uses eligible procedure counts. Rates are descriptive demo surveillance — not certified NHSN rates. Official SIR is unavailable without model-based predicted infections.',
+      infections: 'CLABSI and CAUTI use device-day denominators; SSI uses eligible procedure counts. Zero device-days / missing surveillance → rate unavailable (displayed as 0 with missing flags) — not a proven zero infection rate. Rates are descriptive demo surveillance — not certified NHSN rates. Official SIR is unavailable without model-based predicted infections.',
       prevention: 'Hand-hygiene and bundle compliance use audited eligible opportunities only — not the universe of all care interactions. Process compliance does not prove infection reduction.',
       outcomes: 'Outcome rates are descriptive and not risk-adjusted quality rankings. Readmissions are same-facility only; cross-facility linkage is unavailable. Death counts do not imply avoidability.',
-      rca: 'RCA and CAPA are learning-system workflows. Approval of an action is not evidence of measured improvement or effectiveness.',
+      rca: 'RCA and CAPA lifecycle: report → investigation → root-cause review → corrective action → approval → implementation → effectiveness review → closure. Administrative closure ≠ clinical harm reduction; effectiveness review is required separately.',
       optimization: 'Eight what-if scenarios overlap and must not be summed. Modeled reductions are illustrative under assumptions — not measured results.',
       allMode: 'Hospital ALL is the exact sum of H1–H5 ledgers; rates are recomputed from summed numerators and denominators.',
     },

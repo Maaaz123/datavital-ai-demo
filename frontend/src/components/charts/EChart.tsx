@@ -41,7 +41,8 @@ function formatCategoryLabel(value: string | number): string {
       return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
     }
   }
-  if (raw.length > 22) return `${raw.slice(0, 20)}…`;
+  // Keep Supply Chain / QS category names readable on desktop; tooltips always use full labels.
+  if (raw.length > 28) return `${raw.slice(0, 26)}…`;
   return raw;
 }
 

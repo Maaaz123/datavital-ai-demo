@@ -416,11 +416,17 @@ export function ScInventoryPage() {
           limitations: 'Unit turnover — not value/usage.',
         },
         kpi_sc_days_of_supply: {
-          value: num(view.daysOfSupply, 1),
-          delta: compare(view, prior, (item) => item.daysOfSupply),
-          tone: view.daysOfSupply < 18 ? 'alert' : view.daysOfSupply < SC_TARGETS.daysOfSupply ? 'watch' : 'good',
-          scope: `${num(view.availableUnits)} usable ÷ ${num(view.dailyForecastDemand, 1)} forecast daily demand.`,
-          formula: 'Available usable ÷ forecast avg daily unit demand',
+          value: view.daysOfSupply == null ? 'No demand' : num(view.daysOfSupply, 1),
+          delta: view.daysOfSupply == null || prior.daysOfSupply == null
+            ? 'No demand'
+            : compare(view, prior, (item) => item.daysOfSupply as number),
+          tone: view.daysOfSupply == null
+            ? 'neutral'
+            : view.daysOfSupply < 18 ? 'alert' : view.daysOfSupply < SC_TARGETS.daysOfSupply ? 'watch' : 'good',
+          scope: view.daysOfSupply == null
+            ? `No forecast demand in ${view.periodLabel} — DOS undefined (units, not SAR).`
+            : `${num(view.availableUnits)} usable units ÷ ${num(view.dailyForecastDemand, 1)} forecast daily demand.`,
+          formula: 'Available usable units ÷ forecast avg daily unit demand',
           limitations: view.methodology.dos,
         },
         kpi_sc_inventory_accuracy: {
@@ -443,15 +449,20 @@ export function ScInventoryPage() {
         <h2>Snapshot vs flow discipline</h2>
         <p>
           Available units and days of supply are period-end stocks. Issued units are event flows.
-          Opening {num(view.openingAvailable)} → closing {num(view.availableUnits)} after receipts, returns, issues, and write-offs.
-          Days of Supply uses units ÷ forecast daily demand — never inventory value ÷ usage value.
+          Opening {num(view.openingAvailable)} → closing {num(view.availableUnits)} after receipts, returns, issues, quarantine, and write-offs
+          (roll-forward delta {num(view.rollForwardDelta)}). Days of Supply uses units ÷ forecast daily demand — never inventory value ÷ usage value.
+          {view.daysOfSupply == null ? ' No forecast demand — DOS shows as No demand.' : ` Period DOS ${num(view.daysOfSupply, 1)} days (elevated year-grain cover can reflect excess inventory).`}
         </p>
       </section>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Available Units by Category', view.categoryRows.map((item) => item.name), [
-            { name: 'Available', values: view.categoryRows.map((item) => item.available) },
-          ], 'units', `Categories sum to available ${num(view.availableUnits)}.`)} />
+          {view.categoryRows.every((item) => item.empty) ? (
+            <section className="gc-panel"><h2>Available Units by Category</h2><p>No category inventory in this period.</p></section>
+          ) : (
+            <Slot span={false} figure={fig('bars', 'Available Units by Category', view.categoryRows.filter((item) => !item.empty).map((item) => item.name), [
+              { name: 'Available', values: view.categoryRows.filter((item) => !item.empty).map((item) => item.available) },
+            ], 'units', `Categories sum to available ${num(view.availableUnits)}.`)} />
+          )}
         </div>
         <div className="gc-ed-pack-col">
           <Slot span={false} figure={fig('bars', 'Critical SKUs Below Safety Stock', view.categoryRows.map((item) => item.name), [
@@ -466,9 +477,13 @@ export function ScInventoryPage() {
           ], 'turns', `Period unit turnover ${num(view.inventoryTurnover, 1)}.`)} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot span={false} figure={fig('bars', 'Days of Supply by Category', view.categoryRows.map((item) => item.name), [
-            { name: 'Days', values: view.categoryRows.map((item) => item.daysOfSupply) },
-          ], 'days', `Overall days of supply ${num(view.daysOfSupply, 1)} (usable ÷ forecast daily demand).`)} />
+          {view.daysOfSupply == null || view.categoryRows.every((item) => item.daysOfSupply == null) ? (
+            <section className="gc-panel"><h2>Days of Supply by Category</h2><p>No demand — days of supply undefined (not invented).</p></section>
+          ) : (
+            <Slot span={false} figure={fig('bars', 'Days of Supply by Category', view.categoryRows.filter((item) => item.daysOfSupply != null).map((item) => item.name), [
+              { name: 'Days', values: view.categoryRows.filter((item) => item.daysOfSupply != null).map((item) => item.daysOfSupply as number) },
+            ], 'days', `Overall days of supply ${num(view.daysOfSupply, 1)} (usable units ÷ forecast daily demand).`)} />
+          )}
         </div>
       </div>
       <div className="gc-ed-pack">

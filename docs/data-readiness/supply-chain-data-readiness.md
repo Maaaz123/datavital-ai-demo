@@ -1,8 +1,9 @@
 # Supply Chain — Data Readiness
 
-**BUILD_ID:** `v77-supply-chain-domain`  
+**BUILD_ID:** `v80-mvp-v1-remediation` (was v77 at domain launch)  
 **Overall readiness:** **Demo Available / Scenario Only**  
-**Production Source Verified:** **No** — never claimed for this domain.
+**Production Source Verified:** **No** — never claimed for this domain.  
+**MVP note:** Rate bounds ≤100%, DOS units, inventory roll-forward hardened in remediation Phases 1–4.
 
 | Capability | Readiness | Evidence |
 |---|---|---|

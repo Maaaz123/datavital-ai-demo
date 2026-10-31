@@ -87,8 +87,10 @@ describe('Strategy ledger identities', () => {
       for (const period of ['year', ...QUARTERS] as ReportPeriod[]) {
         const view = buildStView(hospital, 2026, period);
         expect(stIdentityIssues(view), `${hospital} ${period}`).toEqual([]);
-        expect(view.operatingContribution).toBe(view.netRevenue - view.eligibleDirectCost);
-        expect(view.methodology.contribution).toMatch(/contribution/i);
+        expect(view.operatingContribution).toBe(view.recognizedNetRevenue - view.eligibleDirectCost);
+        expect(view.recognizedNetRevenue).toBe(view.crossDomain.rcmNetPatientRevenue);
+        expect(view.allocatedServiceLineRevenue + view.unallocatedRevenue).toBe(view.recognizedNetRevenue);
+        expect(view.methodology.contribution).toMatch(/RCM|recognized net/i);
         expect(view.methodology.contribution).toMatch(/not net profit|≠ net profit/i);
         expect(view.installedHours === undefined || view.availableOperatingHours <= view.installedHours).toBe(true);
       }

@@ -1,6 +1,7 @@
 import { SITE_SPECS, scenarioFor, type SiteCode } from '@/showcase/facts';
 import { splitExact } from './ipdView';
 import { type ReportPeriod } from './period';
+import { buildIcuView } from './icuView';
 import { buildRcmView } from './rcmView';
 import { buildScView } from './supplyChainView';
 import { buildSurgeryView } from './surgeryView';
@@ -351,8 +352,8 @@ type SiteMonth = {
   maintenanceSar: number;
   depreciationSar: number;
   eligibleProcedures: number;
-  // Financial flows (fictional SAR) — synthetic cost assumptions NOT from real ERP
-  netRevenueSar: number;
+  // Financial flows (fictional SAR) — synthetic COST assumptions ONLY (NOT from real ERP).
+  // Recognized net revenue is NOT generated here; assemble() takes RCM netPatientRevenue as authoritative.
   consumablesSar: number;
   drugsSar: number;
   facilitySar: number;
@@ -377,12 +378,14 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number): SiteMonth 
   const operationalHours = Math.round(staffedHours * (0.9 + unit(mix(seed, 4)) * 0.08));
   const downtimeHours = Math.round(operationalHours * (0.04 + unit(mix(seed, 5)) * 0.06));
   const availableHours = Math.max(1, operationalHours - downtimeHours);
-  const demandHours = Math.round(availableHours * (0.88 + unit(mix(seed, 6)) * 0.28 + pressure * 0.05));
-  const usedHours = Math.min(availableHours, Math.round(demandHours * (0.92 + unit(mix(seed, 7)) * 0.08)));
-
   const staffedAvailableHours = Math.round(staffedHours * (0.92 + unit(mix(seed, 8)) * 0.06));
+  // Enterprise-wide demand vs staffed available — pressure can push demand above staffed hours (clinically plausible).
+  // Distinct from ICU credentialed nurse-hour gap (imported from ICU domain in assemble).
+  const demandHours = Math.max(1, Math.round(staffedAvailableHours * (0.9 + unit(mix(seed, 6)) * 0.22 + pressure * 0.35)));
+  const usedHours = Math.min(availableHours, Math.round(Math.min(demandHours, availableHours) * (0.92 + unit(mix(seed, 7)) * 0.08)));
+
   const productiveHours = Math.round(staffedAvailableHours * (0.8 + unit(mix(seed, 9)) * 0.12));
-  const overtimeHours = Math.round(productiveHours * (0.05 + unit(mix(seed, 10)) * 0.08 + Math.max(0, demandHours - availableHours) * 0.002));
+  const overtimeHours = Math.round(productiveHours * (0.05 + unit(mix(seed, 10)) * 0.08 + Math.max(0, demandHours - staffedAvailableHours) * 0.002));
   const agencyHours = Math.round(Math.max(0, demandHours - staffedAvailableHours) * (0.15 + unit(mix(seed, 11)) * 0.2));
   const salaryRate = 85 + unit(mix(seed, 12)) * 25;
   const overtimeSar = Math.round(overtimeHours * salaryRate * 1.5);
@@ -395,7 +398,7 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number): SiteMonth 
   const depreciationSar = Math.round(42_000 * scale * (0.9 + unit(mix(seed, 16)) * 0.2));
   const eligibleProcedures = Math.max(1, Math.round(encounters * (0.35 + unit(mix(seed, 17)) * 0.15)));
 
-  const netRevenueSar = Math.round(encounters * (420 + unit(mix(seed, 18)) * 180) * (0.95 + pressure * 0.08));
+  // Synthetic direct/indirect cost model only — recognized revenue comes from RCM in assemble().
   const consumablesSar = Math.round(encounters * (38 + unit(mix(seed, 19)) * 22));
   const drugsSar = Math.round(admissions * (95 + unit(mix(seed, 20)) * 60));
   const facilitySar = Math.round(55_000 * scale);
@@ -410,7 +413,7 @@ function siteMonth(code: SiteCode, year: number, monthIndex: number): SiteMonth 
     installedHours, staffedHours, operationalHours, availableHours, usedHours, demandHours,
     productiveHours, staffedAvailableHours, overtimeHours, agencyHours, overtimeSar, agencySar, salarySar,
     equipAvailableHours, equipUsedHours, downtimeHours, maintenanceSar, depreciationSar, eligibleProcedures,
-    netRevenueSar, consumablesSar, drugsSar, facilitySar, utilitiesSar, sharedSar, otherDirectSar, planCostSar,
+    consumablesSar, drugsSar, facilitySar, utilitiesSar, sharedSar, otherDirectSar, planCostSar,
   };
 }
 
@@ -420,7 +423,7 @@ function emptyMonth(): SiteMonth {
     installedHours: 0, staffedHours: 0, operationalHours: 0, availableHours: 0, usedHours: 0, demandHours: 0,
     productiveHours: 0, staffedAvailableHours: 0, overtimeHours: 0, agencyHours: 0, overtimeSar: 0, agencySar: 0, salarySar: 0,
     equipAvailableHours: 0, equipUsedHours: 0, downtimeHours: 0, maintenanceSar: 0, depreciationSar: 0, eligibleProcedures: 0,
-    netRevenueSar: 0, consumablesSar: 0, drugsSar: 0, facilitySar: 0, utilitiesSar: 0, sharedSar: 0, otherDirectSar: 0, planCostSar: 0,
+    consumablesSar: 0, drugsSar: 0, facilitySar: 0, utilitiesSar: 0, sharedSar: 0, otherDirectSar: 0, planCostSar: 0,
   };
 }
 
@@ -448,7 +451,8 @@ function siteRaw(code: SiteCode, year: number, period: ReportPeriod): Raw {
 
   const eligibleDirect = totals.salarySar + totals.overtimeSar + totals.agencySar + totals.consumablesSar
     + totals.drugsSar + totals.maintenanceSar + totals.depreciationSar + totals.otherDirectSar;
-  const slRevenue = splitExact(totals.netRevenueSar, ST_SERVICE_LINES.map((_, index) => 0.85 + unit(mix(seed, 10 + index))));
+  // SL revenue placeholders — authoritative RCM NPR is allocated in assemble() to avoid inventing Strategy revenue.
+  const slRevenue = ST_SERVICE_LINES.map(() => 0);
   const slDirectCost = splitExact(eligibleDirect, ST_SERVICE_LINES.map((_, index) => 0.8 + unit(mix(seed, 30 + index))));
   const slDemand = splitExact(totals.demandHours, ST_SERVICE_LINES.map((_, index) => 0.75 + unit(mix(seed, 50 + index))));
   const slCapacity = splitExact(totals.availableHours, ST_SERVICE_LINES.map((_, index) => 0.8 + unit(mix(seed, 70 + index))));
@@ -517,14 +521,27 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   raw.months.forEach((month) => addMonth(flows, month));
   const seed = hash(`${hospital}|${year}|${period}|st-assemble`);
 
+  // Authoritative revenue lineage: RCM net patient revenue → service-line allocation → contribution.
+  // Strategy may call buildRcmView; RCM must NOT call buildStView (no circular dependency).
+  const rcm = buildRcmView(hospital, year, period);
+  const icu = buildIcuView(hospital, year, period);
+  const recognizedNetRevenue = rcm.netPatientRevenue;
+  const slRevenueWeights = ST_SERVICE_LINES.map((_, index) => 0.85 + unit(mix(seed, 10 + index)));
+  const slRevenue = splitExact(recognizedNetRevenue, slRevenueWeights);
+  const allocatedServiceLineRevenue = sum(slRevenue);
+  const unallocatedRevenue = recognizedNetRevenue - allocatedServiceLineRevenue; // 0 when splitExact fully allocates
+  raw.slRevenue = slRevenue;
+
   const eligibleDirectCost = flows.salarySar + flows.overtimeSar + flows.agencySar + flows.consumablesSar
     + flows.drugsSar + flows.maintenanceSar + flows.depreciationSar + flows.otherDirectSar;
   const totalEligibleOpCost = eligibleDirectCost + flows.facilitySar + flows.utilitiesSar + flows.sharedSar;
-  const netRevenue = flows.netRevenueSar;
-  // CM = Recognized Net Revenue − Eligible Direct Costs; zero revenue → 0 contribution (not invented)
-  const operatingContribution = netRevenue > 0 ? netRevenue - eligibleDirectCost : 0;
+  const netRevenue = recognizedNetRevenue;
+  // CM = Recognized Net Revenue (RCM NPR) − Eligible Direct Costs; zero revenue → 0 contribution (not invented)
+  const operatingContribution = recognizedNetRevenue > 0 ? recognizedNetRevenue - eligibleDirectCost : 0;
+  const contributionMarginRate = ratio(operatingContribution, recognizedNetRevenue);
+  const slCmRate = contributionMarginRate;
+  // Legacy alias kept for SAR overview charts (Operating Contribution), not a second Command KPI.
   const serviceLineCm = operatingContribution;
-  const slCmRate = ratio(operatingContribution, netRevenue);
 
   const staffingUtilization = ratio(flows.productiveHours, flows.staffedAvailableHours);
   const equipmentUtilization = ratio(flows.equipUsedHours, flows.equipAvailableHours);
@@ -535,7 +552,16 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   const capacityConstrainedSl = sum(constrainedFlags);
   const constrainedServiceLines = capacityConstrainedSl;
 
+  // Enterprise-wide Strategy staffing gap (demand hours − staffed available). Scope ≠ ICU credentialed nurse hours.
   const staffingCapacityGap = Math.max(0, flows.demandHours - flows.staffedAvailableHours);
+  const enterpriseRequiredHours = flows.demandHours;
+  const enterpriseAvailableHours = flows.staffedAvailableHours;
+  const enterpriseStaffingGapHours = staffingCapacityGap;
+  const icuRequiredHours = icu.requiredNurseHours;
+  const icuAvailableHours = icu.staffedNurseHours;
+  const icuStaffingGapHours = icu.staffingGapHours;
+  // Enterprise surplus hours are NOT automatically ICU-eligible without credentials / unit assignment.
+  const redeployableHours = Math.max(0, enterpriseAvailableHours - enterpriseRequiredHours);
   const equipmentCapacityGap = Math.max(0, Math.round(flows.demandHours * 0.55 - flows.equipAvailableHours));
   const demandCapacityGap = Math.max(0, flows.demandHours - flows.availableHours);
   const redeployableCapacity = Math.max(0, flows.availableHours - flows.usedHours);
@@ -639,10 +665,16 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   });
 
   const labels = raw.months.map((_, index) => meta.months[index].label);
-  const monthlyContribution = raw.months.map((month) => {
+  // Allocate period RCM NPR across months by encounter activity weights (no independent monthly revenue generator).
+  const monthlyRevenue = splitExact(
+    recognizedNetRevenue,
+    raw.months.map((month) => Math.max(1, month.encounters)),
+  );
+  const monthlyContribution = raw.months.map((month, index) => {
     const direct = month.salarySar + month.overtimeSar + month.agencySar + month.consumablesSar
       + month.drugsSar + month.maintenanceSar + month.depreciationSar + month.otherDirectSar;
-    return month.netRevenueSar > 0 ? month.netRevenueSar - direct : 0;
+    const monthRevenue = monthlyRevenue[index] ?? 0;
+    return monthRevenue > 0 ? monthRevenue - direct : 0;
   });
   const monthlyUtil = raw.months.map((month) => r2(ratio(month.usedHours, month.availableHours) * 100));
   const monthlyStaffUtil = raw.months.map((month) => r2(ratio(month.productiveHours, month.staffedAvailableHours) * 100));
@@ -654,7 +686,7 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   ));
 
   const serviceLineRows = ST_SERVICE_LINES.map((name, index) => {
-    const revenue = raw.slRevenue[index];
+    const revenue = slRevenue[index];
     const directCost = raw.slDirectCost[index];
     const contribution = revenue > 0 ? revenue - directCost : 0;
     const cmRate = ratio(contribution, revenue);
@@ -686,7 +718,8 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     kpi_st_operating_contribution: operatingContribution,
     kpi_st_resource_utilization_index: resourceUtilizationIndex,
     kpi_st_capacity_constrained_sl: capacityConstrainedSl,
-    kpi_st_service_line_cm: serviceLineCm,
+    // Command second KPI is CM Rate (%) — distinct from Operating Contribution (SAR).
+    kpi_st_service_line_cm: contributionMarginRate,
     kpi_st_avoidable_resource_cost: avoidableResourceCost,
     kpi_st_investment_opportunity_coverage: investmentOpportunityCoverage,
     kpi_st_productive_clinical_hours: flows.productiveHours,
@@ -734,10 +767,12 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
   };
 
   const identities = {
-    slRevenueSums: sum(raw.slRevenue) === netRevenue,
+    slRevenueSums: allocatedServiceLineRevenue === recognizedNetRevenue,
+    allocationIdentity: allocatedServiceLineRevenue + unallocatedRevenue === recognizedNetRevenue,
+    revenueMatchesRcm: recognizedNetRevenue === rcm.netPatientRevenue,
     slDirectSums: sum(raw.slDirectCost) === eligibleDirectCost,
     costCategoriesSum: sum(raw.costCategorySar) === totalEligibleOpCost,
-    cmFormula: operatingContribution === (netRevenue > 0 ? netRevenue - eligibleDirectCost : 0),
+    cmFormula: operatingContribution === (recognizedNetRevenue > 0 ? recognizedNetRevenue - eligibleDirectCost : 0),
     cmNotNetProfit: true,
     revenueNotProfit: true,
     installedGteStaffed: flows.installedHours >= flows.staffedHours,
@@ -748,6 +783,8 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     opportunitiesNonAdditive: opportunities.every((item) => item.additive === false),
     tenOpportunities: opportunities.length >= 10,
     syntheticNotErp: true,
+    icuGapMatchesIcuView: icuStaffingGapHours === icu.staffingGapHours,
+    enterpriseSurplusNotAutoIcuFill: true,
   };
 
   return {
@@ -766,6 +803,10 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     serviceLineCm,
     serviceLineContributionMarginPct: slCmRate,
     contributionMargin: operatingContribution,
+    contributionMarginRate,
+    recognizedNetRevenue,
+    allocatedServiceLineRevenue,
+    unallocatedRevenue,
     directCost: eligibleDirectCost,
     usedCapacityHours: flows.usedHours,
     monthlyUtilization: monthlyUtil,
@@ -780,6 +821,13 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     overtimeExposure: flows.overtimeSar,
     agencyStaffingCost: flows.agencySar,
     staffingCapacityGap,
+    enterpriseRequiredHours,
+    enterpriseAvailableHours,
+    enterpriseStaffingGapHours,
+    icuRequiredHours,
+    icuAvailableHours,
+    icuStaffingGapHours,
+    redeployableHours,
     workforceAllocationOpp,
     overtimeHours: flows.overtimeHours,
     agencyHours: flows.agencyHours,
@@ -813,6 +861,7 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     resourceCostIntensity,
     slMarginVariance,
     encounters: flows.encounters,
+    monthlyRevenue,
 
     totalEligibleOpCost,
     variableCostPerActivity,
@@ -851,7 +900,10 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
     kpiValues,
     identities,
     crossDomain: {
-      rcmNetPatientRevenue: buildRcmView(hospital, year, period).netPatientRevenue,
+      rcmNetPatientRevenue: rcm.netPatientRevenue,
+      icuRequiredHours,
+      icuAvailableHours,
+      icuStaffingGapHours,
       scClinicalConsumption: buildScView(hospital, year, period).clinicalConsumption,
       orStaffedHours: buildSurgeryView(hospital, year, period).staffedHours,
       orUsedHours: buildSurgeryView(hospital, year, period).usedHours,
@@ -862,18 +914,18 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
       appointmentBooked: buildAppointmentView(hospital, year, period).booked,
       staffedBeds: sum((SITE_CODES.includes(hospital as SiteCode) ? [hospital as SiteCode] : SITE_CODES).map((code) => scenarioFor(code, year).focus.staffedBeds)),
       occupiedBeds: sum((SITE_CODES.includes(hospital as SiteCode) ? [hospital as SiteCode] : SITE_CODES).map((code) => scenarioFor(code, year).focus.occupiedBeds)),
-      note: 'Strategy references domain facts as inputs only — primary KPI ownership remains with source domains.',
+      note: 'Strategy references domain facts as inputs only — primary KPI ownership remains with source domains. Recognized net revenue = RCM NPR. ICU staffing gap is ICU-owned; enterprise surplus ≠ automatic ICU fill.',
     },
     methodology: {
       clinical: 'Strategy owns resource, profitability, and expansion intelligence. It reads operational facts from prior domains as inputs and does not recreate separate bed/OR/appointment primary ownership totals.',
-      contribution: 'Contribution Margin = Recognized Net Revenue − Eligible Direct Costs. Revenue ≠ profit. CM ≠ net profit. Zero revenue yields zero contribution — never invent profit. Fully allocated margin is not claimed where overhead allocation is unsupported.',
+      contribution: 'Revenue lineage: RCM recognized net patient revenue (NPR) → deterministic service-line allocation (splitExact) → Contribution Margin = recognized NPR − eligible direct costs. Revenue ≠ profit. CM ≠ net profit. Zero revenue yields zero contribution — never invent profit. Fully allocated margin is not claimed where overhead allocation is unsupported. Modeled opportunities are illustrative.',
       capacity: 'Installed ≠ staffed ≠ operational ≠ available ≠ used capacity. Effective capacity is available after staffing, equipment readiness, and schedule constraints.',
-      cost: 'Cost categories: salaries, overtime, agency, consumables, drugs, maintenance, depreciation, facility, utilities, shared services, other direct. Direct vs indirect and fixed vs variable are documented per category. Synthetic cost assumptions are NOT from a real ERP.',
-      workforce: 'Staffed available hours ≠ roster headcount. Productive hours exclude non-productive paid time. Overtime and agency are distinct direct cost ledgers.',
+      cost: 'Cost categories: salaries, overtime, agency, consumables, drugs, maintenance, depreciation, facility, utilities, shared services, other direct. Direct vs indirect and fixed vs variable are documented per category. Synthetic cost assumptions are NOT from a real ERP and are independent of RCM revenue. Strategy consumables/drugs are a synthetic cost ledger — not a second sum of Supply Chain clinical consumption units (SC units are referenced as cross-domain input only; staff costs are Strategy-owned and not re-summed from ICU FTE).',
+      workforce: 'Staffed available hours ≠ roster headcount. Productive hours exclude non-productive paid time. Overtime and agency are distinct direct cost ledgers. kpi_st_staffing_capacity_gap is enterprise-wide demand vs staffed available hours — distinct from ICU credentialed nurse-hour gap. Enterprise redeployable surplus is not automatically ICU-eligible without credentials.',
       equipment: 'Available operating hours exclude downtime and unstaffed slots. Equipment utilization = used ÷ available (not installed calendar hours).',
-      expansion: 'CapEx/OpEx/ramp/revenue assumptions are illustrative. Investment outcomes are not claimed as achieved.',
-      optimization: 'Ten what-if scenarios overlap and must not be summed. Reallocation vs CapEx for the same bottleneck are alternatives. AI does not approve CapEx, change rosters, or reallocate staff alone.',
-      allMode: 'Hospital ALL sums H1–H5 flows; rates and CM are recomputed from summed numerators and denominators.',
+      expansion: 'CapEx/OpEx/ramp/revenue assumptions are illustrative modeled opportunities — not claimed as achieved investment outcomes.',
+      optimization: 'Ten what-if scenarios are illustrative, overlap, and must not be summed. Reallocation vs CapEx for the same bottleneck are alternatives. AI does not approve CapEx, change rosters, or reallocate staff alone.',
+      allMode: 'Hospital ALL sums H1–H5 flows; rates and CM are recomputed from summed numerators and denominators. Recognized revenue follows RCM ALL NPR.',
     },
   };
 }
