@@ -34,9 +34,9 @@ describe('enterprise UX acceptance', () => {
       }
     };
     walk(routes as Array<{ path?: string; children?: unknown[] }>);
-    expect(paths).toContain('/command-center');
+    // CoreApp children use relative segments; aliases redirect /dashboard → /executive and /command-center → /command
+    expect(paths).toEqual(expect.arrayContaining(['command-center', 'command', 'executive', 'dashboard']));
     expect(paths).toContain('/demo');
-    expect(paths).toContain('/dashboard');
     expect(paths).toContain('/copilot');
   });
 

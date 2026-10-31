@@ -49,8 +49,8 @@ describe('emergency and beds domains', () => {
     expect(screen.getByRole('button', { name: 'Appointments domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Surgery domain' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Radiology domain' })).toBeInTheDocument();
-    expect(NAV_DOMAINS).toHaveLength(12);
-    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(56);
+    expect(NAV_DOMAINS).toHaveLength(16);
+    expect(NAV_DOMAINS.reduce((sum, domain) => sum + domain.screens.length, 0)).toBe(80);
     expect(document.querySelectorAll('[data-chart-state="ok"]').length).toBeGreaterThanOrEqual(4);
     expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Vital Assist' })).toBeInTheDocument();
@@ -136,8 +136,12 @@ describe('emergency and beds domains', () => {
     expect(screen.getByText(/Decision: approved/i)).toBeInTheDocument();
   });
 
-  it('sends legacy public routes back to Emergency Snapshot', () => {
-    for (const path of ['/dashboard', '/story/pharmacy', '/board/pharmacy/medication-flow', '/kpis', '/present', '/intelligence', '/emergency/ai']) {
+  it('routes legacy aliases to enterprise or Emergency Snapshot', () => {
+    renderAt('/dashboard');
+    expect(screen.getByRole('heading', { level: 1, name: 'Executive Dashboard' })).toBeInTheDocument();
+    renderAt('/command-center');
+    expect(screen.getByRole('heading', { level: 1, name: 'Hospital Command Center' })).toBeInTheDocument();
+    for (const path of ['/story/pharmacy', '/board/pharmacy/medication-flow', '/kpis', '/present', '/intelligence', '/emergency/ai']) {
       const view = renderAt(path);
       expect(screen.getByRole('heading', { level: 1, name: 'Emergency Snapshot' }), path).toBeInTheDocument();
       expect(screen.queryByText(/Medication orders/i)).not.toBeInTheDocument();

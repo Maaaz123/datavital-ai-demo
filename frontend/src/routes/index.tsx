@@ -48,9 +48,10 @@ import {
   StServiceLinesPage,
   StWorkforcePage,
 } from '@/core/strategy';
+import { ExecutiveDashboardPage, HospitalCommandPage } from '@/core/enterprise';
 
 const LEGACY = [
-  '/login', '/dashboard', '/command-center', '/demo', '/copilot',
+  '/login', '/demo', '/copilot',
   '/workforce', '/diagnoses', '/patients', '/alerts', '/settings',
   '/ai/bed-forecast', '/ai/emergency-intelligence', '/ai/appointment-optimizer', '/ai/claim-prevention',
   '/ai/data-quality-agent', '/ai/insights', '/data-quality', '/pipelines', '/orchestration', '/future',
@@ -66,6 +67,10 @@ export const routes = [
     element: <CoreApp />,
     children: [
       { index: true, element: <OverviewPage /> },
+      { path: 'executive', element: <ExecutiveDashboardPage /> },
+      { path: 'command', element: <HospitalCommandPage /> },
+      { path: 'dashboard', element: <Navigate to="/executive" replace /> },
+      { path: 'command-center', element: <Navigate to="/command" replace /> },
       { path: 'emergency', element: <Navigate to="/" replace /> },
       { path: 'emergency/flow', element: <FlowPage /> },
       { path: 'emergency/quality', element: <QualityPage /> },

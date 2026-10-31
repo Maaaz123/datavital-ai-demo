@@ -81,7 +81,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
-type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain' | 'Strategy';
+type DomainName = 'Enterprise' | 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain' | 'Strategy';
 
 function domainCount(
   hospital: string,
@@ -90,15 +90,22 @@ function domainCount(
   statuses: Record<string, AlertStatus>,
   period: import('./period').ReportPeriod = 'year',
 ): number {
-  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' || department === 'Strategy' ? period : 'year';
+  const usePeriod = department === 'Enterprise' || department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' || department === 'Strategy' ? period : 'year';
   return alertsFor(hospital, year, usePeriod).filter((alert) => {
-    if (alert.department !== department || alert.severity === 'info') return false;
+    if (alert.severity === 'info') return false;
+    if (department !== 'Enterprise' && alert.department !== department) return false;
     const status = statuses[alert.id] ?? 'new';
     return status !== 'resolved' && status !== 'dismissed';
   }).length;
 }
 
-function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience' | 'rcm' | 'quality' | 'supply-chain' | 'strategy'; department: DomainName; page: string; askScope: string } {
+function domainFromPath(path: string): { screenId: 'executive' | 'command' | 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience' | 'rcm' | 'quality' | 'supply-chain' | 'strategy'; department: DomainName; page: string; askScope: string } {
+  if (path === '/executive' || path.startsWith('/executive/')) {
+    return { screenId: 'executive', department: 'Enterprise', page: 'Executive Dashboard', askScope: 'Enterprise Executive' };
+  }
+  if (path === '/command' || path.startsWith('/command/')) {
+    return { screenId: 'command', department: 'Enterprise', page: 'Hospital Command Center', askScope: 'Enterprise Operations' };
+  }
   if (path.startsWith('/beds')) {
     const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
       : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
@@ -303,7 +310,8 @@ export function CopilotPanel() {
           </span>
           <div>
             <p className="gc-kicker">
-              {domain.department === 'Beds' ? 'Beds & capacity decision support'
+              {domain.department === 'Enterprise' ? 'Enterprise Decision Support'
+                : domain.department === 'Beds' ? 'Beds & capacity decision support'
                 : domain.department === 'Inpatient' ? 'Inpatient care decision support'
                   : domain.department === 'Outpatient' ? 'Outpatient decision support'
                     : domain.department === 'Appointments' ? 'Appointments & Scheduling Decision Support'
@@ -449,22 +457,30 @@ function Investigate({ alert, status }: { alert: DemoAlert | null; status: Alert
   );
 }
 
+function whatIfDomainFor(department: DomainName, alert: DemoAlert | null): WhatIfDomain {
+  if (department !== 'Enterprise') return department as WhatIfDomain;
+  const fromAlert = alert?.department as WhatIfDomain | undefined;
+  if (fromAlert && fromAlert in WHAT_IF_PROMPTS) return fromAlert;
+  return 'Emergency';
+}
+
 function Prediction({ alert, department }: { alert: DemoAlert | null; department: DomainName }) {
   const store = useShowcase();
   const { period } = usePeriod();
   const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
-  const options = WHAT_IF_PROMPTS[department];
+  const whatIfDomain = whatIfDomainFor(department, alert);
+  const options = WHAT_IF_PROMPTS[whatIfDomain];
   const [selected, setSelected] = useState(options[0]);
   useEffect(() => {
-    setSelected(WHAT_IF_PROMPTS[department][0]);
-  }, [department]);
+    setSelected(WHAT_IF_PROMPTS[whatIfDomain][0]);
+  }, [whatIfDomain]);
   const fromPrompt = useMemo(
-    () => answerQuestion(selected, store.hospital, store.year, department, 'en', period),
-    [department, period, selected, store.hospital, store.year],
+    () => answerQuestion(selected, store.hospital, store.year, whatIfDomain, 'en', period),
+    [whatIfDomain, period, selected, store.hospital, store.year],
   );
   const fallback = useMemo(
-    () => runWhatIf(department as WhatIfDomain, store.hospital, store.year, null, period),
-    [department, period, store.hospital, store.year],
+    () => runWhatIf(whatIfDomain, store.hospital, store.year, null, period),
+    [whatIfDomain, period, store.hospital, store.year],
   );
   const lines = [fromPrompt.observation, fromPrompt.evidence, fromPrompt.explanation, fromPrompt.action, fromPrompt.outcome];
 
@@ -472,7 +488,7 @@ function Prediction({ alert, department }: { alert: DemoAlert | null; department
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
         <h3>What-if scenarios</h3>
-        <p>Illustrative only for {store.hospital} · {periodLabel} · {department}. Not a validated forecast.</p>
+        <p>Illustrative only for {store.hospital} · {periodLabel} · {whatIfDomain}{department === 'Enterprise' ? ' (from selected alert)' : ''}. Not a validated forecast.</p>
         <div className="gc-inline" style={{ flexWrap: 'wrap', marginTop: 8 }}>
           {options.map((option) => (
             <button
@@ -514,9 +530,10 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
   const { period } = usePeriod();
   const copilot = useCopilot();
   if (!alert) return <section className="gc-assist-card"><p>No recommendation is selected.</p></section>;
+  const whatIfDomain = whatIfDomainFor(department, alert);
   const key = decisionKey(alert.kpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
-  const sketch = runWhatIf(department as WhatIfDomain, store.hospital, store.year, null, period);
+  const sketch = runWhatIf(whatIfDomain, store.hospital, store.year, null, period);
   return (
     <article className="gc-assist-stack">
       <section className="gc-assist-card">
@@ -532,7 +549,7 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
         <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
         <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : department === 'Patient Experience' ? ' AI does not close complaints or change clinical care alone.' : department === 'Revenue Cycle' ? ' AI does not submit claims or write off balances alone.' : department === 'Quality & Safety' ? ' AI does not diagnose, order isolation, or close CAPA alone.' : department === 'Supply Chain' ? ' AI does not place purchase orders, change safety stock, or approve suppliers alone.' : department === 'Strategy' ? ' AI does not approve CapEx, change rosters, or reallocate staff alone.' : ''}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Enterprise' ? ' AI does not approve hospital-wide actions alone — open the owning domain for governed decisions.' : department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : department === 'Patient Experience' ? ' AI does not close complaints or change clinical care alone.' : department === 'Revenue Cycle' ? ' AI does not submit claims or write off balances alone.' : department === 'Quality & Safety' ? ' AI does not diagnose, order isolation, or close CAPA alone.' : department === 'Supply Chain' ? ' AI does not place purchase orders, change safety stock, or approve suppliers alone.' : department === 'Strategy' ? ' AI does not approve CapEx, change rosters, or reallocate staff alone.' : ''}</p>
       </section>
       <div className="gc-inline">
         {mode === 'decide' ? null : (
@@ -550,7 +567,8 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const store = useShowcase();
   const [step, setStep] = useState(0);
   const lead = alert;
-  const defaultKpi = department === 'Beds' ? 'kpi_bed_occupancy_rate'
+  const defaultKpi = department === 'Enterprise' ? 'kpi_bed_occupancy_rate'
+    : department === 'Beds' ? 'kpi_bed_occupancy_rate'
     : department === 'Inpatient' ? 'kpi_inpatient_median_los_days'
       : department === 'Outpatient' ? 'kpi_outpatient_median_wait_minutes'
         : department === 'Appointments' ? 'kpi_appointment_no_show_rate'
@@ -567,6 +585,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                   : 'kpi_ed_door_to_provider_median_minutes';
   const key = decisionKey(lead?.kpi ?? defaultKpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
+  const enterprise = department === 'Enterprise';
   const beds = department === 'Beds';
   const ipd = department === 'Inpatient';
   const opd = department === 'Outpatient';
@@ -581,7 +600,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const qs = department === 'Quality & Safety';
   const sc = department === 'Supply Chain';
   const st = department === 'Strategy';
-  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : px ? 'patient-experience' : rcm ? 'revenue-cycle' : qs ? 'quality' : sc ? 'supply-chain' : st ? 'strategy' : 'emergency';
+  const signal = enterprise ? 'enterprise' : beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : px ? 'patient-experience' : rcm ? 'revenue-cycle' : qs ? 'quality' : sc ? 'supply-chain' : st ? 'strategy' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
       : opd ? 'Median clinic arrival-to-provider · selected hospital and year'
@@ -1051,7 +1070,14 @@ function Ask({ label, department, askScope, page }: { label: string; department:
     setDraft('');
     setTyping(true);
     window.setTimeout(() => {
-      const answer = answerQuestion(text, store.hospital, store.year, department, store.lang, period);
+      const answer = answerQuestion(
+        text,
+        store.hospital,
+        store.year,
+        department === 'Enterprise' ? 'Emergency' : department,
+        store.lang,
+        period,
+      );
       setMessages((prev) => [...prev, {
         id: `a-${Date.now()}`,
         role: 'assistant',

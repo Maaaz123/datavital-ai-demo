@@ -43,8 +43,8 @@ describe('Surgery final acceptance', () => {
       '/surgery/quality',
       '/surgery/optimization',
     ]);
-    expect(NAV_DOMAINS).toHaveLength(12);
-    expect(NAV_DOMAINS.reduce((sum, item) => sum + item.screens.length, 0)).toBe(56);
+    expect(NAV_DOMAINS).toHaveLength(16);
+    expect(NAV_DOMAINS.reduce((sum, item) => sum + item.screens.length, 0)).toBe(80);
   });
 
   it('enforces unique primary KPI ownership across Surgery screens', () => {

@@ -1111,7 +1111,22 @@ button.gc-assist-alert:hover { transform: translateY(-2px); box-shadow: 0 10px 2
 .gc-assist-steps strong { font-family: var(--display); font-size: 0.82rem; }
 .gc-assist-steps span { color: #4b5563; font-size: 0.84rem; line-height: 1.4; }
 .gc-alert-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.gc-alert-list button { font: inherit; text-align: start; background: transparent; border: 0; color: var(--ink); cursor: pointer; padding: 0; }
+.gc-alert-list button,
+.gc-alert-list a.gc-alert-link {
+  font: inherit;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  display: grid;
+  gap: 4px;
+}
+.gc-alert-list a.gc-alert-link strong { display: block; }
+.gc-alert-list a.gc-alert-link em { color: #6b7280; font-style: normal; font-size: 0.84rem; }
+.gc-ribbon-inline { flex-wrap: wrap; }
 .gc-sev {
   display: inline-flex;
   align-items: center;

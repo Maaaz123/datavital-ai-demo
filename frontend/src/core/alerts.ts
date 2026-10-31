@@ -1789,6 +1789,8 @@ const RULES: Rule[] = [
 ];
 
 const SCREEN_DEPARTMENT: Record<string, string> = {
+  executive: 'Enterprise',
+  command: 'Enterprise',
   emergency: 'Emergency',
   stability: 'Emergency',
   beds: 'Beds',
@@ -1949,15 +1951,19 @@ export function visibleAlerts(
   period: ReportPeriod = 'year',
 ): { alerts: DemoAlert[]; note: string } {
   const scopedDept = screenDepartment(screenId);
-  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' || scopedDept === 'Supply Chain' || scopedDept === 'Strategy' ? period : 'year';
+  const usePeriod = scopedDept === 'Enterprise' || scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' || scopedDept === 'Supply Chain' || scopedDept === 'Strategy' ? period : 'year';
   const all = alertsFor(hospital, year, usePeriod);
   const scoped = scopedDept;
   const scopeNote = usePeriod === 'year'
     ? `this hospital and year`
     : `this hospital and ${periodLabel(year, usePeriod)}`;
-  if (scoped === 'all') {
-    const alerts = department === 'All' ? all : all.filter((alert) => alert.department === department);
-    const note = department === 'All' ? '' : `Service scope is ${department}. Alerts are limited to that service for ${scopeNote}.`;
+  if (scoped === 'all' || scoped === 'Enterprise') {
+    const alerts = department === 'All' || scoped === 'Enterprise'
+      ? all.filter((alert) => alert.severity !== 'info')
+      : all.filter((alert) => alert.department === department);
+    const note = scoped === 'Enterprise'
+      ? `Enterprise workspace shows cross-domain open alerts for ${scopeNote}. Drill into the owning domain for full charts.`
+      : department === 'All' ? '' : `Service scope is ${department}. Alerts are limited to that service for ${scopeNote}.`;
     return { alerts, note };
   }
   const note = department !== 'All' && department !== scoped
@@ -1983,6 +1989,8 @@ export function badgeCount(
 }
 
 export function screenFromPath(path: string): string | null {
+  if (path === '/executive' || path.startsWith('/executive/')) return 'executive';
+  if (path === '/command' || path.startsWith('/command/')) return 'command';
   if (path.startsWith('/beds')) return 'beds';
   if (path.startsWith('/inpatient')) return 'inpatient';
   if (path.startsWith('/outpatient')) return 'outpatient';
