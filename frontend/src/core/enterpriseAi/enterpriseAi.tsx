@@ -126,11 +126,11 @@ function PageShell({
 
 function SecondaryNav() {
   return (
-    <nav className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }} data-testid="enterprise-ai-subnav">
+    <nav className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }} data-testid="enterprise-ai-subnav">
       <Link to="/enterprise-ai" className="gc-btn">Investigate</Link>
       <Link to="/enterprise-ai/investigations" className="gc-text-btn">Investigations</Link>
-      <Link to="/enterprise-ai/forecasting" className="gc-text-btn">Forecasting</Link>
-      <Link to="/enterprise-ai/optimization" className="gc-text-btn">Optimization</Link>
+      <Link to="/enterprise-ai/forecasting" className="gc-text-btn">Forecast</Link>
+      <Link to="/enterprise-ai/optimization" className="gc-text-btn">Optimize</Link>
       <Link to="/enterprise-ai/decisions" className="gc-text-btn">Decisions</Link>
       <Link to="/enterprise-ai/governance" className="gc-text-btn">Governance</Link>
     </nav>
@@ -291,11 +291,11 @@ export function EnterpriseAiPage() {
     <PageShell kicker="Enterprise AI · Decision Intelligence" title="Ask DataVital AI" testId="enterprise-ai-page">
       <SecondaryNav />
 
-      <p className="gc-panel gc-fit" data-testid="enterprise-ai-mode" style={{ marginBottom: 12 }}>
+      <p className="gc-panel gc-fit" data-testid="enterprise-ai-mode" style={{ marginBottom: 8 }}>
         Analysis Mode: {mode.label} · illustrative hospital demo data — not an unrestricted live LLM.
       </p>
 
-      <section className="gc-panel span-12" data-testid="enterprise-ai-role" style={{ marginBottom: 12 }}>
+      <section className="gc-panel span-12" data-testid="enterprise-ai-role" style={{ marginBottom: 8 }}>
         <label className="gc-fit">
           <span className="gc-kicker">Executive role (presentation only)</span>
           <select
@@ -306,20 +306,19 @@ export function EnterpriseAiPage() {
             {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
         </label>
-        <p className="gc-fit">{emphasis.note} No fake authentication.</p>
+        <p className="gc-fit">{emphasis.note}</p>
       </section>
 
       <section className="gc-panel span-12" data-testid="enterprise-ai-composer">
         <h2>Ask DataVital AI</h2>
-        <p>Analysis Mode: {mode.label}</p>
-        <form onSubmit={onSubmit} style={{ display: 'grid', gap: 8 }}>
+        <form onSubmit={onSubmit} style={{ display: 'grid', gap: 6 }}>
           <label className="gc-fit">
             <span className="gc-kicker">Management question</span>
             <textarea
               data-testid="enterprise-ai-query"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              rows={3}
+              rows={2}
               style={{ width: '100%' }}
             />
           </label>
@@ -340,7 +339,7 @@ export function EnterpriseAiPage() {
             </button>
           </div>
         </form>
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 6 }}>
           <p className="gc-kicker">Suggestions</p>
           <ul className="gc-alert-list" data-testid="enterprise-ai-suggestions">
             {SUGGESTIONS.map((item) => (
@@ -353,7 +352,7 @@ export function EnterpriseAiPage() {
           </ul>
         </div>
         {history.length > 0 && (
-          <div style={{ marginTop: 8 }} data-testid="enterprise-ai-history">
+          <div style={{ marginTop: 6 }} data-testid="enterprise-ai-history">
             <p className="gc-kicker">History (demo session)</p>
             <ul className="gc-alert-list">
               {history.map((item) => (
@@ -379,7 +378,6 @@ export function EnterpriseAiPage() {
               <div data-testid="enterprise-ai-section-A" style={{ opacity: emphasized.has('A_executiveSummary') ? 1 : 0.72 }}>
                 <h3>A. Executive Summary</h3>
                 <p data-testid="enterprise-ai-answer">{executive.A_executiveSummary}</p>
-                <p className="gc-fit">{executive.modeDisclosure}</p>
               </div>
               <div data-testid="enterprise-ai-section-B" style={{ opacity: emphasized.has('B_riskAssessment') ? 1 : 0.72 }}>
                 <h3>B. Risk Assessment</h3>
@@ -476,7 +474,7 @@ export function EnterpriseAiPage() {
 
         <section className="gc-panel span-12" data-testid="enterprise-ai-evidence" style={{ display: showEvidence || answer ? undefined : undefined }}>
           <h2>Supporting Evidence</h2>
-          <p>Metric cards aligned to the current investigation focus (recalculated with hospital / period filters).</p>
+          <p>Focus-aligned metric cards (recalculated with hospital / period filters).</p>
           <div className="gc-exception-list">
             {lineage.map((m) => {
               const value = resolveMetric(m.id, { hospital: store.hospital, year: store.year, period });
@@ -514,15 +512,12 @@ export function EnterpriseAiPage() {
 
         <section className="gc-panel span-12" data-testid="enterprise-ai-simulation">
           <h2>Compare Improvement Options</h2>
-          <p>
-            Interventions are illustrative what-ifs. Overlapping benefits are not summed.
-            Preferred constraint: no additional staffing cost when requested.
-          </p>
-          <Link to="/enterprise-ai/optimization" className="gc-btn">Open constrained optimization</Link>
+          <p>Illustrative what-ifs — overlapping benefits are not summed.</p>
+          <Link to="/enterprise-ai/optimization" className="gc-btn">Open Optimize</Link>
         </section>
 
         <section className="gc-panel span-12" data-testid="enterprise-ai-decision-panel">
-          <h2>Recommended Management Action — human review</h2>
+          <h2>Recommended Management Action</h2>
           <p>{decisionStorageMeta().note}</p>
           {activeDecision ? (
             <div className="gc-exception" data-testid="enterprise-ai-active-decision">

@@ -53,27 +53,6 @@ export const NAV_DOMAINS: NavDomain[] = [
         glyph: 'eai',
       },
       {
-        to: '/enterprise-ai/investigations',
-        short: 'Investigations',
-        title: 'Enterprise AI Investigations',
-        purpose: 'Structured RCA with driver evidence statuses',
-        glyph: 'eai-inv',
-      },
-      {
-        to: '/enterprise-ai/forecasting',
-        short: 'Forecast',
-        title: 'Enterprise AI Forecasting',
-        purpose: 'Seasonal naive / MA on operational monthly series',
-        glyph: 'eai-fc',
-      },
-      {
-        to: '/enterprise-ai/optimization',
-        short: 'Optimize',
-        title: 'Enterprise AI Optimization',
-        purpose: 'Constrained intervention comparison',
-        glyph: 'eai-opt',
-      },
-      {
         to: '/enterprise-ai/decisions',
         short: 'Decisions',
         title: 'Enterprise AI Decisions',
