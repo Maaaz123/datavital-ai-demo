@@ -81,7 +81,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ask', label: 'Ask' },
 ];
 
-type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety';
+type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain';
 
 function domainCount(
   hospital: string,
@@ -90,7 +90,7 @@ function domainCount(
   statuses: Record<string, AlertStatus>,
   period: import('./period').ReportPeriod = 'year',
 ): number {
-  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' ? period : 'year';
+  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' ? period : 'year';
   return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (alert.department !== department || alert.severity === 'info') return false;
     const status = statuses[alert.id] ?? 'new';
@@ -98,7 +98,7 @@ function domainCount(
   }).length;
 }
 
-function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience' | 'rcm' | 'quality'; department: DomainName; page: string; askScope: string } {
+function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpatient' | 'outpatient' | 'appointments' | 'surgery' | 'radiology' | 'laboratory' | 'pharmacy' | 'icu' | 'patient-experience' | 'rcm' | 'quality' | 'supply-chain'; department: DomainName; page: string; askScope: string } {
   if (path.startsWith('/beds')) {
     const page = path.startsWith('/beds/placement') ? 'Bed Assignment'
       : path.startsWith('/beds/capacity') ? 'Bed Capacity Outlook'
@@ -194,6 +194,16 @@ function domainFromPath(path: string): { screenId: 'emergency' | 'beds' | 'inpat
               : path.startsWith('/quality/optimization') ? 'Quality & Safety Optimization & What-If'
                 : 'Quality & Safety Command Center';
     return { screenId: 'quality', department: 'Quality & Safety', page, askScope: 'Quality & Safety' };
+  }
+  if (path === '/supply-chain' || path.startsWith('/supply-chain/')) {
+    const page = path.startsWith('/supply-chain/inventory') ? 'Inventory & Stock Availability'
+      : path.startsWith('/supply-chain/procurement') ? 'Procurement & Purchase Orders'
+        : path.startsWith('/supply-chain/suppliers') ? 'Supplier Performance & Contracts'
+          : path.startsWith('/supply-chain/consumption') ? 'Clinical Supply Consumption'
+            : path.startsWith('/supply-chain/waste') ? 'Waste, Expiry & Financial Exposure'
+              : path.startsWith('/supply-chain/optimization') ? 'Supply Optimization & What-If'
+                : 'Supply Chain Command Center';
+    return { screenId: 'supply-chain', department: 'Supply Chain', page, askScope: 'Supply Chain' };
   }
   const page = path.startsWith('/emergency/flow') ? 'Waiting & Patient Flow'
     : path.startsWith('/emergency/quality') ? 'Safety & Return Visits'
@@ -294,6 +304,7 @@ export function CopilotPanel() {
                                 : domain.department === 'Patient Experience' ? 'Patient Experience Decision Support'
                                   : domain.department === 'Revenue Cycle' ? 'Revenue Cycle Decision Support'
                                     : domain.department === 'Quality & Safety' ? 'Quality & Safety Decision Support'
+                                      : domain.department === 'Supply Chain' ? 'Supply Chain Decision Support'
                               : 'Emergency decision support'}
             </p>
             <h2 id={titleId}>{ASSIST_NAME.en}</h2>
@@ -509,7 +520,7 @@ function Actions({ alert, mode, department }: { alert: DemoAlert | null; mode: '
         <p><strong>Responsible role:</strong> {alert.owner}</p>
         <p><strong>Approval status:</strong> {decision ?? 'waiting for a person'}</p>
         <p><strong>Follow-up KPI:</strong> {alert.followUp}</p>
-        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : department === 'Patient Experience' ? ' AI does not close complaints or change clinical care alone.' : department === 'Revenue Cycle' ? ' AI does not submit claims or write off balances alone.' : department === 'Quality & Safety' ? ' AI does not diagnose, order isolation, or close CAPA alone.' : ''}</p>
+        <p><strong>Review:</strong> after the next peak or reporting checkpoint in {alert.period}. Approval is not measured improvement.{department === 'Beds' || department === 'Inpatient' ? ' AI does not move or discharge a patient alone.' : department === 'Outpatient' || department === 'Appointments' ? ' AI does not change clinic schedules alone.' : department === 'Surgery' ? ' AI does not change theatre schedules alone.' : department === 'Radiology' ? ' AI does not change imaging schedules alone.' : department === 'Laboratory' ? ' AI does not change laboratory schedules alone.' : department === 'Pharmacy' ? ' AI does not change pharmacy schedules alone.' : department === 'ICU' ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : department === 'Patient Experience' ? ' AI does not close complaints or change clinical care alone.' : department === 'Revenue Cycle' ? ' AI does not submit claims or write off balances alone.' : department === 'Quality & Safety' ? ' AI does not diagnose, order isolation, or close CAPA alone.' : department === 'Supply Chain' ? ' AI does not place purchase orders, change safety stock, or approve suppliers alone.' : ''}</p>
       </section>
       <div className="gc-inline">
         {mode === 'decide' ? null : (
@@ -539,6 +550,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                     : department === 'Patient Experience' ? 'kpi_px_overall_satisfaction'
                       : department === 'Revenue Cycle' ? 'kpi_rcm_net_collection_rate'
                         : department === 'Quality & Safety' ? 'kpi_qs_validated_event_rate'
+                          : department === 'Supply Chain' ? 'kpi_sc_supply_availability_rate'
                   : 'kpi_ed_door_to_provider_median_minutes';
   const key = decisionKey(lead?.kpi ?? defaultKpi, store.hospital, store.year, department);
   const decision = store.approvals[key];
@@ -554,7 +566,8 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
   const px = department === 'Patient Experience';
   const rcm = department === 'Revenue Cycle';
   const qs = department === 'Quality & Safety';
-  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : px ? 'patient-experience' : rcm ? 'revenue-cycle' : qs ? 'quality' : 'emergency';
+  const sc = department === 'Supply Chain';
+  const signal = beds ? 'bed-capacity' : ipd ? 'inpatient' : opd ? 'outpatient' : appt ? 'appointments' : surg ? 'surgery' : rad ? 'radiology' : lab ? 'laboratory' : rx ? 'pharmacy' : icu ? 'icu' : px ? 'patient-experience' : rcm ? 'revenue-cycle' : qs ? 'quality' : sc ? 'supply-chain' : 'emergency';
   const fallbackTitle = beds ? 'Operational bed occupancy · selected hospital and year'
     : ipd ? 'Median inpatient stay · selected hospital and year'
       : opd ? 'Median clinic arrival-to-provider · selected hospital and year'
@@ -567,6 +580,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                     : px ? 'Overall patient experience score · selected hospital and year'
                       : rcm ? 'Net collection rate · selected hospital and year'
                         : qs ? 'Validated safety event rate · selected hospital and year'
+                          : sc ? 'Supply availability rate · selected hospital and year'
                     : 'Door-to-provider time · selected hospital and year';
   const boxTone = decision === 'approved' ? 'is-good' : decision === 'rejected' ? 'is-alert' : 'is-watch';
   return (
@@ -592,7 +606,7 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
         ) : null}
         {step === 1 ? (
           <p>
-            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : rad ? 'Imaging backlog and scanner delays reduce diagnostic access.' : lab ? 'Testing backlog and analyzer delays reduce laboratory throughput.' : rx ? 'Verification backlog, stockouts, and rework slow medication dispensing.' : icu ? 'ICU admission delays and staffed capacity affect critical-care flow.' : px ? 'Satisfaction, complaints, and recovery backlog affect patient experience.' : rcm ? 'Denials, aged AR, and capture gaps delay cash and put recognized revenue at risk.' : qs ? 'Validated safety events, HAI burden, and overdue CAPA need leadership attention.' : 'Waiting time affects ED flow.')}
+            Why it matters: {lead?.whyMatters ?? (beds ? 'Bed capacity pressure affects placement.' : ipd ? 'Length of stay affects census and discharge planning.' : opd ? 'Clinic waiting affects outpatient throughput and completion.' : appt ? 'No-shows and access waits waste scheduling capacity.' : surg ? 'Cancellations and OR delays reduce surgical throughput.' : rad ? 'Imaging backlog and scanner delays reduce diagnostic access.' : lab ? 'Testing backlog and analyzer delays reduce laboratory throughput.' : rx ? 'Verification backlog, stockouts, and rework slow medication dispensing.' : icu ? 'ICU admission delays and staffed capacity affect critical-care flow.' : px ? 'Satisfaction, complaints, and recovery backlog affect patient experience.' : rcm ? 'Denials, aged AR, and capture gaps delay cash and put recognized revenue at risk.' : qs ? 'Validated safety events, HAI burden, and overdue CAPA need leadership attention.' : sc ? 'Availability, critical stockouts, supplier reliability, and near-expiry need leadership attention.' : 'Waiting time affects ED flow.')}
             {' '}Potential drivers: {lead?.drivers ?? lead?.investigation ?? 'Review domain evidence together.'} These are not proven causes.
           </p>
         ) : null}
@@ -622,13 +636,15 @@ function DecisionReview({ alert, department }: { alert: DemoAlert | null; depart
                                   ? 'Recovery and cash-timing sketches are illustrative modeled values — not collected cash and not a validated financial forecast.'
                                   : qs
                                     ? 'Safety, HAI, and prevention sketches are illustrative under assumptions — not measured improvement, not certified NHSN, and not an official SIR.'
+                                    : sc
+                                      ? 'Supply sketches are illustrative under assumptions — never cut clinically critical safety stock solely for cost; cheapest supplier ≠ safest.'
                             : 'Continued demand is not converted into a predicted wait. Not a validated model.'}
           </p>
         ) : null}
         {step === 3 ? (
           <p>
-            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : rad ? 'Recover scanner downtime and prioritize eligible imaging waitlist before adding unstaffed sessions.' : lab ? 'Recover analyzer downtime and prioritize eligible testing backlog before adding unstaffed sessions.' : rx ? 'Clear verification backlog and rework before adding unstaffed pharmacy sessions; review stockout SKUs with the supply lead.' : icu ? 'Clear pending ICU transfers and staffing gaps before adding unstaffed physical beds.' : px ? 'Prioritize waiting-time dissatisfaction and overdue complaint recovery with named owners.' : rcm ? 'Prioritize preventable denials, aged AR over 90 days, and capture gaps with named owners before any write-off decision.' : qs ? 'Prioritize severe harm, device-associated infection signals, and overdue high-risk CAPA with named owners for authorized human review.' : 'Review the peak arrival hours against the door-to-provider median.')}
-            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : rad ? ' AI does not change imaging schedules alone.' : lab ? ' AI does not change laboratory schedules alone.' : rx ? ' AI does not change pharmacy schedules alone.' : icu ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : px ? ' AI does not close complaints or change clinical care alone.' : rcm ? ' AI does not submit claims or write off balances alone.' : qs ? ' AI does not diagnose, order isolation, or close CAPA alone.' : ''}
+            Recommended action: {lead?.action ?? (beds ? 'Prioritize unallocated requests and accelerate cleaning on blocked beds.' : ipd ? 'Review long-stay lists and discharge barriers with the care team.' : opd ? 'Align first-provider coverage to peak clinic hours and clear delayed sessions.' : appt ? 'Raise reminder coverage and recover late-cancelled slots via waitlist outreach.' : surg ? 'Improve first-case starts and recover unused OR hours before adding sessions.' : rad ? 'Recover scanner downtime and prioritize eligible imaging waitlist before adding unstaffed sessions.' : lab ? 'Recover analyzer downtime and prioritize eligible testing backlog before adding unstaffed sessions.' : rx ? 'Clear verification backlog and rework before adding unstaffed pharmacy sessions; review stockout SKUs with the supply lead.' : icu ? 'Clear pending ICU transfers and staffing gaps before adding unstaffed physical beds.' : px ? 'Prioritize waiting-time dissatisfaction and overdue complaint recovery with named owners.' : rcm ? 'Prioritize preventable denials, aged AR over 90 days, and capture gaps with named owners before any write-off decision.' : qs ? 'Prioritize severe harm, device-associated infection signals, and overdue high-risk CAPA with named owners for authorized human review.' : sc ? 'Prioritize critical stockouts, near-expiry exposure, and supplier fill gaps with named owners for authorized human review.' : 'Review the peak arrival hours against the door-to-provider median.')}
+            {' '}Expected effect is not calculated. Follow-up: {lead?.followUp ?? 're-measure the same indicator'}.{beds || ipd ? ' AI does not move or discharge a patient alone.' : opd || appt ? ' AI does not change clinic schedules alone.' : surg ? ' AI does not change theatre schedules alone.' : rad ? ' AI does not change imaging schedules alone.' : lab ? ' AI does not change laboratory schedules alone.' : rx ? ' AI does not change pharmacy schedules alone.' : icu ? ' AI does not discharge or transfer ICU patients and does not change clinical readiness.' : px ? ' AI does not close complaints or change clinical care alone.' : rcm ? ' AI does not submit claims or write off balances alone.' : qs ? ' AI does not diagnose, order isolation, or close CAPA alone.' : sc ? ' AI does not place purchase orders, change safety stock, or approve suppliers alone.' : ''}
             {lead?.period ? ` Alert evidence period: ${lead.period}.` : ''}
           </p>
         ) : null}
@@ -681,6 +697,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
   const px = department === 'Patient Experience';
   const rcm = department === 'Revenue Cycle';
   const qs = department === 'Quality & Safety';
+  const sc = department === 'Supply Chain';
   const periodLabel = period === 'year' ? `Full year ${store.year}` : `${period} ${store.year}`;
   const prompts = beds
     ? page === 'Bed Assignment'
@@ -802,6 +819,20 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                                 : page === 'Quality & Safety Optimization & What-If'
                                   ? ['Which safety interventions should we prioritize?', 'What process uplifts are feasible?', ...WHAT_IF_PROMPTS['Quality & Safety'].slice(0, 3)]
                                   : ['Where are the largest quality and safety concerns?', 'What should leadership prioritize?', ...WHAT_IF_PROMPTS['Quality & Safety'].slice(0, 1)]
+                      : sc
+                        ? page === 'Inventory & Stock Availability'
+                          ? ['What is days of supply?', 'Which critical SKUs are below safety stock?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(0, 1)]
+                          : page === 'Procurement & Purchase Orders'
+                            ? ['How large is the open PO backlog?', 'How timely is PO fulfillment?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(3, 4)]
+                            : page === 'Supplier Performance & Contracts'
+                              ? ['Is supplier fill rate below target?', 'Where is supplier concentration high?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(2, 3), ...WHAT_IF_PROMPTS['Supply Chain'].slice(6, 7)]
+                              : page === 'Clinical Supply Consumption'
+                                ? ['Where is forecast deviation elevated?', 'Which unusual consumption signals need review?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(7, 8)]
+                                : page === 'Waste, Expiry & Financial Exposure'
+                                  ? ['How large is near-expiry exposure?', 'What drives inventory waste?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(4, 5)]
+                                  : page === 'Supply Optimization & What-If'
+                                    ? ['Which supply interventions should we prioritize?', 'What stockout reductions are feasible?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(0, 3)]
+                                    : ['Where are the largest supply chain concerns?', 'What should leadership prioritize?', ...WHAT_IF_PROMPTS['Supply Chain'].slice(0, 1)]
                 : page === 'Waiting & Patient Flow'
                   ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
                   : page === 'Safety & Return Visits'
@@ -937,6 +968,20 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                                   : page === 'Quality & Safety Optimization & What-If'
                                     ? 'Ask about illustrative process and governance scenarios on this screen. Modeled uplifts are not measured infection or harm reduction.'
                                     : 'Ask about validated event rate, severe harm, HAI burden, quality compliance, or overdue actions on this screen. AI does not diagnose, order isolation, or close CAPA alone.'
+                        : sc
+                          ? page === 'Inventory & Stock Availability'
+                            ? 'Ask about available units, days of supply, safety stock, or replenishment exceptions on this screen. Days of Supply uses units ÷ forecast daily demand.'
+                            : page === 'Procurement & Purchase Orders'
+                              ? 'Ask about open POs, approval TAT, cycle time, or on-time fulfillment on this screen. PO ≠ receipt ≠ invoice ≠ payment.'
+                              : page === 'Supplier Performance & Contracts'
+                                ? 'Ask about fill rate, contract compliance, concentration, or dual-source coverage on this screen. OTD is owned on Command. Cheapest ≠ safest.'
+                                : page === 'Clinical Supply Consumption'
+                                  ? 'Ask about clinical consumption, forecast deviation, or unusual signals on this screen. Issue flows are not stocks.'
+                                  : page === 'Waste, Expiry & Financial Exposure'
+                                    ? 'Ask about expired value, near-expiry, damaged stock, or waste rate on this screen. Dispositions stay distinct.'
+                                    : page === 'Supply Optimization & What-If'
+                                      ? 'Ask about illustrative supply scenarios on this screen. Never cut clinically critical safety stock solely for cost.'
+                                      : 'Ask about availability, critical stockouts, inventory value, supplier OTD, near-expiry, or PO backlog on this screen. AI does not place purchase orders, change safety stock, or approve suppliers alone.'
                       : page === 'Waiting & Patient Flow'
                         ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
                         : page === 'Safety & Return Visits'
@@ -945,7 +990,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
-  }, [askScope, appt, beds, icu, ipd, lab, opd, px, qs, rcm, rad, rx, surg, label, page, periodLabel]);
+  }, [askScope, appt, beds, icu, ipd, lab, opd, px, qs, rcm, rad, rx, sc, surg, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1015,7 +1060,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : px ? 'Ask the Patient Experience view…' : rcm ? 'Ask the Revenue Cycle view…' : qs ? 'Ask the Quality & Safety view…' : 'Ask the Emergency Director view…'}
+          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : px ? 'Ask the Patient Experience view…' : rcm ? 'Ask the Revenue Cycle view…' : qs ? 'Ask the Quality & Safety view…' : sc ? 'Ask the Supply Chain view…' : 'Ask the Emergency Director view…'}
           aria-label="Message Vital Assist"
           disabled={typing}
         />

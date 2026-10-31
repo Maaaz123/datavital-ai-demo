@@ -2,6 +2,7 @@ import { findKpi } from '@/showcase/engine';
 import { formatDelta, formatMeasure, measure } from '@/showcase/measures';
 import { buildQsView } from './qualitySafetyView';
 import { buildRcmView } from './rcmView';
+import { buildScView } from './supplyChainView';
 import type { ReportPeriod } from './period';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'info';
@@ -1478,6 +1479,150 @@ const RULES: Rule[] = [
     high: 0.7,
     medium: 0.8,
   },
+  {
+    kpi: 'kpi_sc_supply_availability_rate',
+    department: 'Supply Chain',
+    screen: 'supply-chain',
+    title: 'Supply availability below target',
+    owner: 'Supply Chain Director',
+    investigation: 'Supply Availability Rate = available SKU-days ÷ plan SKU-days. Period-end stocks are snapshots — not sums of monthly snapshots.',
+    action: 'Review critical stockouts and below-safety SKUs on Inventory; confirm replenishment exceptions before changing cover.',
+    rule: 'Critical at 90% or below, high at 93%, medium at 96% supply availability.',
+    threshold: 'Operating target 96% · high at 93% · critical at 90%',
+    consequence: 'Weak availability elevates clinical disruption risk for formulary SKUs.',
+    whyMatters: 'Supply Availability Rate is the primary Supply Chain command signal.',
+    followUp: 'Supply Availability, Critical Stockout Exposure, and Days of Supply',
+    worse: false,
+    critical: 0.9,
+    high: 0.93,
+    medium: 0.96,
+  },
+  {
+    kpi: 'kpi_sc_critical_stockout_exposure',
+    department: 'Supply Chain',
+    screen: 'supply-chain',
+    title: 'Critical stockout exposure elevated',
+    owner: 'Materials Management',
+    investigation: 'Critical Stockout Exposure counts clinically essential SKUs with zero available usable stock at period-end. Available usable excludes quarantined, recalled, expired, and damaged.',
+    action: 'Prioritize critical replenishment and dual-source review; do not cut clinically critical safety stock solely for carrying cost.',
+    rule: 'Critical at 8 or more, high at 5, medium at 3 critical stockout SKUs.',
+    threshold: 'Management threshold 3 · high at 5 · critical at 8',
+    consequence: 'Critical stockouts can interrupt care pathways dependent on formulary items.',
+    whyMatters: 'Critical Stockout Exposure is the primary clinical-supply risk signal on Command.',
+    followUp: 'Critical Stockout Exposure, Below Safety Stock, and Replenishment Exceptions',
+    worse: true,
+    critical: 8,
+    high: 5,
+    medium: 3,
+  },
+  {
+    kpi: 'kpi_sc_supplier_otd',
+    department: 'Supply Chain',
+    screen: 'supply-chain',
+    title: 'Supplier on-time delivery below target',
+    owner: 'Procurement Director',
+    investigation: 'Supplier OTD = on-time receipts ÷ receipts. Fill rate is owned on the Suppliers screen and is not interchangeable with OTD.',
+    action: 'Review late receipts against need-by dates and open PO backlog; escalate chronic late suppliers with Supplier Performance.',
+    rule: 'Critical at 82% or below, high at 87%, medium at 92% on-time delivery.',
+    threshold: 'Operating target 92% · high at 87% · critical at 82%',
+    consequence: 'Late receipts extend replenishment lead time and raise stockout risk.',
+    whyMatters: 'Supplier On-Time Delivery is the primary inbound reliability signal on Command.',
+    followUp: 'Supplier OTD, On-Time PO Fulfillment, and Replenishment Lead Time',
+    worse: false,
+    critical: 0.82,
+    high: 0.87,
+    medium: 0.92,
+  },
+  {
+    kpi: 'kpi_sc_days_of_supply',
+    department: 'Supply Chain',
+    screen: 'supply-chain-inventory',
+    title: 'Days of supply below operating cover',
+    owner: 'Inventory Control',
+    investigation: 'Days of Supply = available usable quantity ÷ forecast average daily unit demand. Never inventory value ÷ usage value.',
+    action: 'Review category cover and below-safety critical SKUs; raise safety stock where clinically required rather than cutting cover for cost.',
+    rule: 'Critical at 14 days or below, high at 20, medium at 28 days of supply.',
+    threshold: 'Operating target 28 days · high at 20 · critical at 14',
+    consequence: 'Thin unit cover elevates stockout probability before the next replenishment cycle.',
+    whyMatters: 'Days of Supply is the primary physical-cover signal on Inventory.',
+    followUp: 'Days of Supply, Available Units, and Critical SKUs Below Safety Stock',
+    worse: false,
+    critical: 14,
+    high: 20,
+    medium: 28,
+  },
+  {
+    kpi: 'kpi_sc_supplier_fill_rate',
+    department: 'Supply Chain',
+    screen: 'supply-chain-suppliers',
+    title: 'Supplier fill rate below target',
+    owner: 'Supplier Performance',
+    investigation: 'Fill rate = quantity received ÷ quantity ordered. Fill ≠ on-time delivery. Cheapest supplier is not assumed safest.',
+    action: 'Compare fill vs OTD by supplier tier and open dual-source opportunities for high-concentration critical SKUs.',
+    rule: 'Critical at 88% or below, high at 91%, medium at 95% fill rate.',
+    threshold: 'Operating target 95% · high at 91% · critical at 88%',
+    consequence: 'Incomplete fills leave open PO quantity and raise secondary stockout risk.',
+    whyMatters: 'Supplier Fill Rate is the primary quantity-completeness signal on Suppliers.',
+    followUp: 'Supplier Fill Rate, Dual-Source Coverage, and Defective Delivery Rate',
+    worse: false,
+    critical: 0.88,
+    high: 0.91,
+    medium: 0.95,
+  },
+  {
+    kpi: 'kpi_sc_near_expiry_exposure',
+    department: 'Supply Chain',
+    screen: 'supply-chain-waste',
+    title: 'Near-expiry exposure elevated',
+    owner: 'Inventory Control',
+    investigation: 'Near-Expiry Exposure is period-end usable stock value within the near-expiry window. Distinct from expired, damaged, recalled, and quarantined dispositions.',
+    action: 'Apply FEFO / redistribution / return paths; do not conflate near-expiry with expired write-offs.',
+    rule: 'Critical at SAR 600k or more, high at SAR 400k, medium at SAR 250k near-expiry exposure (per-hospital scale; ALL sums five hospitals).',
+    threshold: 'Management threshold SAR 250k · high at SAR 400k · critical at SAR 600k',
+    consequence: 'Near-expiry stock converts to expired write-off without redistribution action.',
+    whyMatters: 'Near-Expiry Exposure is the primary forward waste-risk signal on Waste.',
+    followUp: 'Near-Expiry Exposure, Expired Inventory Value, and Expiry Avoidance Opportunity',
+    worse: true,
+    critical: 600000,
+    high: 400000,
+    medium: 250000,
+  },
+  {
+    kpi: 'kpi_sc_po_backlog',
+    department: 'Supply Chain',
+    screen: 'supply-chain-procurement',
+    title: 'Purchase order backlog elevated',
+    owner: 'Procurement Director',
+    investigation: 'PO Backlog counts open incomplete purchase orders at observation. PO ≠ goods receipt ≠ invoice ≠ payment.',
+    action: 'Age open POs, clear procurement exceptions, and consolidate only eligible non-urgent demand.',
+    rule: 'Critical at 70 or more, high at 50, medium at 35 open POs.',
+    threshold: 'Management threshold 35 · high at 50 · critical at 70',
+    consequence: 'Aging open POs delay inbound cover and inflate exception workload.',
+    whyMatters: 'Purchase Order Backlog is the primary procurement-throughput signal.',
+    followUp: 'PO Backlog, Open Purchase Orders, and On-Time PO Fulfillment',
+    worse: true,
+    critical: 70,
+    high: 50,
+    medium: 35,
+  },
+  {
+    kpi: 'kpi_sc_forecast_deviation',
+    department: 'Supply Chain',
+    screen: 'supply-chain-consumption',
+    title: 'Consumption forecast deviation elevated',
+    owner: 'Demand Planning',
+    investigation: 'Forecast Deviation = |actual issued − forecast| ÷ forecast for published category forecasts. Issue flows are not stocks.',
+    action: 'Review high-variation categories and unusual consumption signals before changing safety stock.',
+    rule: 'Critical at 22% or more, high at 16%, medium at 12% forecast deviation.',
+    threshold: 'Operating target ≤12% · high at 16% · critical at 22%',
+    consequence: 'Large forecast error mis-sizes replenishment and elevates both stockout and near-expiry risk.',
+    whyMatters: 'Consumption Forecast Deviation is the primary demand-planning signal on Consumption.',
+    followUp: 'Forecast Deviation, Unusual Consumption Signals, and Days of Supply',
+    worse: true,
+    critical: 0.22,
+    high: 0.16,
+    medium: 0.12,
+  },
 ];
 
 const SCREEN_DEPARTMENT: Record<string, string> = {
@@ -1494,7 +1639,13 @@ const SCREEN_DEPARTMENT: Record<string, string> = {
   outpatient: 'Outpatient',
   appointments: 'Appointments',
   pharmacy: 'Pharmacy',
-  'supply-chain': 'Pharmacy',
+  'supply-chain': 'Supply Chain',
+  'supply-chain-inventory': 'Supply Chain',
+  'supply-chain-procurement': 'Supply Chain',
+  'supply-chain-suppliers': 'Supply Chain',
+  'supply-chain-consumption': 'Supply Chain',
+  'supply-chain-waste': 'Supply Chain',
+  'supply-chain-optimization': 'Supply Chain',
   icu: 'ICU',
   'icu-flow': 'ICU',
   'icu-capacity': 'ICU',
@@ -1558,25 +1709,29 @@ function periodLabel(year: number, period: ReportPeriod): string {
 
 /**
  * Build demo alerts. Domains 1–11 keep full-year measure() values.
- * Revenue Cycle and Quality & Safety alerts optionally use the selected reporting period
- * via buildRcmView / buildQsView so quarterly cards and alerts share the same cohort.
+ * Revenue Cycle, Quality & Safety, and Supply Chain alerts optionally use the selected reporting period
+ * via buildRcmView / buildQsView / buildScView so quarterly cards and alerts share the same cohort.
  */
 export function alertsFor(hospital: string, year: number, period: ReportPeriod = 'year'): DemoAlert[] {
   const rcmView = period === 'year' ? null : buildRcmView(hospital, year, period);
   const qsView = period === 'year' ? null : buildQsView(hospital, year, period);
+  const scView = period === 'year' ? null : buildScView(hospital, year, period);
   const label = periodLabel(year, period);
   return RULES.map((rule) => {
     const kpi = findKpi(rule.kpi);
     if (!kpi) throw new Error(`Alert rule missing KPI ${rule.kpi}`);
     const useRcmPeriod = Boolean(rcmView && rule.department === 'Revenue Cycle' && rule.kpi.startsWith('kpi_rcm_'));
     const useQsPeriod = Boolean(qsView && rule.department === 'Quality & Safety' && rule.kpi.startsWith('kpi_qs_'));
-    const usePeriodView = useRcmPeriod || useQsPeriod;
+    const useScPeriod = Boolean(scView && rule.department === 'Supply Chain' && rule.kpi.startsWith('kpi_sc_'));
+    const usePeriodView = useRcmPeriod || useQsPeriod || useScPeriod;
     const item = measure(kpi, hospital, year, 'All');
     const periodValue = useRcmPeriod
       ? Number(rcmView!.kpiValues[rule.kpi] ?? item.value)
       : useQsPeriod
         ? Number(qsView!.kpiValues[rule.kpi] ?? item.value)
-        : item.value;
+        : useScPeriod
+          ? Number(scView!.kpiValues[rule.kpi] ?? item.value)
+          : item.value;
     const value = usePeriodView ? periodValue : item.value;
     const observedItem = usePeriodView ? { ...item, value } : item;
     const severity = severityFor(value, rule);
@@ -1619,7 +1774,7 @@ export function visibleAlerts(
   period: ReportPeriod = 'year',
 ): { alerts: DemoAlert[]; note: string } {
   const scopedDept = screenDepartment(screenId);
-  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' ? period : 'year';
+  const usePeriod = scopedDept === 'Revenue Cycle' || scopedDept === 'Quality & Safety' || scopedDept === 'Supply Chain' ? period : 'year';
   const all = alertsFor(hospital, year, usePeriod);
   const scoped = scopedDept;
   const scopeNote = usePeriod === 'year'
@@ -1643,7 +1798,7 @@ export function badgeCount(
   statuses: Record<string, AlertStatus>,
   period: ReportPeriod = 'year',
 ): number {
-  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' ? period : 'year';
+  const usePeriod = department === 'Revenue Cycle' || department === 'Quality & Safety' || department === 'Supply Chain' ? period : 'year';
   return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (department !== 'All' && alert.department !== department) return false;
     if (alert.severity === 'info') return false;
@@ -1672,6 +1827,15 @@ export function screenFromPath(path: string): string | null {
     if (path.startsWith('/quality/actions')) return 'quality-actions';
     if (path.startsWith('/quality/optimization')) return 'quality-optimization';
     return 'quality';
+  }
+  if (path.startsWith('/supply-chain')) {
+    if (path.startsWith('/supply-chain/inventory')) return 'supply-chain-inventory';
+    if (path.startsWith('/supply-chain/procurement')) return 'supply-chain-procurement';
+    if (path.startsWith('/supply-chain/suppliers')) return 'supply-chain-suppliers';
+    if (path.startsWith('/supply-chain/consumption')) return 'supply-chain-consumption';
+    if (path.startsWith('/supply-chain/waste')) return 'supply-chain-waste';
+    if (path.startsWith('/supply-chain/optimization')) return 'supply-chain-optimization';
+    return 'supply-chain';
   }
   if (path === '/' || path === '' || path.startsWith('/emergency')) return 'emergency';
   const story = path.match(/\/story\/([^/]+)/);

@@ -1,0 +1,37 @@
+{
+  "domain": "Supply Chain & Procurement Intelligence",
+  "release": "v1-supply-chain",
+  "buildId": "v77-supply-chain-domain",
+  "status": "Demo Available",
+  "productionSourceVerified": false,
+  "routes": [
+    "/supply-chain",
+    "/supply-chain/inventory",
+    "/supply-chain/procurement",
+    "/supply-chain/suppliers",
+    "/supply-chain/consumption",
+    "/supply-chain/waste",
+    "/supply-chain/optimization"
+  ],
+  "kpiCount": 41,
+  "chartCount": 42,
+  "opportunityIds": [
+    "sc-safety-stock",
+    "sc-lead-time-down",
+    "sc-fill-rate-up",
+    "sc-consolidate-po",
+    "sc-near-expiry-down",
+    "sc-critical-replenish",
+    "sc-diversify-suppliers",
+    "sc-forecast-error-down"
+  ],
+  "ledgerRules": [
+    "Inventory on-hand is a period-end snapshot",
+    "Stock movement is an event flow",
+    "PO != Receipt != Invoice != Payment",
+    "Days of Supply = usable units / forecast average daily unit demand",
+    "Expired, near-expiry, damaged, recalled, quarantined, obsolete, returned are distinct",
+    "Cheapest supplier is not assumed safest",
+    "Never cut clinically critical safety stock solely for carrying cost"
+  ]
+}

@@ -9,7 +9,7 @@ export type NavScreen = {
   /** One-line purpose for expanded nav */
   purpose: string;
   end?: boolean;
-  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions';
+  glyph: 'home' | 'flow' | 'quality' | 'beds' | 'assign' | 'plan' | 'ipd' | 'stay' | 'outcome' | 'opd' | 'clinic' | 'follow' | 'appt' | 'access' | 'attend' | 'recover' | 'surg' | 'or' | 'surg-access' | 'surg-quality' | 'optimize' | 'rad' | 'rad-access' | 'rad-util' | 'rad-quality' | 'lab' | 'lab-sample' | 'lab-analyzer' | 'lab-quality' | 'rx' | 'rx-dispense' | 'rx-stock' | 'rx-safety' | 'rx-cost' | 'icu' | 'icu-flow' | 'icu-capacity' | 'icu-equip' | 'icu-quality' | 'px' | 'px-journey' | 'px-complaints' | 'px-voice' | 'px-depts' | 'rcm' | 'rcm-elig' | 'rcm-bill' | 'rcm-claims' | 'rcm-collect' | 'rcm-leak' | 'qs' | 'qs-incidents' | 'qs-infections' | 'qs-prevention' | 'qs-outcomes' | 'qs-actions' | 'sc' | 'sc-inventory' | 'sc-procurement' | 'sc-suppliers' | 'sc-consumption' | 'sc-waste';
 };
 
 export type NavDomain = {
@@ -581,6 +581,64 @@ export const NAV_DOMAINS: NavDomain[] = [
       },
     ],
   },
+  {
+    id: 'supply-chain',
+    label: 'Supply Chain',
+    mark: 'SC',
+    match: (path) => path === '/supply-chain' || path.startsWith('/supply-chain/'),
+    screens: [
+      {
+        to: '/supply-chain',
+        short: 'Command',
+        title: 'Supply Chain Command Center',
+        purpose: 'Availability, stockouts, OTD, and PO backlog',
+        end: true,
+        glyph: 'sc',
+      },
+      {
+        to: '/supply-chain/inventory',
+        short: 'Inventory',
+        title: 'Inventory & Stock Availability',
+        purpose: 'Cover, safety stock, and replenishment exceptions',
+        glyph: 'sc-inventory',
+      },
+      {
+        to: '/supply-chain/procurement',
+        short: 'Procurement',
+        title: 'Procurement & Purchase Orders',
+        purpose: 'PO cycle, price variance, and fulfillment',
+        glyph: 'sc-procurement',
+      },
+      {
+        to: '/supply-chain/suppliers',
+        short: 'Suppliers',
+        title: 'Supplier Performance & Contracts',
+        purpose: 'Fill rate, contracts, and dual-source coverage',
+        glyph: 'sc-suppliers',
+      },
+      {
+        to: '/supply-chain/consumption',
+        short: 'Consumption',
+        title: 'Clinical Supply Consumption',
+        purpose: 'Issue intensity, forecast deviation, and signals',
+        glyph: 'sc-consumption',
+      },
+      {
+        to: '/supply-chain/waste',
+        short: 'Waste',
+        title: 'Waste, Expiry & Financial Exposure',
+        purpose: 'Expired, near-expiry, damaged, and adjustments',
+        glyph: 'sc-waste',
+      },
+      {
+        to: '/supply-chain/optimization',
+        short: 'Optimize',
+        title: 'Supply Optimization & What-If',
+        purpose: 'Illustrative supply and procurement scenarios',
+        glyph: 'optimize',
+      },
+    ],
+  },
 ];
 
 export function screenForPath(path: string): { domain: NavDomain; screen: NavScreen } | null {
@@ -596,10 +654,10 @@ export function screenForPath(path: string): { domain: NavDomain; screen: NavScr
 }
 
 export function glyphPath(kind: NavScreen['glyph']): string {
-  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs') return 'M4 10.5 12 4l8 6.5V20H4z';
-  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
-  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents') return 'M4 7h16M4 12h10M4 17h14';
-  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
-  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
+  if (kind === 'home' || kind === 'beds' || kind === 'ipd' || kind === 'opd' || kind === 'appt' || kind === 'surg' || kind === 'rad' || kind === 'lab' || kind === 'rx' || kind === 'icu' || kind === 'px' || kind === 'rcm' || kind === 'qs' || kind === 'sc') return 'M4 10.5 12 4l8 6.5V20H4z';
+  if (kind === 'flow' || kind === 'stay' || kind === 'clinic' || kind === 'attend' || kind === 'or' || kind === 'rad-util' || kind === 'lab-analyzer' || kind === 'rx-dispense' || kind === 'icu-flow' || kind === 'px-journey' || kind === 'rcm-collect' || kind === 'qs-prevention' || kind === 'sc-consumption') return 'M4 16c2-4 14-4 16 0M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0';
+  if (kind === 'assign' || kind === 'access' || kind === 'surg-access' || kind === 'rad-access' || kind === 'lab-sample' || kind === 'rx-stock' || kind === 'icu-capacity' || kind === 'px-depts' || kind === 'rcm-elig' || kind === 'qs-incidents' || kind === 'sc-inventory' || kind === 'sc-procurement') return 'M4 7h16M4 12h10M4 17h14';
+  if (kind === 'outcome' || kind === 'follow' || kind === 'recover' || kind === 'optimize' || kind === 'rcm-leak' || kind === 'qs-outcomes' || kind === 'sc-suppliers') return 'M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5';
+  if (kind === 'rad-quality' || kind === 'surg-quality' || kind === 'quality' || kind === 'lab-quality' || kind === 'rx-safety' || kind === 'rx-cost' || kind === 'icu-quality' || kind === 'icu-equip' || kind === 'px-complaints' || kind === 'px-voice' || kind === 'rcm-bill' || kind === 'rcm-claims' || kind === 'qs-infections' || kind === 'qs-actions' || kind === 'sc-waste') return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
   return 'M5 19V5h10l4 4v10H5zm8-14v4h4';
 }

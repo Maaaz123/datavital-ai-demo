@@ -41,6 +41,8 @@ export default defineConfig({
         skipWaiting: true,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /refresh\.html$/],
+        // Domain 14 bundle exceeds Workbox default 2 MiB precache limit
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
 
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],
         runtimeCaching: [

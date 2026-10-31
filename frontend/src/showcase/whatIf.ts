@@ -10,10 +10,11 @@ import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
+import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain';
 
 export type WhatIfResult = {
   id: string;
@@ -127,6 +128,16 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if surgical infection prevention process compliance improves by 10 points?',
     'What if CAPA effectiveness verification increases by 20 points?',
   ],
+  'Supply Chain': [
+    'What if safety stock is adjusted for critical SKUs below cover?',
+    'What if supplier lead time decreases by 20%?',
+    'What if supplier fill rate improves by 5 points?',
+    'What if eligible procurement demand is consolidated by 25%?',
+    'What if near-expiry inventory decreases by 35%?',
+    'What if critical SKU replenishment improves by 50%?',
+    'What if high-risk suppliers are diversified by 15 points of dual-source coverage?',
+    'What if consumption forecast error decreases by 30%?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -146,6 +157,18 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const days = q.match(/(\d+(?:\.\d+)?)\s*days?/);
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
+
+  // Supply Chain intents before Pharmacy generics that mention stock, expiry, or replenishment.
+  const scAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
+  if (/safety.?stock/.test(q) && /(adjust|improv|increas|rais|cover)/.test(q)) return { kind: 'sc-safety-stock', amount: scAmount(0.4) };
+  if (/(supplier )?lead.?time/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-lead-time-down', amount: scAmount(0.2) };
+  if (/fill.?rate/.test(q) && /(improv|increas|lift|rise)/.test(q)) return { kind: 'sc-fill-rate-up', amount: scAmount(0.05) };
+  if (/consolidat/.test(q) && /(procurement|purchase.?order|po|demand)/.test(q)) return { kind: 'sc-consolidate-po', amount: scAmount(0.25) };
+  if (/near.?expir/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-near-expiry-down', amount: scAmount(0.35) };
+  if (/critical.?sku.?replenish|critical replenish/.test(q) && /(improv|increas)/.test(q)) return { kind: 'sc-critical-replenish', amount: scAmount(0.5) };
+  if (/diversif/.test(q) && /(supplier|dual.?source)/.test(q)) return { kind: 'sc-diversify-suppliers', amount: scAmount(0.15) };
+  if (/(forecast.?error|forecast.?deviation|consumption forecast)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-forecast-error-down', amount: scAmount(0.3) };
+  if (/(supply.?chain|stockout|procurement|safety stock|supplier fill)/.test(q) && /(fell|decreas|reduc|improv|adjust)/.test(q)) return { kind: 'sc-fill-rate-up', amount: scAmount(0.05) };
 
   // Quality & Safety intents before RCM/PX generics that mention infection, CAPA, or investigation.
   const qsAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
@@ -281,6 +304,7 @@ export function runWhatIf(
   if (domain === 'Patient Experience') return pxWhatIf(hospital, year, period, resolved);
   if (domain === 'Revenue Cycle') return rcmWhatIf(hospital, year, period, resolved);
   if (domain === 'Quality & Safety') return qsWhatIf(hospital, year, period, resolved);
+  if (domain === 'Supply Chain') return scWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -297,6 +321,7 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Patient Experience') return { kind: 'px-wait-down', amount: 0.2 };
   if (domain === 'Revenue Cycle') return { kind: 'rcm-denials-down', amount: 0.2 };
   if (domain === 'Quality & Safety') return { kind: 'qs-hh-up', amount: 0.08 };
+  if (domain === 'Supply Chain') return { kind: 'sc-fill-rate-up', amount: 0.05 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
 }
 
@@ -1613,6 +1638,124 @@ function qsWhatIf(
     estimated: `Compliance near ${pct(next)} · about ${num(Math.round(view.hhEligible * amount))} additional compliant audited opportunities if realized`,
     implications: 'Audited sample only — not all care interactions. Observer bias and sampling limits apply. Compliance alone does not prove infection reduction.',
     followUp: 'Hand Hygiene Compliance, Prevention Gaps, and CLABSI / CAUTI rates',
+  };
+}
+
+/** Supply Chain what-ifs: illustrative only; never recommend cutting clinically critical safety stock solely for carrying cost. */
+function scWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const view = buildScView(hospital, year, period);
+  const kind = intent.kind.startsWith('sc-') ? intent.kind : 'sc-fill-rate-up';
+  const amount = Math.min(1, Math.max(0.05, intent.amount));
+  const opp = view.opportunities.find((item) => item.id === kind) ?? view.opportunities[0];
+  const modeled = Math.round(opp.eligibleValue * Math.min(1, amount / 0.25));
+  const framing = `Illustrative under documented assumptions — not measured improvement and not additive to other Supply Chain scenarios (they overlap). ${opp.assumption} Never cut clinically critical safety stock solely for carrying cost. AI does not place purchase orders, change safety stock, or approve suppliers alone.`;
+  const common = {
+    id: kind,
+    assumptions: framing,
+    implications: 'Authorized human review remains required. Cheapest supplier is not assumed safest.',
+    owner: opp.owner,
+    followUp: opp.followUp,
+  };
+
+  if (kind === 'sc-safety-stock') {
+    const next = Math.max(0, Math.round(view.belowSafety * (1 - amount)));
+    return {
+      ...common,
+      title: 'Safety stock adjustment scenario',
+      current: `Critical SKUs below safety stock ${num(view.belowSafety)} · critical stockouts ${num(view.criticalStockouts)} · days of supply ${num(view.daysOfSupply, 1)} · ${view.periodLabel}`,
+      change: `Illustrative safety-stock cover uplift addressing about ${pct(amount, 0)} of below-safety critical SKUs (raise cover where clinically required)`,
+      estimated: `Below-safety near ${num(next)} · about ${num(modeled)} SKUs addressable if realized`,
+      implications: 'May raise safety stock for clinically critical SKUs. Never recommend cutting clinically critical safety stock solely for carrying-cost savings.',
+      followUp: 'Critical SKUs Below Safety Stock, Days of Supply, and Critical Stockout Exposure',
+    };
+  }
+  if (kind === 'sc-lead-time-down') {
+    const next = Math.max(1, r2(view.replenishmentLeadTime * (1 - amount)));
+    return {
+      ...common,
+      title: 'Supplier lead-time reduction scenario',
+      current: `Median replenishment lead time ${num(view.replenishmentLeadTime, 1)} days · supplier OTD ${pct(view.supplierOtd)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in eligible contracted supplier lead time`,
+      estimated: `Lead time near ${num(next, 1)} days · about ${num(modeled, 1)} days of modeled improvement if realized`,
+      implications: 'Applies to eligible contracted suppliers only. Faster lead time does not prove fill-rate or quality improvement.',
+      followUp: 'Replenishment Lead Time, Supplier OTD, and Replenishment Exceptions',
+    };
+  }
+  if (kind === 'sc-consolidate-po') {
+    const next = Math.max(0, Math.round(view.openPos * (1 - amount)));
+    return {
+      ...common,
+      title: 'Eligible procurement consolidation scenario',
+      current: `Open POs ${num(view.openPos)} · PO approval TAT ${num(view.poApprovalTat, 1)} h · ${view.periodLabel}`,
+      change: `Illustrative consolidation of about ${pct(amount, 0)} of eligible non-urgent open PO demand`,
+      estimated: `Open POs near ${num(next)} · about ${num(modeled)} POs consolidatable if realized`,
+      implications: 'Clinical urgency and contract constraints remain binding. Consolidation does not skip receiving or invoice controls.',
+      followUp: 'Open Purchase Orders, PO Cycle Time, and Procurement Exceptions',
+    };
+  }
+  if (kind === 'sc-near-expiry-down') {
+    const next = Math.max(0, Math.round(view.nearExpiryExposure * (1 - amount)));
+    return {
+      ...common,
+      title: 'Near-expiry inventory reduction scenario',
+      current: `Near-expiry exposure SAR ${num(view.nearExpiryExposure)} · expired value SAR ${num(view.expiredValue)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in near-expiry usable exposure via FEFO / redistribution / return paths`,
+      estimated: `Near-expiry near SAR ${num(next)} · about SAR ${num(modeled)} addressable if realized`,
+      implications: 'Near-expiry ≠ expired ≠ damaged ≠ recalled. Modeled avoidance is not collected write-off reduction.',
+      followUp: 'Near-Expiry Exposure, Expired Inventory Value, and Expiry Avoidance Opportunity',
+    };
+  }
+  if (kind === 'sc-critical-replenish') {
+    const next = Math.max(0, Math.round(view.criticalStockouts * (1 - amount)));
+    return {
+      ...common,
+      title: 'Critical SKU replenishment scenario',
+      current: `Critical stockouts ${num(view.criticalStockouts)} · replenishment exceptions ${num(view.replenishmentExceptions)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} improvement in critical SKU replenishment priority`,
+      estimated: `Critical stockouts near ${num(next)} · about ${num(modeled)} stockouts addressable if realized`,
+      implications: 'Does not authorize unsupervised clinical product substitution.',
+      followUp: 'Critical Stockout Exposure, Replenishment Exceptions, and Addressable Stockout Risk',
+    };
+  }
+  if (kind === 'sc-diversify-suppliers') {
+    const next = Math.min(1, view.dualSourceCoverage + amount);
+    return {
+      ...common,
+      title: 'High-risk supplier diversification scenario',
+      current: `Dual-source coverage ${pct(view.dualSourceCoverage)} (target ${pct(SC_TARGETS.dualSourceCoverage, 0)}) · concentration ${pct(view.supplierConcentration)} · ${view.periodLabel}`,
+      change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in dual-source coverage for eligible critical SKUs`,
+      estimated: `Coverage near ${pct(next)} · about ${num(modeled)} critical SKUs eligible for diversification`,
+      implications: 'Cheapest supplier ≠ safest. Clinical and regulatory fitness remain required.',
+      followUp: 'Dual-Source Coverage, Supplier Concentration Exposure, and Supplier Diversification Opportunities',
+    };
+  }
+  if (kind === 'sc-forecast-error-down') {
+    const next = Math.max(0, view.forecastDeviation * (1 - amount));
+    return {
+      ...common,
+      title: 'Consumption forecast error reduction scenario',
+      current: `Forecast deviation ${pct(view.forecastDeviation)} (target ≤ ${pct(SC_TARGETS.forecastDeviation, 0)}) · issued ${num(view.clinicalConsumption)} vs forecast ${num(view.forecastUnits)} · ${view.periodLabel}`,
+      change: `Illustrative ${pct(amount, 0)} reduction in published category forecast error`,
+      estimated: `Deviation near ${pct(next)} · about ${num(modeled)} forecast units better aligned if realized`,
+      implications: 'Lower error does not guarantee zero stockouts. Published category forecasts only.',
+      followUp: 'Consumption Forecast Deviation, Days of Supply, and Unusual Consumption Signals',
+    };
+  }
+  const next = Math.min(1, view.supplierFillRate + amount);
+  return {
+    ...common,
+    id: 'sc-fill-rate-up',
+    title: 'Supplier fill rate improvement scenario',
+    current: `Supplier fill rate ${pct(view.supplierFillRate)} (target ${pct(SC_TARGETS.supplierFillRate, 0)}; ${num(view.receiptsReceived)} of ${num(view.receiptsOrdered)} ordered) · OTD ${pct(view.supplierOtd)} · ${view.periodLabel}`,
+    change: `Illustrative +${(amount * 100).toFixed(0)} point uplift in supplier fill rate`,
+    estimated: `Fill rate near ${pct(next)} · about ${num(modeled)} additional units received against ordered quantity if realized`,
+    implications: 'Fill ≠ on-time delivery. Cheapest supplier is not assumed safest.',
+    followUp: 'Supplier Fill Rate, Supplier OTD, and On-Time PO Fulfillment',
   };
 }
 

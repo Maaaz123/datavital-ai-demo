@@ -1,0 +1,24 @@
+canonical_column,data_type,description,grain,readiness,notes
+hospital_code,string,Site code H1–H5 or ALL,site,Demo Available,Synthetic
+period_label,string,Full year or quarter label,period,Demo Available,From reporting period selector
+observation_date,string,Period-end observation date,period-end,Demo Available,Snapshot timestamp language
+available_units,integer,Usable available quantity at observation,SKU snapshot,Demo Available,Excludes quarantined/recalled/expired/damaged
+closing_inventory_value_sar,number,Period-end on-hand value fictional SAR,SKU snapshot,Demo Available,Snapshot not sum of months
+critical_stockouts,integer,Critical SKUs with zero usable stock,SKU snapshot,Demo Available,Clinically essential formulary
+below_safety_stock,integer,Critical SKUs below documented safety stock,SKU snapshot,Demo Available,Never cut solely for cost
+days_of_supply,number,Available usable ÷ forecast avg daily unit demand,cover,Demo Available,NOT value/usage
+receipts_ordered,integer,Quantity ordered on PO lines,event flow,Demo Available,PO ledger
+receipts_received,integer,Quantity received,event flow,Demo Available,Receipt ≠ PO
+receipts_on_time,integer,Receipts on or before promised date,event flow,Demo Available,OTD numerator
+receipt_invoices,integer,Invoices matched to receipts,document flow,Demo Available,Invoice ≠ receipt
+payments_posted,integer,Payments posted against invoices,event flow,Demo Available,Payment ≠ invoice
+issued_units,integer,Clinical issue volume,event flow,Demo Available,Consumption flow
+forecast_units,integer,Published category forecast,category-period,Demo Available,Forecast base
+expired_units,integer,Units expired in period,disposition flow,Demo Available,Distinct from near-expiry
+near_expiry_units,integer,Usable units in near-expiry window,snapshot,Demo Available,Distinct from expired
+damaged_units,integer,Damaged write-off units,disposition flow,Demo Available,Distinct from expired
+supplier_fill_rate,number,Received ÷ ordered,ratio,Demo Available,Fill ≠ OTD
+supplier_otd,number,On-time receipts ÷ receipts,ratio,Demo Available,Owned on Command
+contract_compliance,number,Contracted spend ÷ eligible spend,ratio,Demo Available,Suppliers screen
+dual_source_coverage,number,Critical SKUs with ≥2 suppliers ÷ critical SKUs,ratio,Demo Available,Cheapest ≠ safest
+opportunity_id,string,One of eight SC what-if IDs,scenario,Scenario Only,Non-additive

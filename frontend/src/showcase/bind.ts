@@ -7,6 +7,7 @@ import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView } from '@/core/qualitySafetyView';
 import { buildRcmView } from '@/core/rcmView';
+import { buildScView } from '@/core/supplyChainView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import type { KpiDef } from './engine';
 import { CURRENCY, type AnnualFact } from './facts';
@@ -275,6 +276,55 @@ function qsMapped(key: string, hospital: string, year: number): Raw | null {
   }
 }
 
+/** Supply Chain KPIs bound to the shared SC view. Stocks are period-end snapshots; PO ≠ receipt ≠ invoice ≠ payment. */
+function scMapped(key: string, hospital: string, year: number): Raw | null {
+  const v = buildScView(hospital, year, 'year');
+  switch (key) {
+    case 'kpi_sc_supply_availability_rate': return { value: v.supplyAvailability, kind: 'rate', unit: '%', numerator: Math.round(v.supplyAvailability * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Available SKU-days ÷ plan SKU-days from the Supply Chain Command view.' };
+    case 'kpi_sc_critical_stockout_exposure': return count(v.criticalStockouts, 'down', 'Critical SKUs with zero available usable stock from the Supply Chain Command view.', GRAIN, 'SKUs');
+    case 'kpi_sc_inventory_value': return money(v.inventoryValue, 'Period-end on-hand inventory value (snapshot — not sum of monthly snapshots) from the Supply Chain Command view.', 'neutral');
+    case 'kpi_sc_supplier_otd': return { value: v.supplierOtd, kind: 'rate', unit: '%', numerator: Math.round(v.supplierOtd * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'On-time receipts ÷ receipts from the Supply Chain Command view. OTD ≠ fill rate.' };
+    case 'kpi_sc_expiry_risk_value': return money(v.expiryRiskValue, 'Period-end near-expiry usable stock value from the Supply Chain Command view.', 'down');
+    case 'kpi_sc_po_backlog': return count(v.poBacklog, 'down', 'Open purchase orders at observation from the Supply Chain Command view. PO ≠ receipt.', GRAIN, 'POs');
+    case 'kpi_sc_available_units': return count(v.availableUnits, 'up', 'Period-end usable available quantity from Inventory & Stock Availability.', GRAIN, 'units');
+    case 'kpi_sc_critical_below_safety': return count(v.belowSafety, 'down', 'Critical SKUs below safety stock from Inventory & Stock Availability.', GRAIN, 'SKUs');
+    case 'kpi_sc_inventory_turnover': return { value: v.inventoryTurnover, kind: 'index', unit: 'turns', numerator: Math.round(v.inventoryTurnover * 100), denominator: 100, grain: RATE_GRAIN, better: 'up', note: 'Issued units ÷ average on-hand usable units from Inventory. Unit turnover — not value/usage.' };
+    case 'kpi_sc_days_of_supply': return { value: v.daysOfSupply, kind: 'duration', unit: 'days', numerator: Math.round(v.daysOfSupply * 10), denominator: 10, grain: RATE_GRAIN, better: 'neutral', note: 'Available usable ÷ forecast average daily unit demand from Inventory. NOT value ÷ usage.' };
+    case 'kpi_sc_inventory_accuracy': return { value: v.inventoryAccuracy, kind: 'rate', unit: '%', numerator: Math.round(v.inventoryAccuracy * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Cycle-count lines within tolerance ÷ counted lines from Inventory.' };
+    case 'kpi_sc_replenishment_exceptions': return count(v.replenishmentExceptions, 'down', 'Open replenishment exceptions from Inventory & Stock Availability.', GRAIN, 'exceptions');
+    case 'kpi_sc_open_pos': return count(v.openPos, 'down', 'Open purchase orders from Procurement & Purchase Orders. PO ≠ receipt ≠ invoice ≠ payment.', GRAIN, 'POs');
+    case 'kpi_sc_po_approval_tat': return { value: v.poApprovalTat, kind: 'duration', unit: 'hours', numerator: Math.round(v.poApprovalTat * 10), denominator: 10, grain: RATE_GRAIN, better: 'down', note: 'Median requisition-to-approval hours from Procurement.' };
+    case 'kpi_sc_po_cycle_time': return { value: v.poCycleTime, kind: 'duration', unit: 'days', numerator: Math.round(v.poCycleTime * 10), denominator: 10, grain: RATE_GRAIN, better: 'down', note: 'Median approval-to-first-receipt days from Procurement.' };
+    case 'kpi_sc_purchase_price_variance': return money(v.purchasePriceVariance, 'Purchase price variance from Procurement. Fictional SAR.', 'neutral');
+    case 'kpi_sc_procurement_exceptions': return count(v.procurementExceptions, 'down', 'Open procurement exceptions from Procurement.', GRAIN, 'exceptions');
+    case 'kpi_sc_ontime_po_fulfillment': return { value: v.ontimePoFulfillment, kind: 'rate', unit: '%', numerator: Math.round(v.ontimePoFulfillment * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'PO lines received by need-by ÷ lines due from Procurement.' };
+    case 'kpi_sc_supplier_fill_rate': return exactRate(v.receiptsReceived, v.receiptsOrdered, 'up', 'Quantity received ÷ quantity ordered from Supplier Performance. Fill ≠ OTD.');
+    case 'kpi_sc_contract_compliance': return { value: v.contractCompliance, kind: 'rate', unit: '%', numerator: Math.round(v.contractCompliance * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Contracted spend ÷ eligible spend from Supplier Performance.' };
+    case 'kpi_sc_defective_delivery_rate': return { value: v.defectiveDeliveryRate, kind: 'rate', unit: '%', numerator: Math.round(v.defectiveDeliveryRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: 'Defective qty ÷ received qty from Supplier Performance.' };
+    case 'kpi_sc_supplier_concentration': return { value: v.supplierConcentration, kind: 'rate', unit: '%', numerator: Math.round(v.supplierConcentration * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: 'Largest supplier share of critical SKU spend. Cheapest ≠ safest.' };
+    case 'kpi_sc_contract_renewal_risk': return count(v.contractRenewalRisk, 'down', 'Contracts expiring within 90 days without renewal action from Supplier Performance.', GRAIN, 'contracts');
+    case 'kpi_sc_dual_source_coverage': return { value: v.dualSourceCoverage, kind: 'rate', unit: '%', numerator: Math.round(v.dualSourceCoverage * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'up', note: 'Critical SKUs with ≥2 approved suppliers ÷ critical SKUs from Supplier Performance.' };
+    case 'kpi_sc_clinical_consumption': return count(v.clinicalConsumption, 'neutral', 'Units issued to clinical points of use from Clinical Supply Consumption. Event flow — not a stock.', GRAIN, 'units');
+    case 'kpi_sc_consumption_per_encounter': return { value: v.consumptionPerEncounter, kind: 'index', unit: 'units/enc', numerator: Math.round(v.consumptionPerEncounter * 100), denominator: 100, grain: RATE_GRAIN, better: 'neutral', note: 'Issued units ÷ eligible encounters from Clinical Supply Consumption.' };
+    case 'kpi_sc_high_variation_categories': return count(v.highVariationCategories, 'down', 'High-variation supply categories from Clinical Supply Consumption.', GRAIN, 'categories');
+    case 'kpi_sc_forecast_deviation': return { value: v.forecastDeviation, kind: 'rate', unit: '%', numerator: Math.round(v.forecastDeviation * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: '|Actual − forecast| ÷ forecast from Clinical Supply Consumption.' };
+    case 'kpi_sc_replenishment_lead_time': return { value: v.replenishmentLeadTime, kind: 'duration', unit: 'days', numerator: Math.round(v.replenishmentLeadTime * 10), denominator: 10, grain: RATE_GRAIN, better: 'down', note: 'Median clinical reorder-to-available days from Clinical Supply Consumption.' };
+    case 'kpi_sc_unusual_consumption': return count(v.unusualConsumption, 'down', 'Open unusual consumption signals from Clinical Supply Consumption.', GRAIN, 'signals');
+    case 'kpi_sc_expired_value': return money(v.expiredValue, 'Expired units × unit cost from Waste, Expiry & Financial Exposure. Distinct from near-expiry.', 'down');
+    case 'kpi_sc_near_expiry_exposure': return money(v.nearExpiryExposure, 'Period-end near-expiry usable stock value from Waste. Snapshot — not expired write-off.', 'down');
+    case 'kpi_sc_inventory_waste_rate': return { value: v.inventoryWasteRate, kind: 'rate', unit: '%', numerator: Math.round(v.inventoryWasteRate * 1000), denominator: 1000, grain: RATE_GRAIN, better: 'down', note: '(Expired + damaged + obsolete) ÷ issued from Waste.' };
+    case 'kpi_sc_damaged_stock_value': return money(v.damagedStockValue, 'Damaged units × unit cost from Waste. Distinct from expired.', 'down');
+    case 'kpi_sc_stock_adjustment_exceptions': return count(v.stockAdjustmentExceptions, 'down', 'Open stock adjustment exceptions from Waste.', GRAIN, 'exceptions');
+    case 'kpi_sc_avoidable_procurement_exposure': return money(v.avoidableProcurementExposure, 'Illustrative avoidable over-buy exposure from Waste. Scenario-linked — not measured savings.', 'down');
+    case 'kpi_sc_addressable_stockout_risk': return count(v.addressableStockoutRisk, 'up', 'Illustrative addressable critical stockouts from Supply Optimization — not measured improvement.', GRAIN, 'SKUs');
+    case 'kpi_sc_inventory_opt_opportunity': return money(v.inventoryOptOpportunity, 'Illustrative inventory opportunity from Supply Optimization. Never cut clinically critical safety stock solely for cost.', 'up');
+    case 'kpi_sc_expiry_avoidance_opportunity': return money(v.expiryAvoidanceOpportunity, 'Illustrative expiry avoidance from Supply Optimization — not measured write-off reduction.', 'up');
+    case 'kpi_sc_replenishment_improvement': return count(v.replenishmentImprovement, 'up', 'Illustrative replenishment-exception reduction from Supply Optimization.', GRAIN, 'exceptions');
+    case 'kpi_sc_supplier_diversification_ops': return count(v.supplierDiversificationOps, 'up', 'Critical SKUs eligible for dual-source diversification from Supply Optimization. Cheapest ≠ safest.', GRAIN, 'SKUs');
+    default: return null;
+  }
+}
+
 /** Revenue Cycle KPIs bound to the shared RCM view. Amounts are fictional SAR; modeled values are illustrative, not collected cash. */
 function rcmMapped(key: string, hospital: string, year: number): Raw | null {
   const v = buildRcmView(hospital, year, 'year');
@@ -330,6 +380,7 @@ function mapped(kpi: KpiDef, fact: AnnualFact, hospital: string, year: number): 
   // Registry-origin kpi_rcm_* (legacy Revenue story, e.g. outstanding AR) keep their fact-ledger binding below.
   if (key.startsWith('kpi_rcm_') && kpi.origin === 'demo_assumption') return rcmMapped(key, hospital, year);
   if (key.startsWith('kpi_qs_')) return qsMapped(key, hospital, year);
+  if (key.startsWith('kpi_sc_')) return scMapped(key, hospital, year);
   if (key.startsWith('kpi_px_')) return pxMapped(key, hospital, year);
   if (key.startsWith('kpi_icu_')) return icuMapped(key, hospital, year);
   if (key.startsWith('kpi_rx_')) return pharmacyMapped(key, hospital, year);

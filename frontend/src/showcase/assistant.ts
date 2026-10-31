@@ -12,6 +12,7 @@ import { buildPharmacyView } from '@/core/pharmacyView';
 import { buildPxView } from '@/core/patientExperienceView';
 import { buildRadiologyView } from '@/core/radiologyView';
 import { buildQsView, QS_TARGETS } from '@/core/qualitySafetyView';
+import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
 import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildSurgeryView } from '@/core/surgeryView';
 import { type ReportPeriod } from '@/core/period';
@@ -45,6 +46,7 @@ function siteName(code: string, lang: Lang): string {
 }
 
 export function promptForPath(path: string): string {
+  if (/supply-chain|procurement|stockout|near-expir|supplier fill/.test(path)) return 'Where are the largest supply chain concerns?';
   if (/quality|infection|incident|capa|hai|clabsi/.test(path)) return 'Where are the largest quality and safety concerns?';
   if (/claim|rcm|billing|revenue|denial|preauth|eligibility/.test(path)) return ASSISTANT_PROMPTS[4].en;
   if (/experience|complaint|survey/.test(path)) return ASSISTANT_PROMPTS[2].en;
@@ -140,6 +142,28 @@ export function answerQuestion(
     }
   }
 
+  if (department === 'Supply Chain') {
+    const intent = parseWhatIfIntent(q);
+    if (intent?.kind.startsWith('sc-')) {
+      const result = runWhatIf('Supply Chain', hospital, year, intent, period);
+      const body = formatWhatIfAnswer(result);
+      const answer = pack(lang, {
+        title: tx(lang, `${result.title} · ${name} · ${periodLabel}`, `${result.title} · ${name} · ${periodLabel}`),
+        observation: body.observation,
+        evidence: body.evidence,
+        explanation: body.explanation,
+        action: body.action,
+        role: body.role,
+        benefit: body.benefit,
+        outcomeOverride: body.outcome,
+      });
+      return {
+        ...answer,
+        approval: tx(lang, 'Management approval required. AI does not place purchase orders, change safety stock, or approve suppliers alone. Modeled values are not measured improvement.', 'يلزم اعتماد إداري. الذكاء الاصطناعي لا يصدر أوامر شراء ولا يغيّر مخزون الأمان ولا يعتمد الموردين وحده.'),
+      };
+    }
+  }
+
   if (department === 'ICU') {
     const intent = parseWhatIfIntent(q);
     if (intent?.kind.startsWith('icu-')) {
@@ -211,6 +235,7 @@ export function answerQuestion(
   if (department === 'Patient Experience') return answerPx(q, hospital, year, name, lang, period);
   if (department === 'Revenue Cycle') return answerRcm(q, hospital, year, name, lang, period);
   if (department === 'Quality & Safety') return answerQs(q, hospital, year, name, lang, period);
+  if (department === 'Supply Chain') return answerSc(q, hospital, year, name, lang, period);
 
   // Outside the public domains: keep legacy helpers for unused screens.
   const busiest = [...sites].sort((a, b) => b.annual.occupiedBeds / b.annual.staffedBeds - a.annual.occupiedBeds / a.annual.staffedBeds)[0];
@@ -1740,6 +1765,133 @@ function answerQs(
     action: tx(lang, topAlert?.action ?? 'Review Command signals, then Incidents, Infections, Prevention, Outcomes, and RCA/CAPA. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم الحوادث والعدوى والوقاية والنتائج وRCA.'),
     role: tx(lang, 'Chief quality officer', 'رئيس الجودة'),
     benefit: tx(lang, 'A sequenced review keeps reporting, surveillance, prevention, outcomes, and learning distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
+  });
+}
+
+function answerSc(
+  q: string,
+  hospital: string,
+  year: number,
+  name: string,
+  lang: Lang,
+  period: ReportPeriod,
+): AssistantAnswer {
+  const view = buildScView(hospital, year, period);
+  const n = (value: number, digits = 0) => value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  const p = (value: number) => `${(value * 100).toFixed(1)}%`;
+  const sar = (value: number) => `SAR ${n(Math.round(value))}`;
+  const modeledNote = 'Modeled figures are illustrative under documented assumptions — not measured improvement and not live purchasing actions.';
+  const priorityOpp = [...view.opportunities].sort((a, b) => b.eligibleValue - a.eligibleValue)[0];
+
+  if (/claim denial|net collection|revenue leakage|ed wait|emergency boarding|hand.?hygiene|clabsi|patient satisfaction/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside Supply Chain focus', 'خارج تركيز سلسلة الإمداد'),
+      observation: tx(lang, 'That question belongs to another domain ownership boundary.', 'هذا السؤال يخص حدود ملكية دومين آخر.'),
+      evidence: tx(lang, 'Denials stay in Revenue Cycle, HAI in Quality & Safety, and satisfaction in Patient Experience.', 'كل دومين يملك مؤشراته.'),
+      explanation: tx(lang, 'Supply Chain owns inventory availability, procurement, supplier performance, clinical consumption, waste/expiry, and illustrative supply scenarios.', 'سلسلة الإمداد تملك المخزون والمشتريات والموردين والاستهلاك والهدر.'),
+      action: tx(lang, 'Stay on Supply Chain screens for inventory, procurement, and supplier questions.', 'ابقَ في شاشات سلسلة الإمداد.'),
+      role: tx(lang, 'Supply chain director', 'مدير سلسلة الإمداد'),
+      benefit: tx(lang, 'Clear ownership prevents duplicating pharmacy or revenue dashboards inside Supply Chain.', 'الملكية الواضحة تمنع التكرار.'),
+    });
+  }
+
+  if (/auto-?place|autonomous purchas|cut critical safety stock|approve suppliers alone|change safety stock alone/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, 'Outside autonomous purchasing', 'خارج الشراء الذاتي'),
+      observation: tx(lang, 'Vital Assist is supply-chain operational intelligence — not an autonomous purchasing engine, formulary authority, or unsupervised safety-stock editor.', 'المساعد طبقة تشغيل إمداد وليس محرك شراء ذاتي.'),
+      evidence: tx(lang, `Observed facts for ${name}: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · days of supply ${n(view.daysOfSupply, 1)} (${view.periodLabel}).`, 'مؤشرات تشغيل فقط.'),
+      explanation: tx(lang, 'Never cut clinically critical safety stock solely for carrying cost. Every purchasing or cover change requires authorized human review.', 'لا تُخفّض مخزون الأمان السريري الحرج لمجرد التكلفة.'),
+      action: tx(lang, 'Ask about availability, days of supply, fill rate, near-expiry, or dual-source coverage instead.', 'اسأل عن التوافر أو أيام التغطية أو معدل التعبئة أو قرب انتهاء الصلاحية.'),
+      role: tx(lang, 'Materials management lead', 'قائد إدارة المواد'),
+      benefit: tx(lang, 'Keeps operational analytics separate from unsupervised purchasing actions.', 'يفصل التحليل التشغيلي عن أوامر الشراء غير المراقبة.'),
+    });
+  }
+
+  if (/days of supply|dos|available units|safety stock|stockout|inventory turnover|replenishment exception|inventory accuracy/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Inventory & availability · ${name} · ${view.periodLabel}`, `المخزون والتوافر · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: available units ${n(view.availableUnits)} · days of supply ${n(view.daysOfSupply, 1)} (usable ÷ forecast daily demand ${n(view.dailyForecastDemand, 1)}) · below safety ${n(view.belowSafety)} · critical stockouts ${n(view.criticalStockouts)} · turnover ${n(view.inventoryTurnover, 1)} · accuracy ${p(view.inventoryAccuracy)}.`, `أيام التغطية ${n(view.daysOfSupply, 1)}.`),
+      evidence: tx(lang, `${view.methodology.dos} ${view.methodology.inventory}`, view.methodology.dos),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): replenishment lag and below-safety cover. Modeled (illustrative): addressable stockouts ${n(view.addressableStockoutRisk)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: review critical SKUs below safety stock and open replenishment exceptions. Never cut clinically critical safety stock solely for cost.', 'راجع مخزون الأمان واستثناءات التجديد.'),
+      role: tx(lang, 'Materials management', 'إدارة المواد'),
+      benefit: tx(lang, 'Unit-based Days of Supply keeps cover honest.', 'أيام التغطية بالوحدات تبقي التغطية صادقة.'),
+    });
+  }
+
+  if (/purchase order|open po|procurement|price variance|approval tat|cycle time|invoice|payment/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Procurement · ${name} · ${view.periodLabel}`, `المشتريات · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: open POs ${n(view.openPos)} · approval TAT ${n(view.poApprovalTat, 1)} h · cycle time ${n(view.poCycleTime, 1)} d · on-time fulfillment ${p(view.ontimePoFulfillment)} · ordered ${n(view.receiptsOrdered)} · received ${n(view.receiptsReceived)} · invoiced ${n(view.receiptInvoices)} · paid ${n(view.paymentsPosted)}.`, `أوامر الشراء المفتوحة ${n(view.openPos)}.`),
+      evidence: tx(lang, `${view.methodology.procurement}`, view.methodology.procurement),
+      explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): approval lag and need-by misses. PO ≠ receipt ≠ invoice ≠ payment.', 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: age the open PO ledger and clear procurement exceptions before consolidating demand.', 'رتّب أوامر الشراء المفتوحة وامسح استثناءات المشتريات.'),
+      role: tx(lang, 'Procurement director', 'مدير المشتريات'),
+      benefit: tx(lang, 'Distinct document ledgers prevent false cash or stock conclusions.', 'دفاتر المستندات المنفصلة تمنع استنتاجات خاطئة.'),
+    });
+  }
+
+  if (/supplier|fill rate|otd|on-time delivery|contract|dual.?source|concentration|defective/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Supplier performance · ${name} · ${view.periodLabel}`, `أداء الموردين · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: fill rate ${p(view.supplierFillRate)} (target ${p(SC_TARGETS.supplierFillRate)}) · OTD ${p(view.supplierOtd)} (Command-owned) · contract compliance ${p(view.contractCompliance)} · defective ${p(view.defectiveDeliveryRate)} · concentration ${p(view.supplierConcentration)} · dual-source ${p(view.dualSourceCoverage)}.`, `معدل التعبئة ${p(view.supplierFillRate)}.`),
+      evidence: tx(lang, `${view.methodology.suppliers}`, view.methodology.suppliers),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): single-source concentration and defective receipts. Modeled diversification opportunities ${n(view.supplierDiversificationOps)}. Cheapest ≠ safest. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: raise dual-source coverage on high-concentration critical SKUs and review defective delivery with Supplier Performance.', 'ارفع التغطية ثنائية المصدر وراجع التسليم المعيب.'),
+      role: tx(lang, 'Supplier performance', 'أداء الموردين'),
+      benefit: tx(lang, 'Separating fill from OTD keeps supplier signals honest.', 'فصل التعبئة عن الالتزام بالموعد يحافظ على صدق الإشارة.'),
+    });
+  }
+
+  if (/consump|forecast|unusual|per encounter|lead time/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Clinical consumption · ${name} · ${view.periodLabel}`, `الاستهلاك السريري · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: clinical consumption ${n(view.clinicalConsumption)} · per encounter ${n(view.consumptionPerEncounter, 2)} · forecast deviation ${p(view.forecastDeviation)} · replenishment lead time ${n(view.replenishmentLeadTime, 1)} d · unusual signals ${n(view.unusualConsumption)} · high-variation categories ${n(view.highVariationCategories)}.`, `الاستهلاك ${n(view.clinicalConsumption)}.`),
+      evidence: tx(lang, 'Clinical consumption is an issue-event flow — not a stock. Forecast deviation uses published category forecasts.', 'الاستهلاك تدفق أحداث وليس رصيداً.'),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): forecast miss and high-variation categories. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: review unusual consumption signals and forecast deviation by category with Demand Planning.', 'راجع إشارات الاستهلاك غير المعتاد وانحراف التوقع.'),
+      role: tx(lang, 'Demand planning', 'تخطيط الطلب'),
+      benefit: tx(lang, 'Flow vs stock discipline prevents mistaking issues for on-hand.', 'فصل التدفق عن الرصيد يمنع الخلط.'),
+    });
+  }
+
+  if (/expir|waste|damaged|quarantine|recalled|obsolete|adjust|avoidable/.test(q)) {
+    return pack(lang, {
+      title: tx(lang, `Waste & expiry · ${name} · ${view.periodLabel}`, `الهدر وانتهاء الصلاحية · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: expired ${sar(view.expiredValue)} · near-expiry ${sar(view.nearExpiryExposure)} · waste rate ${p(view.inventoryWasteRate)} · damaged ${sar(view.damagedStockValue)} · adjustment exceptions ${n(view.stockAdjustmentExceptions)} · avoidable procurement ${sar(view.avoidableProcurementExposure)}.`, `منتهي الصلاحية ${sar(view.expiredValue)}.`),
+      evidence: tx(lang, `${view.methodology.waste}`, view.methodology.waste),
+      explanation: tx(lang, `Potential drivers / Hypotheses (not proven): FEFO gaps and over-buy. Modeled expiry avoidance ${sar(view.expiryAvoidanceOpportunity)}. ${modeledNote}`, 'أسباب محتملة وليست مثبتة.'),
+      action: tx(lang, 'Recommendations: separate near-expiry redistribution from expired write-offs and clear adjustment exceptions with Inventory Control.', 'افصل قرب انتهاء الصلاحية عن الشطب وصفّر استثناءات التسوية.'),
+      role: tx(lang, 'Inventory control', 'رقابة المخزون'),
+      benefit: tx(lang, 'Disposition discipline prevents conflating near-expiry with expired.', 'انضباط التصنيف يمنع الخلط.'),
+    });
+  }
+
+  if (/interven|priorit|first|improve|optim|what.?if|opportunit|action|scenario/.test(q)) {
+    const sims = view.opportunities.slice(0, 4).map((item) => `${item.title} (~${n(item.eligibleValue)})`).join('; ');
+    return pack(lang, {
+      title: tx(lang, `Supply priorities · ${name} · ${view.periodLabel}`, `أولويات الإمداد · ${name} · ${view.periodLabel}`),
+      observation: tx(lang, `Observed facts: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · near-expiry ${sar(view.nearExpiryExposure)} · addressable stockouts ${n(view.addressableStockoutRisk)}. Largest modeled scenario: ${priorityOpp.title}.`, `أكبر سيناريو ${priorityOpp.title}.`),
+      evidence: tx(lang, `${view.methodology.optimization}`, view.methodology.optimization),
+      explanation: tx(lang, `Modeled (illustrative): ${sims}. ${modeledNote}`, 'محاكاة توضيحية وليست تحسناً مقيساً.'),
+      action: tx(lang, `Recommendations: sequence ${priorityOpp.title.toLowerCase()} with owner ${priorityOpp.owner}; monitor ${priorityOpp.followUp}. AI does not place purchase orders, change safety stock, or approve suppliers alone.`, `نفّذ الأولوية وراقب المؤشر.`),
+      role: tx(lang, priorityOpp.owner, priorityOpp.owner),
+      benefit: tx(lang, 'Non-additive scenarios prevent overstating combined improvement.', 'السيناريوهات غير الجمعية تمنع المبالغة.'),
+    });
+  }
+
+  const hot = alertsFor(hospital, year, period).filter((alert) => alert.department === 'Supply Chain' && alert.severity !== 'info');
+  const topAlert = hot[0];
+  return pack(lang, {
+    title: tx(lang, `Supply Chain at ${name} · ${view.periodLabel}`, `سلسلة الإمداد في ${name} · ${view.periodLabel}`),
+    observation: tx(lang, topAlert
+      ? `${topAlert.title}: ${topAlert.observed} (${topAlert.period})`
+      : `Observed facts: availability ${p(view.supplyAvailability)} · critical stockouts ${n(view.criticalStockouts)} · inventory ${sar(view.inventoryValue)} · OTD ${p(view.supplierOtd)} · near-expiry ${sar(view.expiryRiskValue)} · PO backlog ${n(view.poBacklog)}.`, topAlert ? topAlert.title : `التوافر ${p(view.supplyAvailability)}.`),
+    evidence: tx(lang, `${view.methodology.clinical} ${view.methodology.inventory}`, view.methodology.clinical),
+    explanation: tx(lang, 'Potential drivers / Hypotheses (not proven): stockouts, supplier reliability, and near-expiry move together across Supply Chain screens.', 'أسباب محتملة وليست مثبتة.'),
+    action: tx(lang, topAlert?.action ?? 'Review Command signals, then Inventory, Procurement, Suppliers, Consumption, and Waste. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم المخزون والمشتريات والموردين.'),
+    role: tx(lang, 'Supply chain director', 'مدير سلسلة الإمداد'),
+    benefit: tx(lang, 'A sequenced review keeps inventory, procurement, suppliers, consumption, and waste distinct.', 'مراجعة متسلسلة تبقي المجالات متميزة.'),
   });
 }
 

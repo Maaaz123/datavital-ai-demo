@@ -29,6 +29,15 @@ import {
   QsOutcomesPage,
   QsPreventionPage,
 } from '@/core/qualitySafety';
+import {
+  ScCommandPage,
+  ScConsumptionPage,
+  ScInventoryPage,
+  ScOptimizationPage,
+  ScProcurementPage,
+  ScSuppliersPage,
+  ScWastePage,
+} from '@/core/supplyChain';
 
 const LEGACY = [
   '/login', '/dashboard', '/command-center', '/demo', '/copilot',
@@ -110,6 +119,13 @@ export const routes = [
       { path: 'quality/outcomes', element: <QsOutcomesPage /> },
       { path: 'quality/actions', element: <QsActionsPage /> },
       { path: 'quality/optimization', element: <QsOptimizationPage /> },
+      { path: 'supply-chain', element: <ScCommandPage /> },
+      { path: 'supply-chain/inventory', element: <ScInventoryPage /> },
+      { path: 'supply-chain/procurement', element: <ScProcurementPage /> },
+      { path: 'supply-chain/suppliers', element: <ScSuppliersPage /> },
+      { path: 'supply-chain/consumption', element: <ScConsumptionPage /> },
+      { path: 'supply-chain/waste', element: <ScWastePage /> },
+      { path: 'supply-chain/optimization', element: <ScOptimizationPage /> },
     ],
   },
   ...LEGACY.map((path) => ({ path, element: <Navigate to="/" replace /> })),
