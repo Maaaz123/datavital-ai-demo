@@ -4,7 +4,7 @@
 **BUILD_ID:** `v77-supply-chain-domain`  
 **Routes:** `/supply-chain` (+ inventory, procurement, suppliers, consumption, waste, optimization)  
 **Date:** 2026-10-30  
-**Commits:** `adea554` (feat) · `98c22c5` (deploy) · *(404 shell sync + this verification follow-up)*  
+**Commits:** `adea554` (feat) · `98c22c5` (deploy) · `36f8c99` (404 shell sync + production verification)  
 **Production:** https://demo.datavital.io/supply-chain  
 **Production deploy:** PASS — `refresh.html` BUILD_ID `v77-supply-chain-domain`; bundle `index-CYfE7ERG.js` HTTP 200; all 8 SC what-if kinds present in live JS  
 **Product-owner approval:** **NOT RECORDED**
