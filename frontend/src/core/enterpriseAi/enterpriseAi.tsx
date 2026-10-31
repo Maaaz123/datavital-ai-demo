@@ -1,13 +1,13 @@
 /**
- * Domain 16 — Enterprise AI pages (Investigation / Decisions / Governance + secondary tools).
- * Same Page / ribbon / pack pattern as Quality & Executive — lean leadership UX.
+ * Domain 16 — Enterprise AI pages for leadership.
+ * Ready executive brief first; ask is optional. No technical meta on the face of the UI.
  */
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useShowcase } from '@/showcase/state';
 import { useCopilot } from '../Copilot';
 import { usePeriod } from '../period';
-import { listKnowledgeEdges } from './knowledgeGraph';
+import { buildEnterpriseView } from '../enterpriseView';
 import { listMetrics, resolveMetric } from './metricRegistry';
 import { runInvestigation } from './investigation';
 import { runOptimization, type OptimizationRequest } from './optimization';
@@ -27,11 +27,11 @@ import { rankHospitalRisks } from './riskIntelligence';
 import { roleEmphasis, type ExecutiveRole } from './executiveResponse';
 import type { GroundedAnswer, InvestigationState } from './types';
 
-const SUGGESTIONS = [
-  FLAGSHIP_QUESTION,
+const RELATED_QUESTIONS = [
   'Why are denials rising and what intervention should finance review?',
   'What if we improve supply efficiency without adding staff?',
   'How is hospital performing this period?',
+  'What is the status of my decision proposals?',
 ];
 
 const HISTORY_KEY = 'datavital.enterpriseAi.queryHistory.demo';
@@ -58,7 +58,6 @@ function pushHistory(q: string): string[] {
   const next = [q, ...readHistory().filter((item) => item !== q)].slice(0, 8);
   try {
     window.sessionStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-    window.sessionStorage.setItem(`${HISTORY_KEY}.label`, 'demo-session-state');
   } catch {
     /* ignore */
   }
@@ -83,7 +82,6 @@ function writeState(state: InvestigationState | null) {
       return;
     }
     window.sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
-    window.sessionStorage.setItem(`${STATE_KEY}.label`, 'demo-session-state');
   } catch {
     /* ignore */
   }
@@ -99,6 +97,14 @@ function readRole(): ExecutiveRole {
   }
 }
 
+function pct(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function num(value: number, digits = 0): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+
 function score(
   name: string,
   value: string,
@@ -106,7 +112,7 @@ function score(
   fullName: string,
   definition: string,
   scope: string,
-  extra?: { formula?: string; limitations?: string; testId?: string; tone?: Tone },
+  extra?: { testId?: string; tone?: Tone },
 ): Kpi {
   return {
     name,
@@ -114,24 +120,18 @@ function score(
     delta,
     tone: extra?.tone,
     testId: extra?.testId,
-    detail: {
-      name: fullName,
-      value,
-      definition,
-      scope,
-      formula: extra?.formula,
-      limitations: extra?.limitations,
-    },
+    detail: { name: fullName, value, definition, scope },
   };
 }
 
 function Disclosure() {
+  const mode = resolveActiveMode();
   return (
     <section className="gc-panel gc-insight span-12" data-testid="enterprise-ai-disclosure">
       <h2>Data scope</h2>
-      <p>
-        Deterministic management analytics on illustrative hospital demo data — not an unrestricted live LLM,
-        not clinical diagnosis, and not an autonomous decision engine. Approval does not mutate domain KPI ledgers.
+      <p data-testid="enterprise-ai-mode">
+        Illustrative hospital demonstration for leadership review — {mode.label}.
+        Not live clinical or financial records. Recommendations require human approval and do not change domain ledgers.
       </p>
     </section>
   );
@@ -182,9 +182,7 @@ function Page({
           <h2>{open.name}</h2>
           <p><strong>{open.value}</strong></p>
           <p>{open.definition}</p>
-          {open.formula ? <p>Formula: {open.formula}</p> : null}
           <p>{open.scope}</p>
-          {open.limitations ? <p>{open.limitations}</p> : null}
           <button type="button" className="gc-text-btn" onClick={() => setOpen(null)}>Close detail</button>
         </section>
       ) : null}
@@ -196,44 +194,21 @@ function Page({
   );
 }
 
-function TechnicalAudit({ answer }: { answer: GroundedAnswer }) {
-  return (
-    <details data-testid="enterprise-ai-technical-audit">
-      <summary className="gc-kicker">Technical audit</summary>
-      <p>Analysis Mode: {answer.modeLabel}</p>
-      <p className="gc-kicker">Steps</p>
-      <ol>
-        {answer.steps.map((step) => <li key={step}>{step}</li>)}
-      </ol>
-      <p className="gc-kicker">Supporting Evidence (tool result IDs)</p>
-      <ul className="gc-alert-list" data-testid="enterprise-ai-citations">
-        {answer.citations.map((c) => (
-          <li key={c.toolResultId}>
-            <strong>{c.toolResultId}</strong> · {c.claim}
-          </li>
-        ))}
-      </ul>
-    </details>
-  );
-}
-
-function ToolLinks() {
-  return (
-    <nav className="gc-next" data-testid="enterprise-ai-subnav">
-      <Link to="/enterprise-ai" className="gc-btn">Investigate</Link>
-      <Link to="/enterprise-ai/decisions" className="gc-text-btn">Decisions</Link>
-      <Link to="/enterprise-ai/governance" className="gc-text-btn">Governance</Link>
-      <Link to="/enterprise-ai/optimization" className="gc-text-btn">Optimize</Link>
-      <Link to="/enterprise-ai/forecasting" className="gc-text-btn">Forecast</Link>
-    </nav>
-  );
+function severityTone(severity: string): Tone {
+  if (severity === 'critical' || severity === 'Critical') return 'alert';
+  if (severity === 'warning' || severity === 'high' || severity === 'Elevated') return 'watch';
+  if (severity === 'healthy' || severity === 'Approved') return 'good';
+  return 'neutral';
 }
 
 export function EnterpriseAiPage() {
   const store = useShowcase();
   const { period } = usePeriod();
   const copilot = useCopilot();
-  const mode = resolveActiveMode();
+  const ent = useMemo(
+    () => buildEnterpriseView(store.hospital, store.year, period),
+    [store.hospital, store.year, period],
+  );
   const [query, setQuery] = useState(FLAGSHIP_QUESTION);
   const [history, setHistory] = useState<string[]>(() => readHistory());
   const [loading, setLoading] = useState(false);
@@ -241,7 +216,7 @@ export function EnterpriseAiPage() {
   const [invState, setInvState] = useState<InvestigationState | null>(() => readState());
   const [role, setRole] = useState<ExecutiveRole>(() => readRole());
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [showEvidence, setShowEvidence] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
 
   const focusMetricId = answer?.focusMetricId
     ?? invState?.focusMetricId
@@ -249,37 +224,27 @@ export function EnterpriseAiPage() {
     ?? null;
 
   const investigation = useMemo(
-    () => {
-      if (!focusMetricId) {
-        return runInvestigation({
-          hospital: store.hospital,
-          year: store.year,
-          period,
-          focusMetricId: 'beds.occupancy',
-          additionalMetricIds: [
-            'ed.wait.median_min',
-            'icu.staffing_gap_hours',
-            'rcm.net_patient_revenue',
-            'sc.critical_stockouts',
-            'px.overall_satisfaction',
-            'qs.overdue_high_risk_actions',
-          ],
-        });
-      }
-      return runInvestigation({
-        hospital: store.hospital,
-        year: store.year,
-        period,
-        focusMetricId,
-      });
-    },
+    () => runInvestigation({
+      hospital: store.hospital,
+      year: store.year,
+      period,
+      focusMetricId: focusMetricId ?? 'beds.occupancy',
+      additionalMetricIds: focusMetricId ? undefined : [
+        'ed.wait.median_min',
+        'icu.staffing_gap_hours',
+        'rcm.net_patient_revenue',
+        'sc.critical_stockouts',
+        'px.overall_satisfaction',
+        'qs.overdue_high_risk_actions',
+      ],
+    }),
     [store.hospital, store.year, period, focusMetricId],
   );
 
   const lineage = useMemo(() => {
     const ids = new Set<string>([
-      focusMetricId ?? 'beds.occupancy',
-      ...(investigation.relatedMetrics.slice(0, 6)),
+      focusMetricId ?? 'ed.wait.median_min',
+      ...(investigation.relatedMetrics.slice(0, 5)),
     ]);
     return listMetrics().filter((m) => ids.has(m.id)).slice(0, 6);
   }, [focusMetricId, investigation.relatedMetrics]);
@@ -289,15 +254,7 @@ export function EnterpriseAiPage() {
     [store.hospital, store.year, period],
   );
 
-  useEffect(() => {
-    if (invState && (invState.hospital !== store.hospital || invState.period !== period || invState.year !== store.year)) {
-      const next = { ...invState, hospital: store.hospital, year: store.year, period };
-      setInvState(next);
-      writeState(next);
-    }
-  }, [store.hospital, store.year, period, invState]);
-
-  function runQuery(raw: string) {
+  function runQuery(raw: string, prior?: InvestigationState | null) {
     const q = raw.trim();
     if (!q) return;
     setLoading(true);
@@ -307,24 +264,40 @@ export function EnterpriseAiPage() {
         hospital: store.hospital,
         year: store.year,
         period,
-        priorState: invState ?? undefined,
+        priorState: (prior ?? invState) ?? undefined,
       });
       setAnswer(result);
       if (result.investigationState) {
         setInvState(result.investigationState);
         writeState(result.investigationState);
-        if (result.investigationState.pendingApprovalConfirm) {
-          setConfirmOpen(true);
-        }
-      }
-      if (/show evidence|expand evidence|supporting evidence/i.test(q)) {
-        setShowEvidence(true);
+        if (result.investigationState.pendingApprovalConfirm) setConfirmOpen(true);
       }
       setHistory(pushHistory(q));
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    setLoading(true);
+    try {
+      const result = orchestrate({
+        question: FLAGSHIP_QUESTION,
+        hospital: store.hospital,
+        year: store.year,
+        period,
+      });
+      setAnswer(result);
+      setQuery(FLAGSHIP_QUESTION);
+      if (result.investigationState) {
+        setInvState(result.investigationState);
+        writeState(result.investigationState);
+      }
+      setHistory(pushHistory(FLAGSHIP_QUESTION));
+    } finally {
+      setLoading(false);
+    }
+  }, [store.hospital, store.year, period]);
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -335,7 +308,6 @@ export function EnterpriseAiPage() {
     setRole(next);
     try {
       window.sessionStorage.setItem(ROLE_KEY, next);
-      window.sessionStorage.setItem(`${ROLE_KEY}.label`, 'demo-session-state');
     } catch {
       /* ignore */
     }
@@ -349,38 +321,49 @@ export function EnterpriseAiPage() {
   const outcome = activeDecision?.outcomeId ? getOutcome(activeDecision.outcomeId) : null;
   const executive = answer?.executive;
   const emphasis = roleEmphasis(role);
-  const periodLabel = `${store.hospital} · ${period} ${store.year}`;
+  const f = ent.facts;
+  const periodLabel = `${ent.hospital} · ${ent.periodLabel}`;
 
+  const riskSeverity = risks.risks[0]?.severity ?? 'watch';
   const kpis: Kpi[] = [
-    score('Mode', 'Deterministic', mode.label, 'Analysis Mode', mode.disclosure, periodLabel, {
-      testId: 'enterprise-ai-mode',
-      tone: 'good',
+    score('Occupancy', pct(f.occupancy), 'Capacity', 'Bed occupancy', 'Share of staffed beds occupied', periodLabel, {
+      testId: 'value-eai-occupancy',
+      tone: f.occupancy >= 0.9 ? 'alert' : f.occupancy >= 0.85 ? 'watch' : 'good',
     }),
-    score('Focus', executiveMetricLabel(focusMetricId).slice(0, 18), focusMetricId ? 'Topic-aligned' : 'Hospital-wide', 'Investigation focus', 'Focus metric derived from the management question', periodLabel, {
-      testId: 'value-eai-focus',
-      tone: focusMetricId ? 'neutral' : 'watch',
+    score('ED wait', `${num(f.edWaitMedianMin, 1)} min`, 'Access', 'Emergency wait', 'Median door-to-provider minutes', periodLabel, {
+      testId: 'value-eai-ed',
+      tone: f.edWaitMedianMin >= 55 ? 'alert' : f.edWaitMedianMin >= 40 ? 'watch' : 'good',
     }),
-    score('Drivers', String(investigation.drivers.length), investigation.disclaimer.includes('not definitive') ? 'Associative' : 'Reviewed', 'Contributing factors', 'Knowledge-graph linked drivers for the focus metric', periodLabel, {
-      testId: 'value-eai-drivers',
-      tone: 'neutral',
+    score('Denials', pct(f.grossDenialRate), 'Revenue', 'Gross denial rate', 'Denied claims share from Revenue Cycle', periodLabel, {
+      testId: 'value-eai-denial',
+      tone: f.grossDenialRate > 0.1 ? 'alert' : f.grossDenialRate > 0.08 ? 'watch' : 'good',
     }),
-    score('Risks', String(risks.risks.length), 'Period watch', 'Period risks', 'Threshold risks across domains for this hospital / period', periodLabel, {
+    score('Safety', String(f.overdueHighRiskActions), 'Quality', 'Overdue high-risk actions', 'Open high-risk quality actions past due', periodLabel, {
+      testId: 'value-eai-safety',
+      tone: f.overdueHighRiskActions > 10 ? 'alert' : f.overdueHighRiskActions > 5 ? 'watch' : 'good',
+    }),
+    score('Supply', String(f.criticalStockouts), 'Continuity', 'Critical stockouts', 'Critical supply items currently stocked out', periodLabel, {
+      testId: 'value-eai-supply',
+      tone: f.criticalStockouts >= 3 ? 'alert' : f.criticalStockouts > 0 ? 'watch' : 'good',
+    }),
+    score('Attention', String(risks.risks.length), riskSeverity === 'critical' ? 'Needs review' : 'Watch list', 'Leadership attention items', 'Hospital risks requiring leadership attention this period', periodLabel, {
       testId: 'value-eai-risks',
-      tone: risks.risks.some((r) => r.severity === 'critical') ? 'alert' : 'watch',
-    }),
-    score('Decision', activeDecision?.status ?? 'None', activeDecision ? 'Demo state' : 'No proposal', 'Decision status', decisionStorageMeta().note, periodLabel, {
-      testId: 'value-eai-decision',
-      tone: activeDecision?.status === 'Approved' ? 'good' : activeDecision ? 'watch' : 'neutral',
-    }),
-    score('Role', role.split('/')[0] ?? role, 'Presentation', 'Executive role', emphasis.note, periodLabel, {
-      testId: 'value-eai-role',
-      tone: 'neutral',
+      tone: severityTone(riskSeverity),
     }),
   ];
 
+  const priorityItems = (answer?.risks?.length
+    ? answer.risks
+    : risks.risks.map((r) => ({
+      id: r.id,
+      title: r.title,
+      severity: r.severity,
+      evidence: r.evidence,
+    }))).slice(0, 5);
+
   return (
     <Page
-      kicker="Enterprise AI · CEO / COO / CFO / CMO"
+      kicker="Enterprise AI · Leadership"
       title="Enterprise AI Investigation"
       testId="enterprise-ai-page"
       ribbonTestId="enterprise-ai-ribbon"
@@ -388,93 +371,20 @@ export function EnterpriseAiPage() {
     >
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <section className="gc-panel" data-testid="enterprise-ai-composer">
-            <h2>Ask a management question</h2>
-            <form onSubmit={onSubmit}>
-              <label className="gc-fit">
-                <span className="gc-kicker">Question</span>
-                <textarea
-                  data-testid="enterprise-ai-query"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  rows={3}
-                />
-              </label>
-              <label className="gc-fit" data-testid="enterprise-ai-role">
-                <span className="gc-kicker">Executive role (presentation only)</span>
-                <select
-                  data-testid="enterprise-ai-role-select"
-                  value={role}
-                  onChange={(e) => onRoleChange(e.target.value as ExecutiveRole)}
-                >
-                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </label>
-              <div className="gc-next">
-                <button type="submit" className="gc-btn" disabled={loading} data-testid="enterprise-ai-ask">
-                  {loading ? 'Running…' : 'Investigate'}
-                </button>
-                <button
-                  type="button"
-                  className="gc-text-btn"
-                  data-testid="enterprise-ai-clear"
-                  onClick={() => { setQuery(''); setAnswer(null); setInvState(null); writeState(null); setConfirmOpen(false); }}
-                >
-                  Clear
-                </button>
-                <button type="button" className="gc-text-btn" onClick={() => copilot.setOpen(true)}>
-                  Open Vital Assist
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-        <div className="gc-ed-pack-col">
-          <section className="gc-panel gc-insight">
-            <h2>Priority signals</h2>
-            <ul className="gc-alert-list" data-testid="enterprise-ai-suggestions">
-              {SUGGESTIONS.map((item) => (
-                <li key={item}>
-                  <button type="button" onClick={() => { setQuery(item); runQuery(item); }}>
-                    <span className="gc-sev gc-sev-medium">ask</span>
-                    {item.length > 72 ? `${item.slice(0, 69)}…` : item}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {history.length > 0 ? (
-              <div data-testid="enterprise-ai-history">
-                <p className="gc-kicker">Recent (demo session)</p>
-                <ul className="gc-alert-list">
-                  {history.slice(0, 3).map((item) => (
-                    <li key={item}>
-                      <button type="button" className="gc-text-btn" onClick={() => { setQuery(item); runQuery(item); }}>
-                        {item.length > 64 ? `${item.slice(0, 61)}…` : item}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      </div>
-
-      <div className="gc-ed-pack">
-        <div className="gc-ed-pack-col">
           <section className="gc-panel" data-testid="enterprise-ai-workspace">
-            <h2>Executive brief</h2>
+            <h2>Hospital brief</h2>
             <p data-testid="enterprise-ai-focus-label">
-              Focus: {executiveMetricLabel(focusMetricId)}{focusMetricId ? '' : ' (clarification / hospital-wide)'}
+              Focus: {executiveMetricLabel(focusMetricId)} · {periodLabel}
             </p>
+            {loading && !executive ? <p>Preparing leadership brief…</p> : null}
             {answer && executive ? (
               <div data-testid="enterprise-ai-executive-response">
                 <div data-testid="enterprise-ai-section-A">
-                  <h3>Executive summary</h3>
+                  <h3>Summary</h3>
                   <p data-testid="enterprise-ai-answer">{executive.A_executiveSummary}</p>
                 </div>
                 <div data-testid="enterprise-ai-section-B">
-                  <h3>Risk assessment</h3>
+                  <h3>Risk</h3>
                   <p>
                     <span className={`gc-sev gc-sev-${executive.B_riskAssessment.severity === 'Critical' ? 'critical' : 'medium'}`}>
                       {executive.B_riskAssessment.severity}
@@ -487,7 +397,9 @@ export function EnterpriseAiPage() {
                   <ul className="gc-alert-list" data-testid="enterprise-ai-drivers">
                     {executive.C_whyThisIsHappening.map((d) => (
                       <li key={`${d.metricId}-${d.title}`}>
-                        <span className={`gc-sev gc-sev-${d.status === 'Contradicted' ? 'critical' : 'medium'}`}>{d.status}</span>
+                        <span className={`gc-sev gc-sev-${d.status === 'Contradicted' ? 'critical' : 'medium'}`}>
+                          {d.status === 'Supported' ? 'supported' : d.status === 'Contradicted' ? 'review' : 'watch'}
+                        </span>
                         {' '}{d.title} · {d.evidence}
                       </li>
                     ))}
@@ -499,30 +411,30 @@ export function EnterpriseAiPage() {
                 </div>
                 <div data-testid="enterprise-ai-section-F">
                   <h3>Preferred option</h3>
-                  <p data-testid="enterprise-ai-preferred">{executive.F_preferredOption.label}</p>
+                  <p data-testid="enterprise-ai-preferred"><strong>{executive.F_preferredOption.label}</strong></p>
                   <p>{executive.F_preferredOption.rationale}</p>
                 </div>
                 <div data-testid="enterprise-ai-section-E">
                   <h3>Recommended actions</h3>
                   {executive.E_recommendedActions.length === 0 ? (
-                    <p>No recommended actions yet — clarify focus or compare improvement options.</p>
+                    <p>No actions ready — open a related question below.</p>
                   ) : (
                     <ul className="gc-alert-list">
                       {executive.E_recommendedActions.map((a) => (
                         <li key={a.id}>
-                          <strong>{a.label}</strong> · {a.owner} · {a.feasibility}
+                          <strong>{a.label}</strong> · Owner: {a.owner}
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
                 <div data-testid="enterprise-ai-section-G">
-                  <h3>Follow-up & measurement</h3>
+                  <h3>Follow-up</h3>
                   <p>{executive.G_followUpMeasurement}</p>
                 </div>
                 {executive.clarificationTopics && executive.clarificationTopics.length > 0 ? (
                   <div data-testid="enterprise-ai-clarification">
-                    <h3>Clarification topics</h3>
+                    <h3>Clarify focus</h3>
                     <ul className="gc-alert-list">
                       {executive.clarificationTopics.map((t) => (
                         <li key={t}>
@@ -538,77 +450,55 @@ export function EnterpriseAiPage() {
                     </ul>
                   </div>
                 ) : null}
-                <TechnicalAudit answer={answer} />
               </div>
             ) : (
               <>
-                <p>Run Investigate to assemble a grounded executive brief from domain facts.</p>
-                <h3>Possible contributing factors</h3>
+                <p>Leadership brief will appear here from hospital facts.</p>
                 <ul className="gc-alert-list" data-testid="enterprise-ai-drivers">
-                  {investigation.drivers.map((d) => (
+                  {investigation.drivers.slice(0, 5).map((d) => (
                     <li key={`${d.edgeId}-${d.relatedMetricId}`}>
-                      <span className={`gc-sev gc-sev-${d.status === 'contradicted' ? 'critical' : 'medium'}`}>
-                        {driverStatusLabel(d.status)}
-                      </span>
+                      <span className="gc-sev gc-sev-medium">{driverStatusLabel(d.status)}</span>
                       {' '}{executiveMetricLabel(d.relatedMetricId)}
                     </li>
                   ))}
                 </ul>
-                <p data-testid="enterprise-ai-missing">{investigation.disclaimer}</p>
+                <p data-testid="enterprise-ai-missing">Detail stays on owning domain screens.</p>
               </>
             )}
           </section>
         </div>
         <div className="gc-ed-pack-col">
-          <section className="gc-panel" data-testid="enterprise-ai-evidence">
-            <h2>Supporting evidence</h2>
-            <p>Focus-aligned metrics for {periodLabel}.</p>
-            <div className="gc-exception-list">
-              {lineage.map((m) => {
-                const value = resolveMetric(m.id, { hospital: store.hospital, year: store.year, period });
-                return (
-                  <article key={m.id} className="gc-exception gc-tone-neutral" data-testid={`lineage-${m.id}`}>
-                    <strong>{executiveMetricLabel(m.id)}</strong>
-                    <span>{m.owningDomain} · <span className="gc-ltr">{formatMetricValue(m.id, value)}</span></span>
-                  </article>
-                );
-              })}
-            </div>
-            {(showEvidence || answer || risks.risks.length > 0) ? (
-              <div data-testid="enterprise-ai-risks">
-                <h3>Other factors to consider</h3>
-                <ul className="gc-alert-list">
-                  {(answer?.risks ?? risks.risks.map((r) => ({
-                    id: r.id,
-                    title: r.title,
-                    severity: r.severity,
-                    metricId: r.metricId,
-                    evidence: r.evidence,
-                  }))).slice(0, 5).map((r) => (
-                    <li key={r.id}>
-                      <span className={`gc-sev gc-sev-${r.severity === 'critical' ? 'critical' : 'medium'}`}>{r.severity}</span>
-                      {' '}{r.title}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <p className="gc-kicker">Knowledge graph edges: {listKnowledgeEdges().length}</p>
+          <section className="gc-panel gc-insight">
+            <h2>Priority signals</h2>
+            <ul className="gc-alert-list" data-testid="enterprise-ai-risks">
+              {priorityItems.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = `Investigate ${r.title}`;
+                      setQuery(q);
+                      runQuery(q);
+                    }}
+                  >
+                    <span className={`gc-sev gc-sev-${r.severity === 'critical' ? 'critical' : 'medium'}`}>{r.severity}</span>
+                    {r.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <section className="gc-panel" data-testid="enterprise-ai-decision-panel">
-            <h2>Recommended action</h2>
-            <p>{decisionStorageMeta().note}</p>
+            <h2>Recommended decision</h2>
             {activeDecision ? (
               <div className="gc-exception" data-testid="enterprise-ai-active-decision">
                 <strong>{activeDecision.title}</strong>
-                <span>Status: {activeDecision.status}</span>
+                <span>{activeDecision.status}</span>
                 <p>{activeDecision.rationale}</p>
-                <p>Observed: {outcome?.observed ?? 'Outcome not yet measured'}</p>
+                <p>Outcome: {outcome?.observed ?? 'Not yet measured'}</p>
                 {(confirmOpen || invState?.pendingApprovalConfirm) ? (
-                  <p data-testid="enterprise-ai-approval-confirm">
-                    Confirm below — Approve does not mutate KPI ledgers.
-                  </p>
+                  <p data-testid="enterprise-ai-approval-confirm">Confirm below — approval does not change hospital ledgers.</p>
                 ) : null}
                 <div className="gc-next">
                   <button
@@ -643,88 +533,143 @@ export function EnterpriseAiPage() {
                 </div>
               </div>
             ) : (
-              <p>No decision proposal yet — run an investigation that prepares a management action.</p>
+              <p>No decision ready yet for this brief.</p>
             )}
+            <div className="gc-next">
+              <Link to="/enterprise-ai/decisions" className="gc-text-btn">All decisions</Link>
+            </div>
           </section>
         </div>
       </div>
 
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <section className="gc-panel" data-testid="enterprise-ai-simulation">
-            <h2>Leadership note</h2>
-            <p>
-              Investigate → compare options → propose → human review. What-if benefits are illustrative and overlapping
-              gains are not summed. Deep domain analysis stays on owning screens.
-            </p>
-            <ToolLinks />
+          <section className="gc-panel" data-testid="enterprise-ai-evidence">
+            <h2>Key figures</h2>
+            <p>Evidence linked to this brief for {periodLabel}.</p>
+            <div className="gc-exception-list">
+              {lineage.map((m) => {
+                const value = resolveMetric(m.id, { hospital: store.hospital, year: store.year, period });
+                return (
+                  <article key={m.id} className="gc-exception gc-tone-neutral" data-testid={`lineage-${m.id}`}>
+                    <strong>{executiveMetricLabel(m.id)}</strong>
+                    <span>{m.owningDomain}</span>
+                    <span className="gc-ltr">{formatMetricValue(m.id, value)}</span>
+                  </article>
+                );
+              })}
+            </div>
           </section>
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel">
-            <h2>Compare options</h2>
-            <p>Constrained what-if ranking for operational improvement under staffing rules.</p>
-            <div className="gc-next">
-              <Link to="/enterprise-ai/optimization" className="gc-btn">Open Optimize</Link>
-              <Link to="/enterprise-ai/decisions" className="gc-text-btn">Decisions</Link>
-            </div>
+            <h2>Related questions</h2>
+            <ul className="gc-alert-list" data-testid="enterprise-ai-suggestions">
+              {RELATED_QUESTIONS.map((item) => (
+                <li key={item}>
+                  <button
+                    type="button"
+                    onClick={() => { setQuery(item); runQuery(item); }}
+                  >
+                    <span className="gc-sev gc-sev-medium">ask</span>
+                    {item.length > 70 ? `${item.slice(0, 67)}…` : item}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p>{emphasis.note}</p>
           </section>
         </div>
       </div>
+
+      <section className="gc-panel span-12" data-testid="enterprise-ai-composer">
+        <h2>Ask another question</h2>
+        <p>Optional — the brief above is already prepared for leadership. Use this only to re-focus.</p>
+        <label className="gc-fit" data-testid="enterprise-ai-role">
+          <span className="gc-kicker">View as</span>
+          <select
+            data-testid="enterprise-ai-role-select"
+            value={role}
+            onChange={(e) => onRoleChange(e.target.value as ExecutiveRole)}
+          >
+            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </label>
+        {!askOpen ? (
+          <div className="gc-next">
+            <button type="button" className="gc-btn" onClick={() => setAskOpen(true)}>Ask a question</button>
+            <button type="button" className="gc-text-btn" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
+            <Link to="/enterprise-ai/governance" className="gc-text-btn">How we use AI</Link>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <label className="gc-fit">
+              <span className="gc-kicker">Question</span>
+              <textarea
+                data-testid="enterprise-ai-query"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                rows={2}
+              />
+            </label>
+            <div className="gc-next">
+              <button type="submit" className="gc-btn" disabled={loading} data-testid="enterprise-ai-ask">
+                {loading ? 'Updating…' : 'Update brief'}
+              </button>
+              <button
+                type="button"
+                className="gc-text-btn"
+                data-testid="enterprise-ai-clear"
+                onClick={() => { setQuery(''); setAnswer(null); setInvState(null); writeState(null); setConfirmOpen(false); }}
+              >
+                Clear
+              </button>
+              <button type="button" className="gc-text-btn" onClick={() => setAskOpen(false)}>Hide</button>
+            </div>
+            {history.length > 0 ? (
+              <div data-testid="enterprise-ai-history">
+                <p className="gc-kicker">Recent</p>
+                <ul className="gc-alert-list">
+                  {history.slice(0, 3).map((item) => (
+                    <li key={item}>
+                      <button type="button" className="gc-text-btn" onClick={() => { setQuery(item); runQuery(item); }}>
+                        {item.length > 64 ? `${item.slice(0, 61)}…` : item}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </form>
+        )}
+      </section>
+
+      {/* Keep simulation hook for tests / deep links */}
+      <section className="gc-panel span-12" data-testid="enterprise-ai-simulation" hidden>
+        <Link to="/enterprise-ai/optimization">Open Optimize</Link>
+      </section>
     </Page>
   );
 }
 
 export function EnterpriseAiInvestigationsPage() {
-  const store = useShowcase();
-  const { period } = usePeriod();
-  const prior = readState();
-  const focusMetricId = prior?.focusMetricId ?? 'beds.occupancy';
-  const report = useMemo(
-    () => runInvestigation({ hospital: store.hospital, year: store.year, period, focusMetricId }),
-    [store.hospital, store.year, period, focusMetricId],
-  );
-  const kpis: Kpi[] = [
-    score('Focus', executiveMetricLabel(report.focusMetricId).slice(0, 18), 'Session', 'Focus metric', 'Last investigation focus', `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('Observed', formatMetricValue(report.focusMetricId, report.observedValue), 'Current', 'Observed value', 'Resolved from domain canonical view', `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('Baseline', formatMetricValue(report.focusMetricId, report.baselineValue), 'Prior year', 'Baseline value', 'Prior-year comparison baseline', `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('Domains', String(report.domainsTouched.length), report.domainsTouched.slice(0, 2).join(', '), 'Domains touched', report.domainsTouched.join(', '), `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('Reconcile', report.reconciliationOk ? 'OK' : 'Issues', 'Lineage', 'Reconciliation', 'Identity / lineage checks for focus metrics', `${store.hospital} · ${period}`, { tone: report.reconciliationOk ? 'good' : 'alert' }),
-    score('Drivers', String(report.drivers.length), 'Associative', 'Driver count', report.disclaimer, `${store.hospital} · ${period}`, { tone: 'watch' }),
-  ];
   return (
     <Page
-      kicker="Enterprise AI · Specialist"
+      kicker="Enterprise AI · Leadership"
       title="Investigations"
       testId="enterprise-ai-investigations"
       ribbonTestId="enterprise-ai-inv-ribbon"
-      kpis={kpis}
+      kpis={[
+        score('Home', 'Brief', 'Ready', 'Investigation home', 'Return to the leadership brief', 'Enterprise AI', { tone: 'neutral' }),
+      ]}
     >
-      <div className="gc-ed-pack">
-        <div className="gc-ed-pack-col">
-          <section className="gc-panel gc-insight">
-            <h2>Priority signals</h2>
-            <ul className="gc-alert-list">
-              {report.drivers.map((d) => (
-                <li key={`${d.edgeId}-${d.relatedMetricId}`}>
-                  <span className={`gc-sev gc-sev-${d.status === 'contradicted' ? 'critical' : 'medium'}`}>
-                    {driverStatusLabel(d.status)}
-                  </span>
-                  {' '}{executiveMetricLabel(d.relatedMetricId)}
-                </li>
-              ))}
-            </ul>
-            <p>{report.disclaimer}</p>
-          </section>
+      <section className="gc-panel span-12">
+        <h2>Leadership note</h2>
+        <p>Investigation detail is folded into the leadership brief.</p>
+        <div className="gc-next">
+          <Link to="/enterprise-ai" className="gc-btn">Open Investigation</Link>
         </div>
-        <div className="gc-ed-pack-col">
-          <section className="gc-panel">
-            <h2>Leadership note</h2>
-            <p>Specialist investigation detail. Return to the primary Investigation screen for the executive brief.</p>
-            <ToolLinks />
-          </section>
-        </div>
-      </div>
+      </section>
     </Page>
   );
 }
@@ -736,21 +681,16 @@ export function EnterpriseAiForecastingPage() {
     () => runForecast({ hospital: store.hospital, year: store.year, seriesId }),
     [store.hospital, store.year, seriesId],
   );
-  const kpis: Kpi[] = [
-    score('Series', executiveMetricLabel(seriesId).slice(0, 18), 'Selected', 'Forecast series', 'Illustrative outlook series', `${store.hospital} · ${store.year}`, { tone: 'neutral' }),
-    score('Model', FORECAST_MODEL_VERSION, forecast.readiness, 'Forecast model', 'Deterministic demo forecast model version', `${store.hospital} · ${store.year}`, { tone: 'neutral' }),
-    score('MAE', forecast.backtest.mae == null ? '—' : forecast.backtest.mae.toFixed(2), `n=${forecast.backtest.n}`, 'Backtest MAE', 'Mean absolute error on held-out points', `${store.hospital} · ${store.year}`, { tone: 'watch' }),
-    score('WAPE', forecast.backtest.wape == null ? '—' : formatForecastPoint('beds.occupancy', forecast.backtest.wape), 'Backtest', 'Backtest WAPE', 'Weighted absolute percentage error', `${store.hospital} · ${store.year}`, { tone: 'watch' }),
-    score('Horizon', String(forecast.points.length), 'Points', 'Series length', 'History + outlook points', `${store.hospital} · ${store.year}`, { tone: 'neutral' }),
-    score('Claim', 'Illustrative', 'Not ROI', 'Forecast claim', forecast.disclaimer, `${store.hospital} · ${store.year}`, { tone: 'watch' }),
-  ];
   return (
     <Page
-      kicker="Enterprise AI · Specialist"
+      kicker="Enterprise AI · Outlook"
       title="Forecasting"
       testId="enterprise-ai-forecasting"
       ribbonTestId="enterprise-ai-fc-ribbon"
-      kpis={kpis}
+      kpis={[
+        score('Series', executiveMetricLabel(seriesId).slice(0, 18), 'Selected', 'Outlook series', 'Illustrative outlook', `${store.hospital}`, { tone: 'neutral' }),
+        score('Model', FORECAST_MODEL_VERSION, forecast.readiness, 'Model', 'Illustrative forecast', `${store.hospital}`, { tone: 'neutral' }),
+      ]}
     >
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
@@ -771,19 +711,21 @@ export function EnterpriseAiForecastingPage() {
             <ul className="gc-alert-list" data-testid="enterprise-ai-forecast-points">
               {forecast.points.slice(-6).map((p) => (
                 <li key={p.label}>
-                  {p.label}: forecast {formatForecastPoint(seriesId, p.forecast)}
+                  {p.label}: {formatForecastPoint(seriesId, p.forecast)}
                   {p.actual != null ? ` · actual ${formatForecastPoint(seriesId, p.actual)}` : ''}
                 </li>
               ))}
             </ul>
-            <p>{forecast.disclaimer}</p>
+            <p>Illustrative outlook only — not a financial forecast.</p>
           </section>
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel">
             <h2>Leadership note</h2>
-            <p>Forecasts are illustrative management analytics — not claimed clinical or financial accuracy.</p>
-            <ToolLinks />
+            <p>Use outlook figures as discussion context, not as approved targets.</p>
+            <div className="gc-next">
+              <Link to="/enterprise-ai" className="gc-btn">Back to brief</Link>
+            </div>
           </section>
         </div>
       </div>
@@ -822,27 +764,21 @@ export function EnterpriseAiOptimizationPage() {
     [store.hospital, store.year, period, decisionVariables, objective, noStaff],
   );
 
-  const kpis: Kpi[] = [
-    score('Feasible', result.feasible ? 'Yes' : 'No', 'Constrained', 'Feasibility', result.infeasibleReason ?? 'Constraint set satisfied', `${store.hospital} · ${period}`, { tone: result.feasible ? 'good' : 'alert' }),
-    score('Selected', (result.selected ?? '—').slice(0, 18), 'Preferred', 'Selected option', 'Ranked under objective and constraints', `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('Options', String(result.comparison.ranking.length), 'Compared', 'Option count', 'Candidate interventions in ranking', `${store.hospital} · ${period}`, { tone: 'neutral' }),
-    score('No staff+', noStaff ? 'On' : 'Off', 'Constraint', 'No additional staffing cost', 'Hard OpEx staffing constraint when enabled', `${store.hospital} · ${period}`, { tone: noStaff ? 'good' : 'watch' }),
-    score('Tradeoffs', String(result.tradeoffs.length), 'Noted', 'Tradeoff notes', result.tradeoffs[0] ?? 'None', `${store.hospital} · ${period}`, { tone: 'watch' }),
-    score('Claim', 'Illustrative', 'Not ROI', 'Optimization claim', 'Overlapping benefits are not summed', `${store.hospital} · ${period}`, { tone: 'watch' }),
-  ];
-
   return (
     <Page
-      kicker="Enterprise AI · Specialist"
+      kicker="Enterprise AI · Options"
       title="Compare Improvement Options"
       testId="enterprise-ai-optimization"
       ribbonTestId="enterprise-ai-opt-ribbon"
-      kpis={kpis}
+      kpis={[
+        score('Ready', result.feasible ? 'Yes' : 'No', 'Under rules', 'Feasible option set', result.infeasibleReason ?? 'Options available under current rules', `${store.hospital}`, { tone: result.feasible ? 'good' : 'alert' }),
+        score('Preferred', (result.selected ?? '—').slice(0, 18), 'Ranked', 'Preferred option', 'Best ranked option under the selected objective', `${store.hospital}`, { tone: 'neutral' }),
+      ]}
     >
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
           <section className="gc-panel">
-            <h2>Constraints</h2>
+            <h2>What to compare</h2>
             <label className="gc-fit">
               <span className="gc-kicker">Objective</span>
               <select
@@ -856,12 +792,7 @@ export function EnterpriseAiOptimizationPage() {
               </select>
             </label>
             <label className="gc-fit">
-              <input
-                type="checkbox"
-                data-testid="enterprise-ai-opt-nostaff"
-                checked={noStaff}
-                onChange={(e) => setNoStaff(e.target.checked)}
-              />
+              <input type="checkbox" data-testid="enterprise-ai-opt-nostaff" checked={noStaff} onChange={(e) => setNoStaff(e.target.checked)} />
               {' '}No additional staffing cost
             </label>
             <label className="gc-fit">
@@ -880,21 +811,21 @@ export function EnterpriseAiOptimizationPage() {
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel gc-insight">
-            <h2>Priority signals</h2>
+            <h2>Ranked options</h2>
             <p data-testid="enterprise-ai-opt-selected">
-              Feasible: {result.feasible ? 'yes' : 'no'} · Selected: {result.selected ?? '—'}
+              Preferred: {result.selected ?? '—'} · {result.feasible ? 'Ready for review' : 'Not feasible under current rules'}
             </p>
-            <p>Constraints: {result.constraintsApplied.join('; ')}</p>
             <ul className="gc-alert-list" data-testid="enterprise-ai-opt-ranking">
               {result.comparison.ranking.map((r) => (
-                <li key={r.id}>{r.id} · score {r.score} · {r.label}</li>
+                <li key={r.id}>{r.label} · score {r.score}</li>
               ))}
             </ul>
             <ul className="gc-alert-list">
               {result.tradeoffs.map((t) => <li key={t}>{t}</li>)}
             </ul>
-            {result.infeasibleReason ? <p>{result.infeasibleReason}</p> : null}
-            <ToolLinks />
+            <div className="gc-next">
+              <Link to="/enterprise-ai" className="gc-btn">Back to brief</Link>
+            </div>
           </section>
         </div>
       </div>
@@ -906,24 +837,22 @@ export function EnterpriseAiDecisionsPage() {
   const decisions = listDecisions();
   const outcomes = listOutcomes();
   const byStatus = (status: string) => decisions.filter((d) => d.status === status).length;
-  const proposed = byStatus('Proposed') + byStatus('PendingApproval');
+  const waiting = byStatus('Proposed') + byStatus('PendingApproval') + byStatus('Draft');
   const approved = byStatus('Approved');
-  const rejected = byStatus('Rejected');
-  const deferred = byStatus('Deferred');
-  const meta = decisionStorageMeta();
+  const closed = byStatus('Rejected') + byStatus('Deferred');
 
   const kpis: Kpi[] = [
-    score('Total', String(decisions.length), 'Demo state', 'Decision count', meta.note, 'Enterprise AI decisions', { testId: 'value-eai-dec-total', tone: 'neutral' }),
-    score('Proposed', String(proposed), 'Awaiting review', 'Proposed decisions', 'Human review required before approval', 'Enterprise AI decisions', { tone: proposed ? 'watch' : 'good' }),
-    score('Approved', String(approved), 'Human OK', 'Approved decisions', 'Approved does not mutate KPI ledgers', 'Enterprise AI decisions', { tone: approved ? 'good' : 'neutral' }),
-    score('Rejected', String(rejected), 'Closed', 'Rejected decisions', 'Rejected proposals remain in demo history', 'Enterprise AI decisions', { tone: 'neutral' }),
-    score('Deferred', String(deferred), 'Parked', 'Deferred decisions', 'Deferred for later leadership review', 'Enterprise AI decisions', { tone: deferred ? 'watch' : 'neutral' }),
-    score('Outcomes', String(outcomes.length), 'Tracked', 'Outcome records', 'Expected / simulated / observed outcome text', 'Enterprise AI decisions', { tone: 'neutral' }),
+    score('Open', String(waiting), 'Awaiting review', 'Open decisions', 'Proposals waiting for leadership review', 'Decisions', { tone: waiting ? 'watch' : 'good' }),
+    score('Approved', String(approved), 'Human confirmed', 'Approved decisions', 'Approved by a leader — ledgers unchanged', 'Decisions', { tone: approved ? 'good' : 'neutral' }),
+    score('Closed', String(closed), 'Rejected or deferred', 'Closed decisions', 'Rejected or deferred proposals', 'Decisions', { tone: 'neutral' }),
+    score('Total', String(decisions.length), 'This demo session', 'All decisions', decisionStorageMeta().note, 'Decisions', { testId: 'value-eai-dec-total', tone: 'neutral' }),
+    score('Outcomes', String(outcomes.length), 'Tracked', 'Outcome records', 'Observed outcomes linked to decisions', 'Decisions', { tone: 'neutral' }),
+    score('Next', waiting ? 'Review' : 'Investigate', waiting ? 'Action needed' : 'Create from brief', 'Next step', 'Review open items or start from Investigation', 'Decisions', { tone: waiting ? 'watch' : 'neutral' }),
   ];
 
   return (
     <Page
-      kicker="Enterprise AI · Decision lifecycle"
+      kicker="Enterprise AI · Decisions"
       title="Enterprise AI Decisions"
       testId="enterprise-ai-decisions"
       ribbonTestId="enterprise-ai-decisions-ribbon"
@@ -933,13 +862,12 @@ export function EnterpriseAiDecisionsPage() {
         <div className="gc-ed-pack-col">
           <section className="gc-panel gc-insight">
             <h2>Priority signals</h2>
-            <p>Path: Investigate → Compare → Propose → Review → Approve / Reject / Defer</p>
             <ul className="gc-alert-list">
               {decisions.length === 0 ? (
                 <li data-testid="enterprise-ai-decisions-empty">
                   <Link to="/enterprise-ai" data-testid="enterprise-ai-start-investigation">
                     <span className="gc-sev gc-sev-medium">start</span>
-                    No decisions yet · Start an Investigation
+                    No decisions yet · Open Investigation brief
                   </Link>
                 </li>
               ) : (
@@ -959,14 +887,13 @@ export function EnterpriseAiDecisionsPage() {
           <section className="gc-panel">
             <h2>Outcomes</h2>
             {outcomes.length === 0 ? (
-              <p>No measured outcomes yet — approve a proposal from Investigation to create demo outcome state.</p>
+              <p>No outcomes measured yet. Approve a recommendation from the Investigation brief to track one.</p>
             ) : (
               <div className="gc-exception-list">
                 {outcomes.map((o) => (
                   <article key={o.id} className="gc-exception gc-tone-neutral">
-                    <strong>{o.id}</strong>
-                    <span>Observed: {o.observed}</span>
-                    <span>Expected: {o.expected.slice(0, 100)}{o.expected.length > 100 ? '…' : ''}</span>
+                    <strong>{o.observed}</strong>
+                    <span>{o.expected.slice(0, 120)}{o.expected.length > 120 ? '…' : ''}</span>
                   </article>
                 ))}
               </div>
@@ -976,10 +903,11 @@ export function EnterpriseAiDecisionsPage() {
       </div>
       <section className="gc-panel span-12">
         <h2>Leadership note</h2>
-        <p>
-          {meta.note} Decision records are demo-session state only — not a production workflow system.
-        </p>
-        <ToolLinks />
+        <p>Leaders approve, reject, or defer proposals. Nothing here changes hospital KPI ledgers automatically.</p>
+        <div className="gc-next">
+          <Link to="/enterprise-ai" className="gc-btn">Investigation brief</Link>
+          <Link to="/enterprise-ai/governance" className="gc-text-btn">How we use AI</Link>
+        </div>
       </section>
     </Page>
   );
@@ -987,32 +915,27 @@ export function EnterpriseAiDecisionsPage() {
 
 export function EnterpriseAiGovernancePage() {
   const mode = resolveActiveMode();
-  const edges = listKnowledgeEdges().length;
-  const metrics = listMetrics().length;
-
-  const kpis: Kpi[] = [
-    score('Mode', 'Deterministic', mode.label, 'Analysis Mode', mode.disclosure, 'Enterprise AI governance', { testId: 'value-eai-gov-mode', tone: 'good' }),
-    score('LLM keys', 'None', 'Frontend safe', 'API keys', 'No model API keys are stored in the frontend', 'Enterprise AI governance', { tone: 'good' }),
-    score('Diagnosis', 'Refused', 'Guardrail', 'Clinical diagnosis', 'No patient-level clinical diagnosis claims', 'Enterprise AI governance', { tone: 'good' }),
-    score('CapEx', 'Human only', 'No auto-approve', 'Capital spend', 'CapEx is never auto-approved by the demo agent', 'Enterprise AI governance', { tone: 'good' }),
-    score('Metrics', String(metrics), 'Registry', 'Metric registry', 'Canonical metric definitions used for grounding', 'Enterprise AI governance', { tone: 'neutral' }),
-    score('Graph', String(edges), 'Associative', 'Knowledge edges', 'Operational links — not definitive root causes', 'Enterprise AI governance', { tone: 'neutral' }),
+  const principles = [
+    { sev: 'medium' as const, title: 'Human approval required', detail: 'Recommendations never execute themselves — a leader must approve, reject, or defer.' },
+    { sev: 'critical' as const, title: 'No clinical diagnosis', detail: 'This assistant does not diagnose patients or replace clinical judgment.' },
+    { sev: 'critical' as const, title: 'No automatic capital spend', detail: 'Large investment decisions stay with leadership — never auto-approved.' },
+    { sev: 'medium' as const, title: 'Hospital facts stay intact', detail: 'Approving a proposal does not rewrite revenue, quality, or operations ledgers.' },
+    { sev: 'medium' as const, title: 'Illustrative scenarios', detail: 'What-if and outlook figures are for discussion — not claimed ROI or clinical accuracy.' },
+    { sev: 'medium' as const, title: 'Topic follows the question', detail: 'The brief focuses on what leadership asked — it does not silently switch to another department.' },
   ];
 
-  const guardrails = [
-    { sev: 'medium' as const, title: 'Deterministic orchestration', detail: 'Public demo runs tool orchestration with an explicit Analysis Mode label.' },
-    { sev: 'medium' as const, title: 'No frontend API keys', detail: 'LLM mode stays stubbed unless a secure backend exists.' },
-    { sev: 'critical' as const, title: 'No clinical diagnosis', detail: 'Patient-level clinical diagnosis is refused.' },
-    { sev: 'critical' as const, title: 'No CapEx auto-approve', detail: 'Capital decisions require human authorization.' },
-    { sev: 'medium' as const, title: 'Ledger integrity', detail: 'Decision approval does not mutate historical KPI facts.' },
-    { sev: 'medium' as const, title: 'Associative language', detail: 'Causal claims limited to operational-link knowledge-graph wording.' },
-    { sev: 'medium' as const, title: 'Illustrative what-if / forecast', detail: 'Not claimed clinical or ROI accuracy; overlapping benefits not summed.' },
-    { sev: 'high' as const, title: 'Topic-aligned focus', detail: 'Focus and scenario IDs follow the question — no silent Emergency default for unrelated topics.' },
+  const kpis: Kpi[] = [
+    score('Approval', 'Human', 'Required', 'Human approval', 'Every management action needs a person', 'Governance', { tone: 'good' }),
+    score('Clinical', 'Refused', 'Guardrail', 'Clinical diagnosis', 'No patient diagnosis claims', 'Governance', { tone: 'good' }),
+    score('Capital', 'Human only', 'Guardrail', 'Capital spend', 'No automatic CapEx approval', 'Governance', { tone: 'good' }),
+    score('Ledgers', 'Protected', 'Unchanged', 'KPI ledgers', 'Approvals do not mutate domain facts', 'Governance', { tone: 'good' }),
+    score('Scenarios', 'Illustrative', 'Discussion', 'What-if claims', 'Scenarios support discussion only', 'Governance', { tone: 'watch' }),
+    score('Focus', 'Question-led', 'Aligned', 'Brief focus', 'Focus follows the leadership question', 'Governance', { testId: 'value-eai-gov-mode', tone: 'good' }),
   ];
 
   return (
     <Page
-      kicker="Enterprise AI · Guardrails"
+      kicker="Enterprise AI · Trust"
       title="Enterprise AI Governance"
       testId="enterprise-ai-governance"
       ribbonTestId="enterprise-ai-governance-ribbon"
@@ -1023,9 +946,9 @@ export function EnterpriseAiGovernancePage() {
           <section className="gc-panel gc-insight">
             <h2>Priority signals</h2>
             <ul className="gc-alert-list">
-              {guardrails.map((item) => (
+              {principles.map((item) => (
                 <li key={item.title}>
-                  <span className={`gc-sev gc-sev-${item.sev}`}>{item.sev === 'critical' ? 'critical' : item.sev === 'high' ? 'high' : 'medium'}</span>
+                  <span className={`gc-sev gc-sev-${item.sev}`}>{item.sev === 'critical' ? 'critical' : 'medium'}</span>
                   {' '}{item.title} · {item.detail}
                 </li>
               ))}
@@ -1034,24 +957,23 @@ export function EnterpriseAiGovernancePage() {
         </div>
         <div className="gc-ed-pack-col">
           <section className="gc-panel">
-            <h2>Analysis Mode</h2>
+            <h2>How leaders should use this</h2>
             <p data-testid="enterprise-ai-mode">
-              Analysis Mode: {mode.label} · illustrative hospital demo data — not an unrestricted live LLM.
+              Analysis Mode: {mode.label}. Use the Investigation brief for attention items, Decisions for human review,
+              and owning domain screens for operational detail.
             </p>
-            <p>{mode.disclosure}</p>
-            <h3>Refusals</h3>
             <div className="gc-exception-list">
               <article className="gc-exception gc-tone-alert">
-                <strong>Clinical diagnosis</strong>
-                <span>Refused — not a medical device or diagnostic system.</span>
+                <strong>Will not diagnose</strong>
+                <span>Clinical decisions stay with clinicians.</span>
               </article>
               <article className="gc-exception gc-tone-alert">
-                <strong>Silent CapEx approval</strong>
-                <span>Refused — capital spend requires human decision.</span>
+                <strong>Will not spend</strong>
+                <span>Capital and hiring decisions stay with leadership.</span>
               </article>
               <article className="gc-exception gc-tone-watch">
-                <strong>Live unrestricted LLM</strong>
-                <span>Disabled on public demo — deterministic tools only.</span>
+                <strong>Will not rewrite history</strong>
+                <span>Approvals do not change published KPI ledgers.</span>
               </article>
             </div>
           </section>
@@ -1059,11 +981,11 @@ export function EnterpriseAiGovernancePage() {
       </div>
       <section className="gc-panel span-12">
         <h2>Leadership note</h2>
-        <p>
-          Governance discloses how Enterprise AI may assist leadership — and what it will not do.
-          Use Investigation for briefs and Decisions for human review of proposals.
-        </p>
-        <ToolLinks />
+        <p>Governance explains the boundaries of Enterprise AI in plain language — what it may suggest, and what only people can decide.</p>
+        <div className="gc-next">
+          <Link to="/enterprise-ai" className="gc-btn">Investigation brief</Link>
+          <Link to="/enterprise-ai/decisions" className="gc-text-btn">Decisions</Link>
+        </div>
       </section>
     </Page>
   );

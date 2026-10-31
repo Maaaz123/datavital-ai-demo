@@ -255,7 +255,7 @@ function Alerts({ items }: { items: EnterprisePriority[] }) {
           </li>
         )}
       </ul>
-      <p>Leadership attention only for {view.hospital} · {view.periodLabel}. Detail stays on owning domains.</p>
+      <p>Alert scope matches {view.hospital} · {view.periodLabel}.</p>
       <div className="gc-next">
         <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
       </div>
@@ -275,12 +275,12 @@ function IndicatorIndex({ view }: { view: View }) {
   return (
     <section className="gc-panel span-12">
       <h2>Performance indicators</h2>
-      <p>Definition catalog for this screen — headline numbers stay in the KPI ribbon above.</p>
+      <p>Headline numbers stay in the KPI ribbon above. Open the owning domain for detail.</p>
       <div className="gc-exception-list">
         {picks.map((item) => item && (
           <article key={item.id} className="gc-exception gc-tone-neutral">
             <strong>{item.label}</strong>
-            <span>{item.formula} · {item.sourceDomain} · {item.limitation}</span>
+            <span>{item.display} · {item.sourceDomain}</span>
           </article>
         ))}
       </div>
@@ -446,7 +446,7 @@ function ExceptionAlerts({ items }: { items: OpsException[] }) {
           </li>
         )}
       </ul>
-      <p>COO exceptions for {view.hospital} · {view.periodLabel}. Not claimed as live telemetry.</p>
+      <p>Alert scope matches {view.hospital} · {view.periodLabel}.</p>
       <div className="gc-next">
         <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
       </div>
@@ -542,11 +542,16 @@ export function HospitalCommandPage() {
           <section className="gc-panel">
             <h2>Leadership note</h2>
             <p>
-              Actionable exceptions across operations for {view.hospital} · {view.periodLabel}.
-              Escalate thresholds here; deep analysis stays on owning domain screens.
+              Escalate the exceptions above for {view.hospital} · {view.periodLabel}.
+              Open the owning domain for detail — this screen stays at operations attention only.
             </p>
-            <div className="gc-next">
-              <Link to="/executive" className="gc-btn">Executive</Link>
+            <div className="gc-exception-list">
+              {view.opsExceptions.slice(0, 4).map((item) => (
+                <Link key={item.id} to={item.href} className={`gc-exception gc-tone-${toneFrom(item.severity)}`} style={{ textDecoration: 'none' }}>
+                  <strong>{item.area}</strong>
+                  <span>{item.signal} · {item.owner}</span>
+                </Link>
+              ))}
             </div>
           </section>
         </div>
