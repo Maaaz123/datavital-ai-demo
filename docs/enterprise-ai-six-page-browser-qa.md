@@ -14,8 +14,9 @@ Honest status: automated unit/component tests cover routes and behaviors. Live b
 | `/enterprise-ai` | Finance question focus ≠ ED | PASS (unit) | focus + orchestrate tests |
 | `/enterprise-ai` | Supply question focus/scenario ≠ ED congestion | PASS (unit) | scenario + management pack |
 | `/enterprise-ai` | Approve / Reject / Defer controls present | PASS (RTL structure) | decision panel testids |
-| `/enterprise-ai` | Live distinct focus (flagship vs finance vs supply) | NOT TESTED | pending post-deploy browser |
-| `/enterprise-ai` | Live Approve does not break UI | NOT TESTED | pending post-deploy browser |
+| `/enterprise-ai` | Live BUILD_ID `v82-enterprise-ai-executive` + bundle `index-B_GPEcbZ.js` | PASS | curl refresh.html + index.html after merge `c3db2c0` |
+| `/enterprise-ai` | Live bundle contains Ask DataVital AI / Analysis Mode / scenario IDs / role selector | PASS | curl assets/index-B_GPEcbZ.js string scan |
+| `/enterprise-ai` | Live interactive distinct focus + Approve click path | NOT TESTED | browser MCP unavailable this session; unit coverage PASS |
 | `/enterprise-ai/investigations` | Focus label executive; recalculates with filters | PASS (RTL mount) | pages test |
 | `/enterprise-ai/forecasting` | % / min formatting helpers | PASS (unit) | format tests; page uses helpers |
 | `/enterprise-ai/forecasting` | Live formatted points visible | NOT TESTED | pending post-deploy |

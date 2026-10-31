@@ -24,7 +24,8 @@
 | no-additional-staffing-cost never selects new hires | PASS |
 | 80+ management question pack | PASS |
 | Full vitest + tsc | PASS (recorded at deploy) |
-| Live production verify (distinct focus + Approve) | NOT TESTED until post-deploy |
+| Live production BUILD_ID + bundle markers | PASS (curl) |
+| Live interactive distinct focus + Approve click | NOT TESTED (browser MCP unavailable; unit PASS) |
 | Product-owner approval | NOT RECORDED |
 
 **JS bundle:** `assets/index-B_GPEcbZ.js`  
