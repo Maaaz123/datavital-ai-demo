@@ -1,6 +1,6 @@
 # Enterprise AI × Vital Assist — Regression Evidence
 
-**BUILD_ID:** `v91-enterprise-routing`  
+**BUILD_ID:** `v91b-enterprise-assist-prompts` (includes `v91-enterprise-routing` routing fix)  
 **Suite:** `frontend/src/core/enterpriseAi/enterpriseAi-management-intent.test.ts`  
 **Date:** 2026-10-31
 

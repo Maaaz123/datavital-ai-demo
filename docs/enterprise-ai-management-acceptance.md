@@ -1,7 +1,7 @@
 # Enterprise AI — Management Acceptance (P0 Routing)
 
 **Baseline:** `v90-decision-density` · `091bde1`  
-**Release:** `v91-enterprise-routing`  
+**Release:** `v91b-enterprise-assist-prompts`  
 **Production:** https://demo.datavital.io/enterprise-ai  
 **Product-owner approval:** **NOT RECORDED**
 
