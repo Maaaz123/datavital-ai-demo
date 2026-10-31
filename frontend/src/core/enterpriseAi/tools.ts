@@ -422,19 +422,30 @@ export const TOOLS: ToolDef[] = [
       const amount = parsed.data.amount ?? 0.2;
       const domain = parsed.data.domain as DomainName;
       const kind = parsed.data.kind;
+      if (!kind) {
+        return ok('run_what_if', input, {
+          id: 'scenario-unavailable',
+          kind: null,
+          available: false,
+          message: 'Scenario unavailable with the current evidence and model.',
+          illustrative: true,
+        });
+      }
       const result = domain === 'Enterprise'
-        ? enterpriseWhatIf(parsed.data.hospital, parsed.data.year, period, { kind: kind ?? 'ent-ed-congestion', amount })
-        : runWhatIf(domain, parsed.data.hospital, parsed.data.year, kind ? { kind, amount } : null, period);
+        ? enterpriseWhatIf(parsed.data.hospital, parsed.data.year, period, { kind, amount })
+        : runWhatIf(domain, parsed.data.hospital, parsed.data.year, { kind, amount }, period);
       const sim = runSimulation({
         hospital: parsed.data.hospital,
         year: parsed.data.year,
         period,
         domain,
-        kind: result.id,
+        kind,
         amount,
       });
       return ok('run_what_if', input, {
         ...result,
+        id: kind,
+        kind,
         simulationId: sim.id,
         illustrative: true,
         note: result.assumptions,

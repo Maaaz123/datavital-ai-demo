@@ -393,13 +393,31 @@ export function enterpriseWhatIf(
   const staffingIcuGap = Math.max(0, Math.round(icuGap * (1 - amount * 0.6)));
   const staffingOpEx = Math.round(contribution * amount * 0.04);
   const staffingCm = contribution - staffingOpEx;
+  const scenarioId = intent.kind === 'ent-bed-assign-flow' || intent.kind === 'ent-staffing-uplift'
+    ? intent.kind
+    : intent.kind?.startsWith('ent-')
+      ? intent.kind
+      : 'ent-ed-congestion';
+  const title = scenarioId === 'ent-bed-assign-flow'
+    ? 'Faster bed assignment / discharge pull'
+    : scenarioId === 'ent-staffing-uplift'
+      ? 'ICU/enterprise staffing uplift under OpEx constraint'
+      : 'ED congestion → beds → ICU/staffing → financial constraints';
 
   return {
-    id: 'ent-ed-congestion',
-    title: 'ED congestion → beds → ICU/staffing → financial constraints',
+    id: scenarioId,
+    title,
     current: `ED median wait ${num(edWait, 1)} min · bed occupancy ${pct(occupancy)} · ICU nurse-hour gap ${num(icuGap)} h · enterprise staffing gap ${num(enterpriseGap)} h · RCM NPR SAR ${num(Math.round(npr))} · operating contribution SAR ${num(Math.round(contribution))} · ${ent.periodLabel}`,
-    change: `Compare two eligible interventions at intensity ${pct(amount, 0)}: (A) faster bed assignment / discharge pull vs (B) ICU/enterprise staffing uplift under OpEx constraint. Benefits are alternatives — do not sum A+B.`,
-    estimated: `A) Wait near ${num(bedAssignWait, 1)} min with occupancy near ${pct(bedAssignOcc)} (flow-side). B) Wait near ${num(staffingWait, 1)} min · ICU gap near ${num(staffingIcuGap)} h · contribution near SAR ${num(Math.round(staffingCm))} after illustrative OpEx SAR ${num(staffingOpEx)}. Neither path claims achieved ROI; human decision required.`,
+    change: scenarioId === 'ent-bed-assign-flow'
+      ? `Illustrative flow-side intensity ${pct(amount, 0)}: faster bed assignment / discharge pull (not summed with staffing uplift).`
+      : scenarioId === 'ent-staffing-uplift'
+        ? `Illustrative staffing uplift intensity ${pct(amount, 0)} under OpEx constraint (increases staffing cost).`
+        : `Compare two eligible interventions at intensity ${pct(amount, 0)}: (A) faster bed assignment / discharge pull vs (B) ICU/enterprise staffing uplift under OpEx constraint. Benefits are alternatives — do not sum A+B.`,
+    estimated: scenarioId === 'ent-bed-assign-flow'
+      ? `Wait near ${num(bedAssignWait, 1)} min with occupancy near ${pct(bedAssignOcc)} (flow-side). Illustrative only — human decision required.`
+      : scenarioId === 'ent-staffing-uplift'
+        ? `Wait near ${num(staffingWait, 1)} min · ICU gap near ${num(staffingIcuGap)} h · contribution near SAR ${num(Math.round(staffingCm))} after illustrative OpEx SAR ${num(staffingOpEx)}. Increases staffing cost.`
+        : `A) Wait near ${num(bedAssignWait, 1)} min with occupancy near ${pct(bedAssignOcc)} (flow-side). B) Wait near ${num(staffingWait, 1)} min · ICU gap near ${num(staffingIcuGap)} h · contribution near SAR ${num(Math.round(staffingCm))} after illustrative OpEx SAR ${num(staffingOpEx)}. Neither path claims achieved ROI; human decision required.`,
     assumptions: 'Illustrative cross-domain simulation using shared Enterprise facts (Emergency wait, Beds occupancy, ICU credentialed gap, Strategy enterprise gap, RCM NPR, Strategy contribution). Not validated predictive AI. Overlapping scenario benefits must not be summed. Approval does not mutate historical ED/Beds/ICU/RCM ledgers. Staffing safety constraints remain binding; surplus ≠ automatic ICU fill without credentials.',
     implications: 'Choose one primary intervention path (or a sequenced plan with explicit non-additive accounting). Follow-up KPIs after the next reporting checkpoint: ED door-to-provider, bed occupancy, ICU staffing gap, enterprise staffing gap, operating contribution.',
     followUp: 'ED door-to-provider median, Bed occupancy, ICU staffing gap hours, Enterprise staffing gap hours, Operating contribution',

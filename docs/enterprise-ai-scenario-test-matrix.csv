@@ -1,0 +1,19 @@
+scenario_id,domain,trigger_example,expected_focus_metric,distinct_from_ent_ed_congestion,notes
+ent-bed-assign-flow,Enterprise,"What if we speed bed assignment and discharge pull?",beds.occupancy,yes,Flow intervention — not ED congestion default
+ed-boarding-down,Emergency,"What if ED boarding fell?",ed.wait.median_min,yes,Emergency boarding path
+st-supply-efficiency,Strategy,"What if we improve supply efficiency without adding staff?",sc.critical_stockouts,yes,Supply efficiency what-if
+st-reduce-overtime,Strategy,"What if we reduce avoidable overtime?",st.operating_contribution,yes,Overtime reduction
+rcm-denials-down,Revenue Cycle,"What if we reduce claim denials?",rcm.gross_denial_rate,yes,Denial reduction
+rcm-ar-accelerate,Revenue Cycle,"What if we accelerate AR collections?",rcm.days_in_ar,yes,AR acceleration
+sc-fill-rate-up,Supply Chain,"What if supplier fill rate improved?",sc.critical_stockouts,yes,Fill rate
+sc-near-expiry-down,Supply Chain,"What if near-expiry inventory fell?",sc.days_of_supply,yes,Near-expiry
+qs-capa-overdue-down,Quality & Safety,"What if we reduce overdue CAPA actions?",qs.overdue_high_risk_actions,yes,CAPA
+qs-hh-up,Quality & Safety,"What if we improve hand hygiene compliance?",qs.clabsi_rate,yes,Hand hygiene
+icu-flow-up,ICU,"What if we improve ICU flow coordination?",icu.staffing_gap_hours,yes,ICU flow
+px-communication-up,Patient Experience,"What if patient communication satisfaction improved?",px.overall_satisfaction,yes,PX communication
+surg-turnover-down,Surgery,"What if we reduce OR turnover time?",surg.or_utilization,yes,OR turnover
+beds-unblock-5,Beds,"What if we unblock beds?",beds.occupancy,yes,Unblock beds
+ipd-longstay-down,Inpatient,"What if we reduce long-stay inpatient pressure?",ipd.los_median_days,yes,Long-stay
+ent-staffing-uplift,Enterprise,"What if we add new hires to the ICU?",icu.staffing_gap_hours,yes,Increases staffing cost — excluded under no-staff constraint
+st-reallocate-nurses,Strategy,"What if we reallocate nurses across service lines?",st.enterprise_staffing_gap_hours,yes,Staffing cost option
+scenario-unavailable,Enterprise,"Is there a scenario for quantum teleportation of beds?",,"n/a",Returns Scenario unavailable with the current evidence and model.

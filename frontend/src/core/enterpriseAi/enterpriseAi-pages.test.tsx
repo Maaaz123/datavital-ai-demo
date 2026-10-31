@@ -34,15 +34,16 @@ describe('Enterprise AI pages', () => {
     expect(screenFromPath('/enterprise-ai/governance')).toBe('enterprise-ai-governance');
   });
 
-  it('renders primary Investigate page', () => {
+  it('renders primary Investigate page with executive labels and role selector', () => {
     renderAt('/enterprise-ai');
     expect(screen.getByTestId('enterprise-ai-page')).toBeInTheDocument();
     expect(screen.getByTestId('enterprise-ai-composer')).toBeInTheDocument();
-    expect(screen.getByTestId('enterprise-ai-mode').textContent).toMatch(/Deterministic/i);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Enterprise AI/i);
+    expect(screen.getByTestId('enterprise-ai-mode').textContent).toMatch(/Analysis Mode|Deterministic/i);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Ask DataVital AI/i);
+    expect(screen.getByTestId('enterprise-ai-role-select')).toBeInTheDocument();
   });
 
-  it('renders secondary focused routes', () => {
+  it('renders secondary focused routes including decisions empty Start link', () => {
     renderAt('/enterprise-ai/investigations');
     expect(screen.getByTestId('enterprise-ai-investigations')).toBeInTheDocument();
 
@@ -51,9 +52,11 @@ describe('Enterprise AI pages', () => {
 
     renderAt('/enterprise-ai/optimization');
     expect(screen.getByTestId('enterprise-ai-optimization')).toBeInTheDocument();
+    expect(screen.getByTestId('enterprise-ai-opt-objective')).toBeInTheDocument();
 
     renderAt('/enterprise-ai/decisions');
     expect(screen.getByTestId('enterprise-ai-decisions')).toBeInTheDocument();
+    expect(screen.getByTestId('enterprise-ai-start-investigation')).toBeInTheDocument();
 
     renderAt('/enterprise-ai/governance');
     expect(screen.getByTestId('enterprise-ai-governance')).toBeInTheDocument();

@@ -46,7 +46,8 @@ function statusForDriver(
 export function runInvestigation(req: InvestigationRequest): InvestigationReport {
   const period = req.period ?? 'year';
   const ctx: MetricSourceContext = { hospital: req.hospital, year: req.year, period };
-  const focusMetricId = req.focusMetricId ?? 'ed.wait.median_min';
+  // Callers must pass an explicit focus. Fallback is labeled capacity occupancy — never a silent ED default for unrelated topics.
+  const focusMetricId = req.focusMetricId ?? 'beds.occupancy';
   const focus = getMetric(focusMetricId);
   const observedValue = resolveMetric(focusMetricId, ctx);
   const baselineValue = resolveMetric(focusMetricId, {
