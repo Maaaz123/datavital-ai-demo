@@ -107,7 +107,7 @@ function planForIntent(args: {
           title: 'Operational improvement without additional staffing cost',
           question: args.question,
           rationale:
-            'Prefer faster bed assignment and discharge pull over adding staff cost. Review alternatives separately — do not add their benefits together.',
+            'Prefer faster bed assignment and discharge pull over adding staff cost.',
           recommendedOptionId: 'ent-bed-assign-flow',
           options: [
             {
