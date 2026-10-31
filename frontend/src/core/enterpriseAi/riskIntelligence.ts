@@ -3,6 +3,7 @@
  * Ranking uses documented threshold rules against registry metrics — no invented losses.
  */
 import type { ReportPeriod } from '../period';
+import { formatMetricValue } from './format';
 import { getMetric, resolveMetric } from './metricRegistry';
 import type { OwningDomain } from './types';
 
@@ -281,7 +282,7 @@ export function rankHospitalRisks(args: {
       severity,
       score,
       rule: rule.rule,
-      evidence: `${rule.title}: observed ${value} (${def?.unit ?? ''}) under rule "${rule.rule}" for ${args.hospital} · ${args.period} ${args.year}.`,
+      evidence: `${rule.title}: observed ${formatMetricValue(rule.metricId, value)} under rule "${rule.rule}" for ${args.hospital} · ${args.period} ${args.year}.`,
     });
   }
 

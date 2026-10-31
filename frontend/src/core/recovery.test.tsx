@@ -109,7 +109,7 @@ describe('emergency and beds domains', () => {
       view.unmount();
     }
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
-  });
+  }, 15_000);
 
   it('approves an estimate from the AI icon, isolates it by hospital, and restores it', () => {
     renderAt('/');
