@@ -1,7 +1,7 @@
 # Domain 16 — Enterprise AI Command & Decision Intelligence Final Acceptance
 
 **Domain:** Enterprise AI Command & Decision Intelligence  
-**BUILD_ID:** `v91-enterprise-routing` (P0 context routing; prior Stage-8 acceptance `v81-enterprise-ai-domain`; UX density baseline `v90-decision-density`)  
+**BUILD_ID:** `v91b-enterprise-assist-prompts` (P0 context routing + Enterprise Assist prompts; prior `v91-enterprise-routing` / Stage-8 `v81` / UX baseline `v90-decision-density`)  
 **Date:** 2026-10-31  
 **Production URL:** https://demo.datavital.io/enterprise-ai  
 **Refresh:** https://demo.datavital.io/refresh.html  
@@ -28,9 +28,11 @@
 | Vital Assist Enterprise uses `orchestrate` (not Emergency remap) | **PASS** |
 | UI/UX freeze (no CSS redesign) | **PASS** |
 | Domain 16 vitest | **PASS** 63/63 |
-| Live production BUILD_ID `v91-enterprise-routing` | Pending push + live verify |
-| Bundle hashes (build) | `index-BNTfTqOb.js` · `pwa-C8S7gw3P.js` |
-| Six-route browser matrix (viewports) | **NOT TESTED** until post-deploy browser pass |
+| Live production BUILD_ID | `v91b-enterprise-assist-prompts` (verify after Pages sync) |
+| Bundle hashes (build) | `index-CfxvaGbg.js` · `pwa-cFBouNwA.js` |
+| Live CEO hospital-wide brief | **PASS** (ICU / safety / supply — not ED-only) |
+| Live CFO denials composer + Vital Assist Ask | **PASS** (Gross Denial Rate / Reduce claim denials) |
+| Six-route full viewport matrix | **NOT TESTED** (spot-check on `/enterprise-ai` only) |
 | Product-owner approval | **NOT RECORDED** |
 
 **Historical Stage-8 record (unchanged below):** original `v81-enterprise-ai-domain` acceptance evidence.

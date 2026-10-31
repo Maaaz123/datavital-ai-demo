@@ -902,11 +902,17 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                                 : page === 'Strategic Optimization & What-if'
                                   ? ['Should we reallocate or invest new capital?', 'Which strategic scenarios overlap?', ...WHAT_IF_PROMPTS.Strategy.slice(8, 10)]
                                   : ['Where should leadership focus resource and profitability attention?', 'What if we compare reallocation versus new capital?', ...WHAT_IF_PROMPTS.Strategy.slice(0, 1)]
-                : page === 'Waiting & Patient Flow'
-                  ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
-                  : page === 'Safety & Return Visits'
-                    ? ['What is the left-without-being-seen rate?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
-                    : ['What should the Emergency Director prioritize?', 'How many visits are boarding beyond 4 hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
+                : department === 'Enterprise'
+                  ? [
+                      'What are the three biggest risks for this hospital and what should management do?',
+                      'Why are claims being denied and what should our CFO prioritize?',
+                      'What are the most serious patient safety risks and what should clinical leadership review?',
+                    ]
+                  : page === 'Waiting & Patient Flow'
+                    ? ['Why is emergency waiting time increasing?', 'When are the peak arrival hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+                    : page === 'Safety & Return Visits'
+                      ? ['What is the left-without-being-seen rate?', 'What should the Emergency Director prioritize?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)]
+                      : ['What should the Emergency Director prioritize?', 'How many visits are boarding beyond 4 hours?', ...WHAT_IF_PROMPTS.Emergency.slice(0, 1)];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -1067,15 +1073,17 @@ function Ask({ label, department, askScope, page }: { label: string; department:
                                       : page === 'Strategic Optimization & What-if'
                                         ? 'Ask about illustrative reallocation vs capital scenarios on this screen. Do not sum overlapping benefits.'
                                         : 'Ask about contribution, utilization, constrained lines, or investment coverage on this screen. AI does not approve CapEx, change rosters, or reallocate staff alone.'
-                      : page === 'Waiting & Patient Flow'
-                        ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
-                        : page === 'Safety & Return Visits'
-                          ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
-                          : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
+                      : department === 'Enterprise'
+                        ? 'Ask about hospital-wide risks, denials, staffing, quality/safety, supply, or leadership priorities on this screen. Topic changes update the investigation focus.'
+                        : page === 'Waiting & Patient Flow'
+                          ? 'Ask about door-to-provider time, triage completion, arrival peaks, or disposition rates on this screen.'
+                          : page === 'Safety & Return Visits'
+                            ? 'Ask about left without being seen, 72-hour returns, or ED mortality on this screen.'
+                            : 'Ask about ED visit volume, acuity mix, ED boarding beyond 4 hours, or disposition outcomes on this screen.',
         'Recommendations reference the KPIs and charts on the current screen. Answers use this hospital scenario.',
       ],
     }]);
-  }, [askScope, appt, beds, icu, ipd, lab, opd, px, qs, rcm, rad, rx, sc, st, surg, label, page, periodLabel]);
+  }, [askScope, appt, beds, department, icu, ipd, lab, opd, px, qs, rcm, rad, rx, sc, st, surg, label, page, periodLabel]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1183,7 +1191,7 @@ function Ask({ label, department, askScope, page }: { label: string; department:
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : px ? 'Ask the Patient Experience view…' : rcm ? 'Ask the Revenue Cycle view…' : qs ? 'Ask the Quality & Safety view…' : sc ? 'Ask the Supply Chain view…' : st ? 'Ask the Strategy view…' : 'Ask the Emergency Director view…'}
+          placeholder={department === 'Enterprise' ? 'Ask Enterprise leadership…' : beds ? 'Ask the Bed Manager view…' : ipd ? 'Ask the Inpatient Care view…' : opd ? 'Ask the Outpatient Director view…' : appt ? 'Ask the Appointments & Scheduling view…' : surg ? 'Ask the OR & Surgery view…' : rad ? 'Ask the Radiology Director view…' : lab ? 'Ask the Laboratory Director view…' : rx ? 'Ask the Pharmacy Operations view…' : icu ? 'Ask the ICU Operations view…' : px ? 'Ask the Patient Experience view…' : rcm ? 'Ask the Revenue Cycle view…' : qs ? 'Ask the Quality & Safety view…' : sc ? 'Ask the Supply Chain view…' : st ? 'Ask the Strategy view…' : 'Ask the Emergency Director view…'}
           aria-label="Message Vital Assist"
           disabled={typing}
         />
