@@ -1,7 +1,7 @@
 /**
  * Enterprise Executive Dashboard + Hospital Command Center.
+ * Same Page / ribbon / pack pattern as Quality & RCM — lean leadership view only.
  * Additive cross-domain integration — reads canonical domain facts only.
- * Not a redesign of Domains 1–15 screens.
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -14,21 +14,15 @@ import {
   ENTERPRISE_DISCLAIMER,
   type EnterprisePriority,
   type EnterpriseSeverity,
-  type EnterpriseSignal,
+  type EnterpriseView,
   type OpsException,
 } from './enterpriseView';
 
-type SignalDetail = {
-  name: string;
-  value: string;
-  definition: string;
-  scope: string;
-  formula?: string;
-  limitations?: string;
-  href: string;
-};
+type Detail = { name: string; value: string; definition: string; scope: string; formula?: string; limitations?: string };
+type Tone = 'good' | 'watch' | 'alert' | 'neutral';
+type View = EnterpriseView;
 
-function useView() {
+function useView(): View {
   const store = useShowcase();
   const { period } = usePeriod();
   return useMemo(
@@ -37,39 +31,154 @@ function useView() {
   );
 }
 
-function toneClass(severity: EnterpriseSeverity): string {
-  if (severity === 'critical') return 'gc-tone-alert';
-  if (severity === 'warning') return 'gc-tone-watch';
-  if (severity === 'healthy') return 'gc-tone-good';
-  return 'gc-tone-neutral';
+function usePrior(): View {
+  const store = useShowcase();
+  const { period } = usePeriod();
+  const year = store.year <= 2024 ? 2024 : store.year - 1;
+  return useMemo(
+    () => buildEnterpriseView(store.hospital, year, period),
+    [store.hospital, year, period],
+  );
 }
 
-function fig(
-  type: Figure['type'],
-  title: string,
-  categories: string[],
-  series: Figure['series'],
-  unit: string,
-  note: string,
-): Figure {
-  const digits = unit === '%' || unit === 'rate' || unit === 'index' ? 1 : 0;
+function pct(value: number): string {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function num(value: number, digits = 0): string {
+  return value.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+
+function sar(value: number): string {
+  return `SAR ${Math.round(value).toLocaleString('en-US')}`;
+}
+
+function rate1k(value: number): string {
+  return `${num(value, 1)} /1k`;
+}
+
+function toneFrom(severity: EnterpriseSeverity): Tone {
+  if (severity === 'critical') return 'alert';
+  if (severity === 'warning') return 'watch';
+  if (severity === 'healthy') return 'good';
+  return 'neutral';
+}
+
+function compare(view: View, prior: View, pick: (item: View) => number, asRate = false): string {
+  const now = pick(view);
+  const then = pick(prior);
+  if (!Number.isFinite(now) || !Number.isFinite(then) || then === 0) return 'Illustrative';
+  const delta = asRate ? now - then : (now - then) / Math.abs(then);
+  if (Math.abs(delta) < 0.005) return 'No change';
+  if (asRate) {
+    const points = delta * 100;
+    return `${points > 0 ? '+' : '−'}${Math.abs(points).toFixed(1)} pts`;
+  }
+  const change = delta * 100;
+  return `${change > 0 ? '+' : '−'}${Math.abs(change).toFixed(1)}% YoY`;
+}
+
+function score(
+  name: string,
+  value: string,
+  delta: string,
+  fullName: string,
+  definition: string,
+  scope: string,
+  extra?: { formula?: string; limitations?: string; testId?: string; tone?: Tone },
+) {
   return {
-    type,
-    title,
-    categories,
-    series,
-    unit,
-    digits,
-    note,
-    domain: 'enterprise',
-    subjects: [title],
+    name,
+    value,
+    delta,
+    tone: extra?.tone,
+    testId: extra?.testId,
+    detail: {
+      name: fullName,
+      value,
+      definition,
+      scope,
+      formula: extra?.formula,
+      limitations: extra?.limitations,
+    } satisfies Detail,
   };
 }
 
-function Slot({ figure, span = false }: { figure: Figure; span?: string | false }) {
+function Disclosure() {
+  return (
+    <section className="gc-panel gc-insight span-12" data-testid="enterprise-disclosure">
+      <h2>Data scope</h2>
+      <p>
+        {ENTERPRISE_DISCLAIMER} Every figure is read from a domain canonical view — no independent fabricated totals.
+        Contribution ≠ net profit. AI does not approve clinical or financial actions.
+      </p>
+    </section>
+  );
+}
+
+function Page({
+  title,
+  kicker,
+  testId,
+  ribbonTestId,
+  kpis,
+  children,
+}: {
+  title: string;
+  kicker: string;
+  testId: string;
+  ribbonTestId: string;
+  kpis: { name: string; value: string; delta: string; tone?: Tone; testId?: string; detail: Detail }[];
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState<Detail | null>(null);
+  return (
+    <article className="gc-command gc-ed" data-testid={testId}>
+      <header className="gc-command-head">
+        <div>
+          <p className="gc-kicker">{kicker}</p>
+          <h1>{title}</h1>
+        </div>
+      </header>
+      <div className="gc-ribbon" data-testid={ribbonTestId}>
+        {kpis.map((item, index) => (
+          <button
+            type="button"
+            className={`gc-score gc-tone-${item.tone ?? 'neutral'}`}
+            key={`${item.name}-${item.detail.name}`}
+            data-testid={item.testId}
+            style={{ animationDelay: `${index * 45}ms` }}
+            onClick={() => setOpen(item.detail)}
+          >
+            <span>{item.name}</span>
+            <strong className="gc-ltr">{item.value}</strong>
+            <em>{item.delta}</em>
+          </button>
+        ))}
+      </div>
+      {open ? (
+        <section className="gc-panel gc-fit" data-testid="kpi-detail">
+          <h2>{open.name}</h2>
+          <p><strong>{open.value}</strong></p>
+          <p>{open.definition}</p>
+          {open.formula ? <p>Formula: {open.formula}</p> : null}
+          <p>{open.scope}</p>
+          {open.limitations ? <p>{open.limitations}</p> : null}
+          <button type="button" className="gc-text-btn" onClick={() => setOpen(null)}>Close detail</button>
+        </section>
+      ) : null}
+      <div className="gc-dense gc-ed-body">
+        {children}
+        <Disclosure />
+      </div>
+    </article>
+  );
+}
+
+function Slot({ figure }: { figure: Figure }) {
   const copilot = useCopilot();
   return (
-    <section className={`gc-panel gc-slot${span ? ` ${span}` : ''}`}>
+    <section className="gc-panel gc-slot">
       <Chart
         figure={figure}
         compact
@@ -88,343 +197,301 @@ function Slot({ figure, span = false }: { figure: Figure; span?: string | false 
   );
 }
 
-function Disclosure() {
-  return (
-    <section className="gc-panel gc-insight span-12" data-testid="enterprise-disclosure">
-      <h2>Data scope</h2>
-      <p>
-        {ENTERPRISE_DISCLAIMER} Every figure is read from a domain canonical view — no independent fabricated totals.
-        Contribution ≠ net profit. AI does not approve clinical or financial actions.
-      </p>
-    </section>
-  );
+function fig(
+  type: Figure['type'],
+  title: string,
+  categories: string[],
+  series: Figure['series'],
+  unit: string,
+  note: string,
+): Figure {
+  const digits = unit === '%' || unit === 'rate' || unit === 'index' || unit === '/1k' || unit === 'min' ? 1 : 0;
+  return {
+    type,
+    title,
+    categories,
+    series,
+    unit,
+    digits,
+    note,
+    domain: 'enterprise',
+    subjects: [title],
+  };
 }
 
-function PageShell({
-  kicker,
-  title,
-  testId,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  testId: string;
-  children: ReactNode;
-}) {
-  const view = useView();
-  return (
-    <article className="gc-command gc-ed" data-testid={testId}>
-      <header className="gc-command-head">
-        <div>
-          <p className="gc-kicker">{kicker}</p>
-          <h1>{title}</h1>
-        </div>
-        <p>{view.hospital} · {view.periodLabel}</p>
-      </header>
-      <div className="gc-dense gc-ed-body">
-        {children}
-        <Disclosure />
-      </div>
-    </article>
-  );
+function shortIssue(issue: string): string {
+  const cut = issue.split(/[—–-]/)[0]?.trim() ?? issue;
+  return cut.length > 64 ? `${cut.slice(0, 61)}…` : cut;
 }
 
-function SignalRibbon({ signals }: { signals: EnterpriseSignal[] }) {
-  const [open, setOpen] = useState<SignalDetail | null>(null);
-  const categoryOrder = [
-    'operational',
-    'financial',
-    'experience',
-    'quality',
-    'safety',
-    'capacity',
-    'efficiency',
-    'strategy',
-  ] as const;
-  const picked = categoryOrder
-    .map((category) => signals.find((signal) => signal.category === category))
-    .filter((signal): signal is EnterpriseSignal => Boolean(signal))
-    .slice(0, 6);
-
-  return (
-    <>
-      <div className="gc-ribbon" data-testid="enterprise-ribbon">
-        {picked.map((signal, index) => (
-          <button
-            type="button"
-            key={signal.id}
-            className={`gc-score ${toneClass(signal.severity)}`}
-            data-testid={`value-${signal.id}`}
-            style={{ animationDelay: `${index * 40}ms` }}
-            title={`${signal.formula} · Source: ${signal.sourceDomain}. ${signal.limitation}`}
-            onClick={() => setOpen({
-              name: signal.label,
-              value: signal.display,
-              definition: `${signal.sourceDomain} · ${signal.category}`,
-              scope: signal.limitation,
-              formula: signal.formula,
-              limitations: `Source route: ${signal.sourceRoute}`,
-              href: signal.sourceRoute,
-            })}
-          >
-            <span>{signal.label}</span>
-            <strong className="gc-ltr">{signal.display}</strong>
-            <em>{signal.sourceDomain}</em>
-          </button>
-        ))}
-      </div>
-      {open ? (
-        <section className="gc-panel gc-fit" data-testid="kpi-detail">
-          <h2>{open.name}</h2>
-          <p><strong>{open.value}</strong></p>
-          <p>{open.definition}</p>
-          {open.formula ? <p>Formula: {open.formula}</p> : null}
-          <p>{open.scope}</p>
-          {open.limitations ? <p>{open.limitations}</p> : null}
-          <div className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link to={open.href} className="gc-btn">Open source domain</Link>
-            <button type="button" className="gc-text-btn" onClick={() => setOpen(null)}>Close detail</button>
-          </div>
-        </section>
-      ) : null}
-    </>
-  );
+function alertSeverity(severity: EnterprisePriority['severity'] | EnterpriseSeverity): 'critical' | 'high' | 'medium' {
+  if (severity === 'critical') return 'critical';
+  if (severity === 'warning') return 'high';
+  return 'medium';
 }
 
-function PriorityList({ items }: { items: EnterprisePriority[] }) {
+function Alerts({ items }: { items: EnterprisePriority[] }) {
   const copilot = useCopilot();
+  const view = useView();
   const top = items.slice(0, 5);
   return (
     <section className="gc-panel gc-insight" data-testid="enterprise-priorities">
       <h2>Priority signals</h2>
       <ul className="gc-alert-list">
-        {top.map((item) => (
+        {top.length ? top.map((item) => (
           <li key={item.id}>
-            <div className="gc-exception" data-testid={`priority-${item.id}`}>
-              <span className={`gc-sev gc-sev-${item.severity === 'critical' ? 'critical' : 'medium'}`}>{item.severity}</span>
-              <strong>{shortIssue(item.issue)}</strong>
-              <span>{item.metricLabel}: {item.metricValue}</span>
-              <p>{shortEvidence(item.evidence)}</p>
-              <div className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Link to={item.href} className="gc-btn">Open {shortDomain(item.sourceDomain)}</Link>
-                <button type="button" className="gc-investigate" onClick={() => copilot.setOpen(true)}>
-                  Investigate
-                </button>
-              </div>
-            </div>
+            <button type="button" data-testid={`priority-${item.id}`} onClick={() => copilot.setOpen(true)}>
+              <span className={`gc-sev gc-sev-${alertSeverity(item.severity)}`}>{item.severity}</span>
+              {shortIssue(item.issue)} · {item.metricValue}
+              <em className="gc-alert-scope"> · {item.sourceDomain}</em>
+            </button>
           </li>
-        ))}
+        )) : (
+          <li>
+            <button type="button" onClick={() => copilot.setOpen(true)}>
+              <span className="gc-sev gc-sev-medium">review</span>
+              Hospital within leadership watch bands · open Vital Assist
+            </button>
+          </li>
+        )}
       </ul>
-    </section>
-  );
-}
-
-function shortIssue(issue: string): string {
-  const cut = issue.split(/[—–-]/)[0]?.trim() ?? issue;
-  return cut.length > 72 ? `${cut.slice(0, 69)}…` : cut;
-}
-
-function shortEvidence(evidence: string): string {
-  const one = evidence.split(/[.\n]/)[0]?.trim() ?? evidence;
-  return one.length > 110 ? `${one.slice(0, 107)}…` : one;
-}
-
-function shortDomain(domain: string): string {
-  const map: Record<string, string> = {
-    'Beds & Capacity': 'Beds',
-    'Revenue Cycle': 'RCM',
-    'Quality & Safety': 'Quality',
-    'Supply Chain': 'Supply',
-    'Patient Experience': 'PX',
-  };
-  return map[domain] ?? domain.split(/\s+/)[0] ?? domain;
-}
-
-function ConditionChips({ signals }: { signals: EnterpriseSignal[] }) {
-  const categories = [
-    { key: 'operational', title: 'Ops' },
-    { key: 'financial', title: 'Finance' },
-    { key: 'experience', title: 'PX' },
-    { key: 'quality', title: 'Quality' },
-    { key: 'safety', title: 'Safety' },
-    { key: 'capacity', title: 'Capacity' },
-    { key: 'efficiency', title: 'Efficiency' },
-    { key: 'strategy', title: 'Strategy' },
-  ] as const;
-
-  return (
-    <section className="gc-panel span-12" data-testid="executive-condition">
-      <h2>Hospital condition</h2>
-      <div className="gc-exception-list" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {categories.map((category) => {
-          const signal = signals.find((item) => item.category === category.key);
-          if (!signal) return null;
-          return (
-            <Link
-              key={category.key}
-              to={signal.sourceRoute}
-              className={`gc-exception ${toneClass(signal.severity)}`}
-              style={{ textDecoration: 'none', minWidth: 120, flex: '0 1 auto' }}
-              title={signal.limitation}
-            >
-              <strong>{category.title}</strong>
-              <span>{signal.display}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function LeadershipInsight({ priorities }: { priorities: EnterprisePriority[] }) {
-  const lead = priorities[0];
-  if (!lead) {
-    return (
-      <section className="gc-panel gc-insight">
-        <h2>Leadership focus</h2>
-        <p>No threshold priorities for this period — continue monitoring domain command centers.</p>
-      </section>
-    );
-  }
-  return (
-    <section className="gc-panel gc-insight">
-      <h2>Leadership focus</h2>
-      <p className={`gc-sev gc-sev-${lead.severity === 'critical' ? 'critical' : 'medium'}`}>{lead.severity}</p>
-      <h3>{shortIssue(lead.issue)}</h3>
-      <p>{lead.metricLabel}: {lead.metricValue} · {lead.sourceDomain}</p>
-      <p>{shortEvidence(lead.evidence)}</p>
+      <p>Leadership attention only for {view.hospital} · {view.periodLabel}. Detail stays on owning domains.</p>
       <div className="gc-next">
-        <Link to={lead.href} className="gc-btn">Open {shortDomain(lead.sourceDomain)}</Link>
+        <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
       </div>
     </section>
   );
+}
+
+function IndicatorIndex({ view }: { view: View }) {
+  const picks = [
+    view.signals.find((s) => s.id === 'ent_operational_occupancy'),
+    view.signals.find((s) => s.id === 'ent_financial_npr'),
+    view.signals.find((s) => s.id === 'ent_experience_sat'),
+    view.signals.find((s) => s.id === 'ent_quality_compliance'),
+    view.signals.find((s) => s.id === 'ent_safety_events'),
+    view.signals.find((s) => s.id === 'ent_capacity_ed_wait'),
+  ].filter(Boolean);
+  return (
+    <section className="gc-panel span-12">
+      <h2>Performance indicators</h2>
+      <p>Definition catalog for this screen — headline numbers stay in the KPI ribbon above.</p>
+      <div className="gc-exception-list">
+        {picks.map((item) => item && (
+          <article key={item.id} className="gc-exception gc-tone-neutral">
+            <strong>{item.label}</strong>
+            <span>{item.formula} · {item.sourceDomain} · {item.limitation}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function executiveRibbon(view: View, prior: View) {
+  const f = view.facts;
+  const signal = (id: string) => view.signals.find((s) => s.id === id);
+  const occ = signal('ent_operational_occupancy');
+  const npr = signal('ent_financial_npr');
+  const sat = signal('ent_experience_sat');
+  const qc = signal('ent_quality_compliance');
+  const safety = signal('ent_safety_events');
+  const ed = signal('ent_capacity_ed_wait');
+  return [
+    score('Occupancy', pct(f.occupancy), compare(view, prior, (v) => v.facts.occupancy, true), 'Bed occupancy', 'Beds census occupied ÷ staffed', `${view.hospital} · ${view.periodLabel}`, {
+      formula: occ?.formula,
+      limitations: occ?.limitation,
+      testId: 'value-ent_operational_occupancy',
+      tone: toneFrom(occ?.severity ?? 'info'),
+    }),
+    score('Net revenue', sar(f.netPatientRevenue), compare(view, prior, (v) => v.facts.netPatientRevenue), 'Net patient revenue', 'RCM recognized net patient revenue', `${view.hospital} · ${view.periodLabel}`, {
+      formula: npr?.formula,
+      limitations: npr?.limitation,
+      testId: 'value-ent_financial_npr',
+      tone: toneFrom(npr?.severity ?? 'info'),
+    }),
+    score('Satisfaction', `${f.overallSatisfaction.toFixed(1)} / 10`, compare(view, prior, (v) => v.facts.overallSatisfaction), 'Overall satisfaction', 'Patient Experience survey mean', `${view.hospital} · ${view.periodLabel}`, {
+      formula: sat?.formula,
+      limitations: sat?.limitation,
+      testId: 'value-ent_experience_sat',
+      tone: toneFrom(sat?.severity ?? 'info'),
+    }),
+    score('Quality', pct(f.qualityCompliance), compare(view, prior, (v) => v.facts.qualityCompliance, true), 'Quality measure compliance', 'QS process compliance rate', `${view.hospital} · ${view.periodLabel}`, {
+      formula: qc?.formula,
+      limitations: qc?.limitation,
+      testId: 'value-ent_quality_compliance',
+      tone: toneFrom(qc?.severity ?? 'info'),
+    }),
+    score('Safety', rate1k(f.validatedEventRate), compare(view, prior, (v) => v.facts.validatedEventRate), 'Validated event rate', 'QS validated events per 1,000 discharges', `${view.hospital} · ${view.periodLabel}`, {
+      formula: safety?.formula,
+      limitations: safety?.limitation,
+      testId: 'value-ent_safety_events',
+      tone: toneFrom(safety?.severity ?? 'info'),
+    }),
+    score('ED wait', `${num(f.edWaitMedianMin, 1)} min`, compare(view, prior, (v) => v.facts.edWaitMedianMin), 'ED door-to-provider (median)', 'Emergency median wait minutes', `${view.hospital} · ${view.periodLabel}`, {
+      formula: ed?.formula,
+      limitations: ed?.limitation,
+      testId: 'value-ent_capacity_ed_wait',
+      tone: toneFrom(ed?.severity ?? 'info'),
+    }),
+  ];
 }
 
 export function ExecutiveDashboardPage() {
   const view = useView();
+  const prior = usePrior();
   const f = view.facts;
-  const occupancyFigure = fig(
+
+  const systemPulse = fig(
+    'bars',
+    'Hospital system pulse',
+    ['Occupancy', 'Denial', 'Quality', 'Satisfaction'],
+    [{
+      name: 'Index',
+      values: [
+        Math.round(f.occupancy * 1000) / 10,
+        Math.round(f.grossDenialRate * 1000) / 10,
+        Math.round(f.qualityCompliance * 1000) / 10,
+        Math.round(f.overallSatisfaction * 10),
+      ],
+    }],
+    '%',
+    'Leadership snapshot across capacity, revenue integrity, quality, and experience — not a composite score. Satisfaction shown ×10 for scale.',
+  );
+
+  const occupancyTrend = fig(
     'line',
     'Bed occupancy trend',
     f.labels,
     [{ name: 'Occupancy %', values: f.monthlyOccupancy.map((v) => Math.round(v * 1000) / 10) }],
     '%',
-    'Derived from Beds census stocks — not an independently fabricated executive series.',
+    'Beds domain census stocks — period-scoped reporting, not live telemetry.',
   );
-  const contributionFigure = f.monthlyContribution.length > 0
+
+  const contributionTrend = f.monthlyContribution.length > 0
     ? fig(
       'line',
-      'Operating contribution (Strategy)',
+      'Operating contribution',
       f.contributionLabels.length ? f.contributionLabels : f.labels,
       [{ name: 'Contribution SAR', values: f.monthlyContribution }],
       'SAR',
-      'Strategy operating contribution by month — contribution ≠ net profit. Synthetic cost model.',
+      'Strategy operating contribution — contribution ≠ net profit.',
     )
     : fig(
       'bars',
-      'Revenue & contribution context',
-      ['Net patient revenue', 'Operating contribution', 'Addressable'],
-      [{
-        name: 'SAR',
-        values: [f.netPatientRevenue, f.operatingContribution, f.addressableContribution],
-      }],
+      'Revenue context',
+      ['Net revenue', 'Contribution'],
+      [{ name: 'SAR', values: [f.netPatientRevenue, f.operatingContribution] }],
       'SAR',
-      'RCM NPR and Strategy contribution context from domain views. Contribution ≠ net profit.',
+      'RCM NPR and Strategy contribution from domain views.',
     );
 
   return (
-    <PageShell
+    <Page
       kicker="Enterprise · CEO / CFO / Board"
       title="Executive Dashboard"
       testId="executive-dashboard"
+      ribbonTestId="enterprise-ribbon"
+      kpis={executiveRibbon(view, prior)}
     >
-      <SignalRibbon signals={view.signals} />
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <PriorityList items={view.priorities} />
+          <Slot figure={systemPulse} />
         </div>
         <div className="gc-ed-pack-col">
-          <LeadershipInsight priorities={view.priorities} />
+          <Alerts items={view.priorities} />
         </div>
       </div>
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <Slot figure={occupancyFigure} />
+          <Slot figure={occupancyTrend} />
         </div>
         <div className="gc-ed-pack-col">
-          <Slot figure={contributionFigure} />
+          <Slot figure={contributionTrend} />
         </div>
       </div>
-      <div className="gc-ed-pack">
-        <div className="gc-ed-pack-col">
-          <section className="gc-panel">
-            <h2>Leadership note</h2>
-            <p>
-              Cross-domain snapshot for {view.hospital} · {view.periodLabel}. Escalate only evidence-linked priorities;
-              deep analysis stays on owning domain screens.
-            </p>
-            <div className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link to="/command" className="gc-btn">Command</Link>
-              <Link to="/strategy" className="gc-text-btn">Strategy</Link>
-              <Link to="/quality" className="gc-text-btn">Quality</Link>
-              <Link to="/supply-chain" className="gc-text-btn">Supply</Link>
-            </div>
-          </section>
-        </div>
-        <div className="gc-ed-pack-col">
-          <ConditionChips signals={view.signals} />
-        </div>
-      </div>
-    </PageShell>
+      <section className="gc-panel span-12">
+        <h2>Leadership note</h2>
+        <p>
+          Hospital-as-a-system view for {view.hospital} · {view.periodLabel}. Escalate only the priority signals above;
+          operational detail and deep analysis live on the owning domain screens.
+        </p>
+      </section>
+      <IndicatorIndex view={view} />
+    </Page>
   );
 }
 
-function ExceptionBoard({ items }: { items: OpsException[] }) {
-  if (items.length === 0) {
-    return (
-      <section className="gc-panel" data-testid="ops-exceptions">
-        <h2>Actionable exceptions</h2>
-        <p>No threshold exceptions for the selected hospital and period.</p>
-      </section>
-    );
-  }
+function ExceptionAlerts({ items }: { items: OpsException[] }) {
+  const copilot = useCopilot();
+  const view = useView();
   return (
-    <section className="gc-panel" data-testid="ops-exceptions">
-      <h2>Actionable exceptions</h2>
-      <div className="gc-exception-list">
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            to={item.href}
-            className={`gc-exception ${toneClass(item.severity)}`}
-            data-testid={`ops-${item.id}`}
-            style={{ textDecoration: 'none' }}
-          >
-            <strong>{item.area}</strong>
-            <span>{item.signal}</span>
-            <em>{item.evidence} · {item.owner}</em>
-          </Link>
-        ))}
+    <section className="gc-panel gc-insight" data-testid="ops-exceptions">
+      <h2>Priority signals</h2>
+      <ul className="gc-alert-list">
+        {items.length ? items.slice(0, 8).map((item) => (
+          <li key={item.id}>
+            <Link to={item.href} data-testid={`ops-${item.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+              <span className={`gc-sev gc-sev-${alertSeverity(item.severity)}`}>{item.severity}</span>
+              {item.area} · {item.signal}
+              <em className="gc-alert-scope"> · {item.owner}</em>
+            </Link>
+          </li>
+        )) : (
+          <li>
+            <button type="button" onClick={() => copilot.setOpen(true)}>
+              <span className="gc-sev gc-sev-medium">review</span>
+              No threshold exceptions for this period · open Vital Assist
+            </button>
+          </li>
+        )}
+      </ul>
+      <p>COO exceptions for {view.hospital} · {view.periodLabel}. Not claimed as live telemetry.</p>
+      <div className="gc-next">
+        <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
       </div>
     </section>
   );
 }
 
+function commandRibbon(view: View) {
+  const f = view.facts;
+  const tone = (id: string): Tone => {
+    const ex = view.opsExceptions.find((item) => item.id === id);
+    return ex ? toneFrom(ex.severity) : 'neutral';
+  };
+  return [
+    score('Bed pressure', pct(f.occupancy), `${num(f.availableBeds)} available`, 'Bed pressure', 'Beds occupancy', view.periodLabel, {
+      testId: 'value-cmd-beds',
+      tone: tone('ops-beds'),
+    }),
+    score('ED wait', `${num(f.edWaitMedianMin, 1)} min`, `${num(f.edArrivals)} arrivals`, 'ED wait', 'Emergency median wait', view.periodLabel, {
+      testId: 'value-cmd-ed',
+      tone: tone('ops-ed'),
+    }),
+    score('Theatre', pct(f.orUtilization), `Cancel ${pct(f.cancellationRate)}`, 'Theatre utilization', 'Surgery OR utilization', view.periodLabel, {
+      testId: 'value-cmd-or',
+      tone: tone('ops-theatre'),
+    }),
+    score('ICU', pct(f.icuOccupancy), `Gap ${num(f.icuStaffingGapHours)} h`, 'ICU occupancy', 'ICU capacity / staffing', view.periodLabel, {
+      testId: 'value-cmd-icu',
+      tone: tone('ops-icu'),
+    }),
+    score('Supply', String(f.criticalStockouts), `Avail ${pct(f.supplyAvailability)}`, 'Critical stockouts', 'Supply Chain critical stockouts', view.periodLabel, {
+      testId: 'value-cmd-supply',
+      tone: tone('ops-supply'),
+    }),
+    score('QS overdue', String(f.overdueHighRiskActions), `${rate1k(f.validatedEventRate)} events`, 'Overdue high-risk actions', 'Quality & Safety CAPA stock', view.periodLabel, {
+      testId: 'value-cmd-qs',
+      tone: tone('ops-qs'),
+    }),
+  ];
+}
+
 export function HospitalCommandPage() {
   const view = useView();
   const f = view.facts;
-  const tiles = [
-    { label: 'Bed pressure', value: `${(f.occupancy * 100).toFixed(1)}%`, hint: `${f.availableBeds} available`, href: '/beds' },
-    { label: 'ED wait', value: `${f.edWaitMedianMin.toFixed(1)} min`, hint: `${f.edArrivals.toLocaleString('en-US')} arrivals`, href: '/emergency/flow' },
-    { label: 'Theatre util', value: `${(f.orUtilization * 100).toFixed(1)}%`, hint: `Cancel ${(f.cancellationRate * 100).toFixed(1)}%`, href: '/surgery' },
-    { label: 'OPD wait', value: `${f.opdWaitMedian.toFixed(1)} min`, hint: `${f.opdVisits.toLocaleString('en-US')} visits`, href: '/outpatient' },
-    { label: 'Lab TAT', value: `${f.labTat.toFixed(1)} h`, hint: `${f.labCriticalPending} critical pending`, href: '/laboratory' },
-    { label: 'Imaging backlog', value: f.radBacklog.toLocaleString('en-US'), hint: `${f.radUnsigned} unsigned`, href: '/radiology' },
-    { label: 'ICU occupancy', value: `${(f.icuOccupancy * 100).toFixed(1)}%`, hint: `Staff gap ${Math.round(f.icuStaffingGapHours)} h`, href: '/icu' },
-    { label: 'Critical stockouts', value: String(f.criticalStockouts), hint: `Avail ${(f.supplyAvailability * 100).toFixed(1)}%`, href: '/supply-chain' },
-    { label: 'QS overdue', value: String(f.overdueHighRiskActions), hint: `${f.validatedEventRate.toFixed(1)}/1k events`, href: '/quality' },
-  ];
+
   const opsChart = fig(
     'line',
     'Bed occupancy (ops)',
@@ -434,46 +501,56 @@ export function HospitalCommandPage() {
     'Beds domain occupancy — period-scoped synthetic reporting, not live telemetry.',
   );
 
+  const flowPressure = fig(
+    'bars',
+    'Flow & capacity pressure',
+    ['ED wait', 'OPD wait', 'ICU occ.', 'OR util'],
+    [{
+      name: 'Value',
+      values: [
+        Math.round(f.edWaitMedianMin * 10) / 10,
+        Math.round(f.opdWaitMedian * 10) / 10,
+        Math.round(f.icuOccupancy * 1000) / 10,
+        Math.round(f.orUtilization * 1000) / 10,
+      ],
+    }],
+    'mixed',
+    'ED/OPD in minutes; ICU/OR as %. Cross-domain ops snapshot — open owning screens for detail.',
+  );
+
   return (
-    <PageShell
+    <Page
       kicker="Enterprise · COO / Operations"
       title="Hospital Command Center"
       testId="command-center"
+      ribbonTestId="command-center-ribbon"
+      kpis={commandRibbon(view)}
     >
-      <div className="gc-ribbon" data-testid="command-center-ribbon">
-        {tiles.map((tile, index) => (
-          <Link
-            key={tile.label}
-            to={tile.href}
-            className="gc-score gc-tone-neutral"
-            style={{ animationDelay: `${index * 35}ms`, textDecoration: 'none' }}
-          >
-            <span>{tile.label}</span>
-            <strong className="gc-ltr">{tile.value}</strong>
-            <em>{tile.hint}</em>
-          </Link>
-        ))}
-      </div>
       <div className="gc-ed-pack">
-        <div className="gc-ed-pack-col">
-          <ExceptionBoard items={view.opsExceptions} />
-        </div>
         <div className="gc-ed-pack-col">
           <Slot figure={opsChart} />
         </div>
-      </div>
-      <section className="gc-panel span-12">
-        <h2>Operating context</h2>
-        <p>
-          Figures refresh with shared hospital / year / period filters. Not claimed as real-time live telemetry —
-          escalate only actionable exceptions; deep analysis stays on owning domain screens.
-        </p>
-        <div className="gc-next" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Link to="/executive" className="gc-btn">Executive</Link>
-          <Link to="/icu/capacity" className="gc-text-btn">ICU capacity</Link>
-          <Link to="/strategy/workforce" className="gc-text-btn">Strategy workforce</Link>
+        <div className="gc-ed-pack-col">
+          <ExceptionAlerts items={view.opsExceptions} />
         </div>
-      </section>
-    </PageShell>
+      </div>
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <Slot figure={flowPressure} />
+        </div>
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel">
+            <h2>Leadership note</h2>
+            <p>
+              Actionable exceptions across operations for {view.hospital} · {view.periodLabel}.
+              Escalate thresholds here; deep analysis stays on owning domain screens.
+            </p>
+            <div className="gc-next">
+              <Link to="/executive" className="gc-btn">Executive</Link>
+            </div>
+          </section>
+        </div>
+      </div>
+    </Page>
   );
 }
