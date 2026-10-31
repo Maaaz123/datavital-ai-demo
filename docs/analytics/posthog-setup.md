@@ -7,7 +7,7 @@
 | Ingestion host | `https://us.i.posthog.com` |
 | UI host | `https://us.posthog.com` |
 | Token type | Public project token (`phc_…`) — write-only, safe for browser |
-| BUILD_ID | `v93-posthog-production` |
+| BUILD_ID | `v94-posthog-capture-fix` |
 
 ## Environment
 
@@ -30,6 +30,7 @@ Never place Personal API Keys or Project **secret** API keys in Vite env or the 
 - Autocapture: **off**
 - Session recording: **disabled**
 - Automatic pageviews: **off** (manual SPA `$pageview` via `routeTracking.ts`)
+- Compression: **disabled** (`disable_compression: true`) to avoid gzip-js / CompressionStream HTTP 400 failures in some browsers
 
 ## Consent
 

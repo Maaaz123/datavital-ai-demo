@@ -52,6 +52,9 @@ export function initPosthog(config: AnalyticsConfig = resolveAnalyticsConfig()):
       enable_recording_console_log: false,
       mask_all_text: true,
       mask_all_element_attributes: true,
+      // Avoid CompressionStream/gzip-js failures (invalid GZIP → HTTP 400) in
+      // some embedded browsers. Sparse demo event volume does not need gzip.
+      disable_compression: true,
       persistence: config.persistence === 'localStorage' ? 'localStorage+cookie' : 'memory',
       sanitize_properties: (properties) => {
         const next = { ...properties };
