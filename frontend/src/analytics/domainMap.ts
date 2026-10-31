@@ -10,6 +10,14 @@ export function domainIdFromPath(pathname: string): string | null {
   return null;
 }
 
+export function domainNameFromPath(pathname: string): string | null {
+  const path = pathname || '/';
+  for (const domain of NAV_DOMAINS) {
+    if (domain.match(path)) return domain.label;
+  }
+  return null;
+}
+
 export function screenTitleFromPath(pathname: string): string | null {
   const path = pathname || '/';
   for (const domain of NAV_DOMAINS) {

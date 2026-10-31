@@ -1,24 +1,18 @@
 /**
  * Client engagement analytics configuration.
- * Default: DISABLED. No PostHog SDK is loaded unless explicitly enabled and configured.
- * Private API keys must never appear here — only the public project key when approved.
+ * Production: enabled when public VITE_POSTHOG_KEY is present (see .env.production).
+ * Tests / local without key: disabled. Private API keys must never appear here.
  */
 
 export type AnalyticsConfig = {
-  /** Master switch — false unless VITE_ANALYTICS_ENABLED=true AND approved project key present. */
   enabled: boolean;
-  /** PostHog public project API key (phc_…). Safe for frontend when approved; not a private key. */
   posthogKey: string | null;
-  /** PostHog ingest host (EU/US). */
   posthogHost: string;
-  /** Optional server base for invite validation / consent audit (not GitHub Pages). */
   inviteApiBase: string | null;
-  /** Persist anonymous distinct id in localStorage when consent granted. */
   persistence: 'memory' | 'localStorage';
-  /** Autocapture is always off in this product configuration. */
   autocapture: false;
-  /** Session recording is always off in this product configuration. */
   sessionRecording: false;
+  projectId: string | null;
 };
 
 function envFlag(value: string | undefined): boolean {
@@ -30,26 +24,28 @@ function trimOrNull(value: string | undefined): string | null {
   return v.length > 0 ? v : null;
 }
 
-/**
- * Resolve runtime analytics config from Vite env.
- * Tracking remains a no-op unless both the enable flag and project key are set.
- */
 export function resolveAnalyticsConfig(
   env: ImportMetaEnv | Record<string, string | undefined> = import.meta.env,
 ): AnalyticsConfig {
-  const enabledFlag = envFlag(env.VITE_ANALYTICS_ENABLED);
-  const posthogKey = trimOrNull(env.VITE_POSTHOG_PROJECT_KEY ?? env.VITE_POSTHOG_KEY);
-  const posthogHost = trimOrNull(env.VITE_POSTHOG_HOST) ?? 'https://us.i.posthog.com';
+  const posthogKey = trimOrNull(env.VITE_POSTHOG_KEY ?? env.VITE_POSTHOG_PROJECT_KEY);
+  const posthogHost = (trimOrNull(env.VITE_POSTHOG_HOST) ?? 'https://us.i.posthog.com').replace(/\/$/, '');
   const inviteApiBase = trimOrNull(env.VITE_INVITE_API_BASE);
+  const projectId = trimOrNull(env.VITE_POSTHOG_PROJECT_ID);
+  const explicitOff = env.VITE_ANALYTICS_ENABLED === 'false' || env.VITE_ANALYTICS_ENABLED === '0';
+  const explicitOn = envFlag(env.VITE_ANALYTICS_ENABLED);
+  // Enable when a public project key is configured, unless explicitly disabled.
+  // Automated tests set MODE=test and never initialize the real SDK.
+  const enabled = Boolean(posthogKey) && !explicitOff && (explicitOn || Boolean(posthogKey));
 
   return {
-    enabled: enabledFlag && Boolean(posthogKey),
-    posthogKey: enabledFlag ? posthogKey : null,
-    posthogHost: posthogHost.replace(/\/$/, ''),
+    enabled,
+    posthogKey: enabled ? posthogKey : null,
+    posthogHost,
     inviteApiBase,
     persistence: 'localStorage',
     autocapture: false,
     sessionRecording: false,
+    projectId,
   };
 }
 
@@ -61,4 +57,5 @@ export const DEFAULT_ANALYTICS_DISABLED: AnalyticsConfig = {
   persistence: 'memory',
   autocapture: false,
   sessionRecording: false,
+  projectId: null,
 };

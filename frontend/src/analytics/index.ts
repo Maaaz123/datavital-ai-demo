@@ -38,5 +38,14 @@ export {
   getOrCreateSessionId,
   bumpVisitCount,
 } from './client';
-export { domainIdFromPath, screenTitleFromPath } from './domainMap';
+export { domainIdFromPath, domainNameFromPath, screenTitleFromPath } from './domainMap';
 export { EngagementBootstrap } from './EngagementBootstrap';
+export { ConsentBanner } from './ConsentBanner';
+export {
+  initPosthog,
+  captureAnalyticsEvent,
+  capturePageview,
+  isPosthogInitialized,
+  resetPosthogForTests,
+} from './posthog';
+export { trackRouteChange, resetRouteTrackingForTests } from './routeTracking';

@@ -1,7 +1,8 @@
 import { registerSW } from 'virtual:pwa-register';
+import { DEMO_BUILD_ID } from './buildId';
 
 /** Bump with every public UI publish so stuck browsers drop old caches. */
-const BUILD_ID = 'v92-engagement-instrumentation';
+const BUILD_ID = DEMO_BUILD_ID;
 const BUILD_KEY = 'datavital-build-id';
 
 /**

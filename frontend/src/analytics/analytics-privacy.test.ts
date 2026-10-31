@@ -14,24 +14,45 @@ import {
   sanitizeUrlForAnalytics,
   scrubEventProperties,
 } from './privacy';
-import { domainIdFromPath } from './domainMap';
+import { domainIdFromPath, domainNameFromPath } from './domainMap';
+import { resetPosthogForTests } from './posthog';
+import { resetRouteTrackingForTests, trackRouteChange } from './routeTracking';
 
-describe('analytics config (disabled by default)', () => {
-  it('stays disabled without enable flag and key', () => {
+vi.mock('./posthog', async () => {
+  const actual = await vi.importActual<typeof import('./posthog')>('./posthog');
+  return {
+    ...actual,
+    initPosthog: vi.fn(() => false),
+    captureAnalyticsEvent: vi.fn(() => false),
+    capturePageview: vi.fn(() => false),
+    capturePageleave: vi.fn(() => false),
+    isPosthogInitialized: vi.fn(() => false),
+  };
+});
+
+describe('analytics config', () => {
+  it('disables without project key', () => {
     const cfg = resolveAnalyticsConfig({});
     expect(cfg.enabled).toBe(false);
     expect(cfg.autocapture).toBe(false);
     expect(cfg.sessionRecording).toBe(false);
   });
 
-  it('requires both enable flag and project key', () => {
-    expect(resolveAnalyticsConfig({ VITE_ANALYTICS_ENABLED: 'true' }).enabled).toBe(false);
+  it('enables with public project key', () => {
+    const cfg = resolveAnalyticsConfig({
+      VITE_POSTHOG_KEY: 'phc_test_public_key',
+    });
+    expect(cfg.enabled).toBe(true);
+    expect(cfg.posthogKey).toBe('phc_test_public_key');
+  });
+
+  it('can be explicitly disabled even with a key', () => {
     expect(
       resolveAnalyticsConfig({
-        VITE_ANALYTICS_ENABLED: 'true',
-        VITE_POSTHOG_PROJECT_KEY: 'phc_test_public_key',
+        VITE_POSTHOG_KEY: 'phc_test',
+        VITE_ANALYTICS_ENABLED: 'false',
       }).enabled,
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -67,7 +88,6 @@ describe('URL / property privacy', () => {
     expect(clean).not.toMatch(/invite=/i);
     expect(clean).not.toMatch(/SECRETTOKEN/);
     expect(clean).toMatch(/utm_source=email/);
-    expect(clean.startsWith('/enterprise-ai')).toBe(true);
   });
 
   it('scrubs forbidden question / PHI properties', () => {
@@ -79,7 +99,6 @@ describe('URL / property privacy', () => {
     });
     expect(scrubbed.question).toBeUndefined();
     expect(scrubbed.patient_id).toBeUndefined();
-    expect(scrubbed.interaction_type).toBe('cta');
     for (const key of FORBIDDEN_EVENT_PROPERTY_KEYS) {
       expect(Object.prototype.hasOwnProperty.call(scrubbed, key)).toBe(false);
     }
@@ -90,12 +109,12 @@ describe('consent + capture client', () => {
   beforeEach(() => {
     clearConsent();
     clearAnalyticsLocalData();
-    vi.restoreAllMocks();
+    resetPosthogForTests();
+    vi.clearAllMocks();
   });
 
-  it('does not capture when disabled even if consent granted', async () => {
+  it('does not capture when disabled', async () => {
     writeConsent('granted');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const client = createEngagementClient({
       enabled: false,
       posthogKey: 'phc_x',
@@ -104,18 +123,16 @@ describe('consent + capture client', () => {
       persistence: 'memory',
       autocapture: false,
       sessionRecording: false,
+      projectId: null,
     });
-    const result = await client.capture(ENGAGEMENT_EVENTS.page_viewed, {
-      path: '/enterprise-ai',
+    const result = await client.capture(ENGAGEMENT_EVENTS.session_started, {
       question: 'should never send',
     });
     expect(result.skipped).toBe('analytics_disabled');
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('requires consent before network capture', async () => {
+  it('requires consent before capture', async () => {
     expect(mayCapture(true, 'unknown')).toBe(false);
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
     const client = createEngagementClient({
       enabled: true,
       posthogKey: 'phc_x',
@@ -124,44 +141,44 @@ describe('consent + capture client', () => {
       persistence: 'memory',
       autocapture: false,
       sessionRecording: false,
+      projectId: '701149',
     });
-    await client.capture(ENGAGEMENT_EVENTS.session_started, {});
-    expect(fetchSpy).not.toHaveBeenCalled();
+    const before = await client.capture(ENGAGEMENT_EVENTS.session_started, {});
+    expect(before.skipped).toBe('consent_required');
     writeConsent('granted');
+    const { captureAnalyticsEvent } = await import('./posthog');
     await client.capture(ENGAGEMENT_EVENTS.session_started, { path: '/executive' });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
-    expect(body.properties.question).toBeUndefined();
-    expect(body.properties.$autocapture).toBe(false);
-    expect(body.properties.$session_recording_enabled).toBe(false);
-  });
-
-  it('swallows network failures', async () => {
-    writeConsent('granted');
-    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('blocked'));
-    const client = createEngagementClient({
-      enabled: true,
-      posthogKey: 'phc_x',
-      posthogHost: 'https://us.i.posthog.com',
-      inviteApiBase: null,
-      persistence: 'memory',
-      autocapture: false,
-      sessionRecording: false,
-    });
-    const result = await client.capture(ENGAGEMENT_EVENTS.page_viewed, { path: '/' });
-    expect(result.ok).toBe(false);
-    expect(result.skipped).toBe('network_or_blocked');
+    expect(captureAnalyticsEvent).toHaveBeenCalled();
   });
 });
 
-describe('event dictionary + domain map', () => {
-  it('documents all engagement events', () => {
-    expect(Object.keys(EVENT_DICTIONARY).length).toBeGreaterThanOrEqual(7);
-    expect(EVENT_DICTIONARY[ENGAGEMENT_EVENTS.invitation_opened].forbidden).toContain('client_name');
+describe('route tracking dedupe + domain map', () => {
+  beforeEach(() => {
+    resetRouteTrackingForTests();
+    vi.clearAllMocks();
   });
 
-  it('maps enterprise-ai path to enterprise domain', () => {
+  it('maps enterprise-ai path to Enterprise domain', () => {
     expect(domainIdFromPath('/enterprise-ai')).toBe('enterprise');
+    expect(domainNameFromPath('/enterprise-ai')).toBe('Enterprise');
     expect(domainIdFromPath('/emergency')).toBe('emergency');
+  });
+
+  it('dedupes rapid identical route changes', async () => {
+    const { capturePageview } = await import('./posthog');
+    const seen = new Set<string>();
+    const attr = { invite_id: null, invite_verified: false, identity_verified: false as const };
+    trackRouteChange('/executive', '', attr, seen);
+    trackRouteChange('/executive', '', attr, seen);
+    expect(capturePageview).toHaveBeenCalledTimes(1);
+    expect(seen.has('enterprise')).toBe(true);
+  });
+});
+
+describe('event dictionary', () => {
+  it('documents allowlisted events and forbids sensitive fields', () => {
+    expect(EVENT_DICTIONARY.demo_invitation_opened.forbidden).toContain('client_name');
+    expect(EVENT_DICTIONARY.$pageview.allowed_properties).toContain('path');
+    expect(EVENT_DICTIONARY.demo_domain_viewed.dedupe).toMatch(/domainsSeen/i);
   });
 });

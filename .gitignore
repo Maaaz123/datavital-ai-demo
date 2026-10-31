@@ -8,6 +8,9 @@ frontend/coverage
 .env.*
 !.env.example
 !frontend/.env.example
+# Public write-only PostHog project token for reproducible Pages builds (not a secret API key)
+!frontend/.env.production
+
 # Private invite registry exports — never commit plaintext tokens
 private/
 **/invite-registry.private.json

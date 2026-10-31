@@ -39,7 +39,7 @@ export default function OfflineAppShell({ children }: OfflineAppShellProps) {
 
   return (
     <>
-      {/* Silent — no UI; no-ops unless analytics env is explicitly enabled + consented. */}
+      {/* Consent banner only when analytics configured; otherwise null. */}
       <EngagementBootstrap />
       {showClinicalWarning && (
         <Box
