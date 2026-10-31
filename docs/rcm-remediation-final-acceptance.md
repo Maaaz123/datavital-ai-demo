@@ -233,9 +233,10 @@ Source schema names remain illustrative — **PASS** (explicit).
 | `npm run build` | **PASS** (`index-BBgrtTOC.js`) |
 | Pages root assets + `index.html` / `404.html` / `refresh.html` / `sw.js` updated | **PASS** (local publish) |
 | BUILD_ID in `pwa.ts` + refresh helpers | `v75-rcm-remediation` | **PASS** |
-| Git commit + push | See deployment section after push |
-| Live `https://demo.datavital.io/rcm` hard refresh | **PENDING** until Pages serves this commit |
-| Live BUILD_ID confirmation | **PENDING** / record after deploy |
+| Git commit + push | **PASS** — `e57a6bed88e4812e63edd584a43be08a2034a87b` on `main` |
+| Live `https://demo.datavital.io/rcm` hard refresh | **PASS** — Cash-to-Net Ratio ribbon; alerts include period scope |
+| Live BUILD_ID confirmation | **PASS** — `localStorage` `v75-rcm-remediation` · bundle `index-BBgrtTOC.js` · `/?fresh=v75-rcm-remediation` |
+| Live `/rcm/optimization` deep link | **PASS** |
 
 ---
 
@@ -253,9 +254,9 @@ Source schema names remain illustrative — **PASS** (explicit).
 
 ## 23. Final acceptance recommendation
 
-**Recommendation:** Submit Domain 12 RCM remediation for product-owner approval **after** live custom-domain verification confirms `v75-rcm-remediation` and bundle `index-BBgrtTOC.js` on https://demo.datavital.io/rcm.
+**Recommendation:** Submit Domain 12 RCM remediation for product-owner approval on BUILD_ID `v75-rcm-remediation` (commit `e57a6be`, bundle `index-BBgrtTOC.js`) at https://demo.datavital.io/rcm.
 
-Financial naming (Option A), period-scoped alerts, chart unit labels, aggregate ledger reconciliation, and event-fixture coverage meet the remediation conditions that were testable in this session. Remaining items are explicitly **PENDING** (live Pages) or **NOT TESTED** (full viewport matrix; Approve/Reject clicks).
+Financial naming (Option A), period-scoped alerts, chart unit labels, aggregate ledger reconciliation, event-fixture coverage, and live custom-domain verification meet the remediation conditions that were testable in this session. Remaining items are explicitly **NOT TESTED** (full 1280/1440/1920 viewport screenshot matrix; Approve/Reject clicks — Defer was verified).
 
 ---
 
