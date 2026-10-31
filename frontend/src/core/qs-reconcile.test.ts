@@ -12,6 +12,8 @@ import {
 import {
   buildQsView,
   clearQsViewCache,
+  incidenceDensity,
+  procedureIncidence,
   qsIdentityIssues,
   QS_OPPORTUNITY_IDS,
   QS_TARGETS,
@@ -106,6 +108,29 @@ describe('Quality & Safety ledger identities', () => {
     expect(view.ssiRate).toBeCloseTo(view.ssi / view.procedures, 5);
     expect(view.haiCases).toBe(view.clabsi + view.cauti + view.ssi + view.cdi);
     expect(view.haiBurdenRate).toBeCloseTo((view.haiCases / view.patientDays) * 1000, 2);
+    expect(view.clabsiDeviceDaysMissing).toBe(false);
+    expect(view.cautiDeviceDaysMissing).toBe(false);
+    expect(view.ssiProceduresMissing).toBe(false);
+  });
+
+  it('separates reported ≠ validated ≠ near-miss ≠ harm and CAPA closure ≠ effectiveness', () => {
+    const view = buildQsView('H1', 2026, 'year');
+    expect(view.reported).toBeGreaterThanOrEqual(view.validated);
+    expect(view.validated).toBeGreaterThanOrEqual(view.nearMiss);
+    expect(view.validated).toBeGreaterThanOrEqual(view.withHarm);
+    expect(view.withHarm).toBeGreaterThanOrEqual(view.severeHarm);
+    expect(view.nearMiss).not.toBe(view.withHarm);
+    expect(view.capaClosed).toBeLessThanOrEqual(view.capaDecided);
+    expect(view.methodology.rca).toMatch(/Administrative closure|closure ≠|effectiveness/i);
+    expect(view.methodology.incidents).toMatch(/Reporting volume|Near miss/i);
+  });
+
+  it('treats zero device-days / zero procedures as missing rates (not invented zeros)', () => {
+    expect(incidenceDensity(2, 0)).toBeNull();
+    expect(incidenceDensity(0, 0)).toBeNull();
+    expect(incidenceDensity(2, 1000)).toBeCloseTo(2, 5);
+    expect(procedureIncidence(3, 0)).toBeNull();
+    expect(procedureIncidence(3, 100)).toBeCloseTo(0.03, 5);
   });
 
   it('sums hospital ALL from H1–H5 and recomputes rates', () => {

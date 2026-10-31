@@ -102,15 +102,16 @@ All seeded defects below are **OPEN** with **evidence to verify** during inspect
 | P1-006 | P1 | Operating Contribution duplicate as Contribution Margin | Strategy | FIXED | Command `kpi_st_service_line_cm` is CM Rate (%); Operating Contribution remains SAR. Ownership/ribbon/bind updated. |
 | P1-007 | P1 | Financial terminology audit | Strategy / Enterprise | FIXED | Methodology/labels: RCM NPR lineage, CM Rate vs Operating Contribution SAR, illustrative opportunities. |
 
-### Room for additional defects
+### Additional defects (Phases 5–12)
 
 | ID | Sev | Title | Area | Status | Evidence |
 |---|---|---|---|---|---|
-| _(add)_ |  |  |  | OPEN |  |
-| _(add)_ |  |  |  | OPEN |  |
-| _(add)_ |  |  |  | OPEN |  |
-| _(add)_ |  |  |  | OPEN |  |
-| _(add)_ |  |  |  | OPEN |  |
+| P2-001 | P2 | Zero device-days could display as rate 0 without missing flag | Quality & Safety | FIXED | Exported `incidenceDensity`/`procedureIncidence` return null; view flags `*Missing`; qs-reconcile tests |
+| P2-002 | P2 | Enterprise Assist fell through to generic answers | Vital Assist | FIXED | `answerEnterprise` + period/hospital grounding; whatIf.test.ts |
+| P2-003 | P2 | No automated 15-pair enterprise matrix | Enterprise | FIXED | `enterprise-cross-domain.test.ts` + CSV |
+| P2-004 | P2 | Missing coherent ED→Beds→ICU→Finance what-if | What-if | FIXED | `ent-ed-congestion` compares ≥2 interventions; non-additive |
+| P3-001 | P3 | SC category axis truncate at 22 chars | Supply Chain UI | FIXED | EChart axis threshold raised to 28; tooltips keep full labels |
+| P3-002 | P3 | Visual QA not browser-executed for all routes | UI/UX | DEFERRED | `visual-qa-matrix.csv` marked NOT TESTED honestly |
 
 ---
 

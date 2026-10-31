@@ -1,6 +1,6 @@
 # Strategy — Data Readiness
 
-**BUILD_ID:** `v78-strategy-domain`  
+**BUILD_ID:** `v80-mvp-v1-remediation` (was v78 at domain launch)  
 **Overall readiness:** **Demo Available / Scenario Only**  
 **Production Source Verified:** **No** — never claimed for this domain.
 

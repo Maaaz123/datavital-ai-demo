@@ -1,6 +1,6 @@
 # Strategy — KPI Lineage
 
-**BUILD_ID:** `v78-strategy-domain` · 48 owned KPIs · unique screen ownership enforced in `strategyOwnership.ts`.
+**BUILD_ID:** `v80-mvp-v1-remediation` · 48 owned KPIs · unique screen ownership enforced in `strategyOwnership.ts`.
 
 Cross-domain rule: Strategy may **read** RCM net patient revenue (authoritative recognized NPR), ICU staffing hours, SC consumption, Surgery OR hours, OPD/appointment slots, and Beds staffed/occupied as **inputs**. It does **not** reassign primary KPI ownership from Domains 1–14. Revenue lineage: **RCM NPR → service-line allocation → CM**.
 

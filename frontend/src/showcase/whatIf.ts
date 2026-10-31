@@ -13,9 +13,10 @@ import { buildRcmView, RCM_TARGETS } from '@/core/rcmView';
 import { buildScView, SC_TARGETS } from '@/core/supplyChainView';
 import { buildStView, ST_TARGETS } from '@/core/strategyView';
 import { buildSurgeryView } from '@/core/surgeryView';
+import { buildEnterpriseView } from '@/core/enterpriseView';
 import { type ReportPeriod } from '@/core/period';
 
-export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain' | 'Strategy';
+export type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle' | 'Quality & Safety' | 'Supply Chain' | 'Strategy' | 'Enterprise';
 
 export type WhatIfResult = {
   id: string;
@@ -151,6 +152,9 @@ export const WHAT_IF_PROMPTS: Record<DomainName, string[]> = {
     'What if high-risk suppliers are diversified by 15 points of dual-source coverage?',
     'What if consumption forecast error decreases by 30%?',
   ],
+  Enterprise: [
+    'What if ED congestion is relieved by faster bed assignment versus ICU staffing uplift under financial constraints?',
+  ],
 };
 
 function pct(value: number, digits = 1): string {
@@ -171,6 +175,11 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   const minutes = q.match(/(\d+(?:\.\d+)?)\s*minutes?/);
   const fiveBeds = /five|5\b/.test(q) && /block/.test(q);
 
+  // Enterprise cross-domain demo scenario (ED → Beds → ICU/Staffing → Financial constraints).
+  if (/ed congestion|congestion.*(?:bed|icu|staff)|faster bed assignment versus|bed assignment versus.*icu staffing/.test(q)) {
+    return { kind: 'ent-ed-congestion', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+  }
+
   // Strategy intents before Supply Chain / workforce generics that mention overtime, utilization, or capital.
   const stAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
   if (/reallocate nurses|nurse.*reallocat/.test(q)) return { kind: 'st-reallocate-nurses', amount: stAmount(0.2) };
@@ -187,17 +196,26 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
     return { kind: 'st-reallocate-nurses', amount: stAmount(0.2) };
   }
 
-  // Supply Chain intents before Pharmacy generics that mention stock, expiry, or replenishment.
+  // Pharmacy intents before Supply Chain: stockout / near-expiry stock / dispensing are pharmacy-owned prompts.
+  if (/dispens/.test(q) && /(tat|turnaround|time)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
+  if (/stock-?out|out of stock/.test(q) && /(fell|decreas|reduc)/.test(q) && !/critical.?sku|supply.?chain|replenish/.test(q)) return { kind: 'rx-stockout-down', amount: percent ? Number(percent[1]) / 100 : 0.3 };
+  if (/near.?expir/.test(q) && /stock/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-expiry-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/expir/.test(q) && /(fell|decreas|reduc)/.test(q) && !/inventory|supply/.test(q)) return { kind: 'rx-expiry-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
+  if (/barcode/.test(q) && /(increas|improv|rise|rose|extend)/.test(q)) return { kind: 'rx-barcode-up', amount: percent ? Number(percent[1]) / 100 : 0.05 };
+  if (/staffed/.test(q) && /pharmac/.test(q) && /(increas|extend)/.test(q)) return { kind: 'rx-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
+  if (/waste/.test(q) && /(medication|pharmac|drug)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-waste-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
+
+  // Supply Chain intents (after Pharmacy so "near-expiry inventory" / supplier fill stay SC-owned).
   const scAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
   if (/safety.?stock/.test(q) && /(adjust|improv|increas|rais|cover)/.test(q)) return { kind: 'sc-safety-stock', amount: scAmount(0.4) };
   if (/(supplier )?lead.?time/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-lead-time-down', amount: scAmount(0.2) };
   if (/fill.?rate/.test(q) && /(improv|increas|lift|rise)/.test(q)) return { kind: 'sc-fill-rate-up', amount: scAmount(0.05) };
   if (/consolidat/.test(q) && /(procurement|purchase.?order|po|demand)/.test(q)) return { kind: 'sc-consolidate-po', amount: scAmount(0.25) };
-  if (/near.?expir/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-near-expiry-down', amount: scAmount(0.35) };
+  if (/near.?expir/.test(q) && /(inventory|supply)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-near-expiry-down', amount: scAmount(0.35) };
   if (/critical.?sku.?replenish|critical replenish/.test(q) && /(improv|increas)/.test(q)) return { kind: 'sc-critical-replenish', amount: scAmount(0.5) };
   if (/diversif/.test(q) && /(supplier|dual.?source)/.test(q)) return { kind: 'sc-diversify-suppliers', amount: scAmount(0.15) };
   if (/(forecast.?error|forecast.?deviation|consumption forecast)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'sc-forecast-error-down', amount: scAmount(0.3) };
-  if (/(supply.?chain|stockout|procurement|safety stock|supplier fill)/.test(q) && /(fell|decreas|reduc|improv|adjust)/.test(q)) return { kind: 'sc-fill-rate-up', amount: scAmount(0.05) };
+  if (/(supply.?chain|procurement|safety stock|supplier fill)/.test(q) && /(fell|decreas|reduc|improv|adjust)/.test(q)) return { kind: 'sc-fill-rate-up', amount: scAmount(0.05) };
 
   // Quality & Safety intents before RCM/PX generics that mention infection, CAPA, or investigation.
   const qsAmount = (fallback: number) => (percent ? Number(percent[1]) / 100 : fallback);
@@ -238,14 +256,6 @@ export function parseWhatIfIntent(question: string): { kind: string; amount: num
   if (/icu/.test(q) && /(reallocat|redistribut)/.test(q) && /staff/.test(q)) return { kind: 'icu-reallocate', amount: percent ? Number(percent[1]) / 100 : 0.1 };
   if (/icu/.test(q) && /flow/.test(q) && /(improv|coord)/.test(q)) return { kind: 'icu-flow-up', amount: percent ? Number(percent[1]) / 100 : 0.15 };
   if (/transfer delay/.test(q) && /icu|critical.?care/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'icu-transfer-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
-
-  // Pharmacy intents first: their keywords (dispensing, stockout, expiry, barcode, medication waste) are domain-specific.
-  if (/dispens/.test(q) && /(tat|turnaround|time)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-tat-down', amount: percent ? Number(percent[1]) / 100 : 0.15 };
-  if (/stock-?out|out of stock/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-stockout-down', amount: percent ? Number(percent[1]) / 100 : 0.3 };
-  if (/expir/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-expiry-down', amount: percent ? Number(percent[1]) / 100 : 0.25 };
-  if (/barcode/.test(q) && /(increas|improv|rise|rose|extend)/.test(q)) return { kind: 'rx-barcode-up', amount: percent ? Number(percent[1]) / 100 : 0.05 };
-  if (/staffed/.test(q) && /pharmac/.test(q) && /(increas|extend)/.test(q)) return { kind: 'rx-staffed-up', amount: percent ? Number(percent[1]) / 100 : 0.1 };
-  if (/waste/.test(q) && /(medication|pharmac|drug)/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'rx-waste-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
 
   // Laboratory intents before radiology/surgery generics that mention downtime, TAT, staffed, or backlog.
   if (/reject/.test(q) && /specimen|lab|laborator/.test(q) && /(fell|decreas|reduc)/.test(q)) return { kind: 'lab-reject-down', amount: percent ? Number(percent[1]) / 100 : 0.2 };
@@ -335,6 +345,7 @@ export function runWhatIf(
   if (domain === 'Quality & Safety') return qsWhatIf(hospital, year, period, resolved);
   if (domain === 'Supply Chain') return scWhatIf(hospital, year, period, resolved);
   if (domain === 'Strategy') return stWhatIf(hospital, year, period, resolved);
+  if (domain === 'Enterprise') return enterpriseWhatIf(hospital, year, period, resolved);
   return inpatientWhatIf(hospital, year, period, resolved);
 }
 
@@ -353,7 +364,47 @@ function defaultIntent(domain: DomainName): { kind: string; amount: number } {
   if (domain === 'Quality & Safety') return { kind: 'qs-hh-up', amount: 0.08 };
   if (domain === 'Supply Chain') return { kind: 'sc-fill-rate-up', amount: 0.05 };
   if (domain === 'Strategy') return { kind: 'st-reallocate-nurses', amount: 0.2 };
+  if (domain === 'Enterprise') return { kind: 'ent-ed-congestion', amount: 0.2 };
   return { kind: 'ipd-longstay-down', amount: 0.1 };
+}
+
+/**
+ * Enterprise demo: ED Congestion → Beds → ICU/Staffing → Financial Constraints.
+ * Compares ≥2 interventions; overlapping benefits are NOT summed; approval does not mutate history.
+ */
+export function enterpriseWhatIf(
+  hospital: string,
+  year: number,
+  period: ReportPeriod,
+  intent: { kind: string; amount: number },
+): WhatIfResult {
+  const ent = buildEnterpriseView(hospital, year, period);
+  const amount = Math.min(0.5, Math.max(0.1, intent.amount));
+  const edWait = ent.facts.edWaitMedianMin;
+  const occupancy = ent.facts.occupancy;
+  const icuGap = ent.facts.icuStaffingGapHours;
+  const enterpriseGap = ent.facts.enterpriseStaffingGapHours;
+  const contribution = ent.facts.operatingContribution;
+  const npr = ent.facts.netPatientRevenue;
+
+  const bedAssignWait = Math.max(5, Math.round(edWait * (1 - amount)));
+  const bedAssignOcc = Math.min(0.98, occupancy + amount * 0.03);
+  const staffingWait = Math.max(8, Math.round(edWait * (1 - amount * 0.45)));
+  const staffingIcuGap = Math.max(0, Math.round(icuGap * (1 - amount * 0.6)));
+  const staffingOpEx = Math.round(contribution * amount * 0.04);
+  const staffingCm = contribution - staffingOpEx;
+
+  return {
+    id: 'ent-ed-congestion',
+    title: 'ED congestion → beds → ICU/staffing → financial constraints',
+    current: `ED median wait ${num(edWait, 1)} min · bed occupancy ${pct(occupancy)} · ICU nurse-hour gap ${num(icuGap)} h · enterprise staffing gap ${num(enterpriseGap)} h · RCM NPR SAR ${num(Math.round(npr))} · operating contribution SAR ${num(Math.round(contribution))} · ${ent.periodLabel}`,
+    change: `Compare two eligible interventions at intensity ${pct(amount, 0)}: (A) faster bed assignment / discharge pull vs (B) ICU/enterprise staffing uplift under OpEx constraint. Benefits are alternatives — do not sum A+B.`,
+    estimated: `A) Wait near ${num(bedAssignWait, 1)} min with occupancy near ${pct(bedAssignOcc)} (flow-side). B) Wait near ${num(staffingWait, 1)} min · ICU gap near ${num(staffingIcuGap)} h · contribution near SAR ${num(Math.round(staffingCm))} after illustrative OpEx SAR ${num(staffingOpEx)}. Neither path claims achieved ROI; human decision required.`,
+    assumptions: 'Illustrative cross-domain simulation using shared Enterprise facts (Emergency wait, Beds occupancy, ICU credentialed gap, Strategy enterprise gap, RCM NPR, Strategy contribution). Not validated predictive AI. Overlapping scenario benefits must not be summed. Approval does not mutate historical ED/Beds/ICU/RCM ledgers. Staffing safety constraints remain binding; surplus ≠ automatic ICU fill without credentials.',
+    implications: 'Choose one primary intervention path (or a sequenced plan with explicit non-additive accounting). Follow-up KPIs after the next reporting checkpoint: ED door-to-provider, bed occupancy, ICU staffing gap, enterprise staffing gap, operating contribution.',
+    followUp: 'ED door-to-provider median, Bed occupancy, ICU staffing gap hours, Enterprise staffing gap hours, Operating contribution',
+    owner: 'COO / CNO / CFO jointly',
+  };
 }
 
 function emergencyWhatIf(

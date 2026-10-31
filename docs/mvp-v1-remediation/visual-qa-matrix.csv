@@ -1,0 +1,241 @@
+route,viewport,result,notes
+/,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/executive,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/executive,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/executive,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/command,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/command,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/command,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/emergency/flow,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/emergency/flow,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/emergency/flow,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/emergency/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/emergency/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/emergency/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/placement,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/placement,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/placement,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/capacity,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/capacity,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/beds/capacity,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/stay,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/stay,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/stay,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/outcomes,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/outcomes,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/inpatient/outcomes,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/flow,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/flow,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/flow,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/outpatient/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/access,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/access,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/access,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/attendance,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/attendance,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/attendance,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/recovery,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/recovery,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/appointments/recovery,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/or,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/or,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/or,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/access,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/access,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/access,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/surgery/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/access,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/access,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/access,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/utilization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/utilization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/utilization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/radiology/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/samples,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/samples,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/samples,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/analyzers,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/analyzers,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/analyzers,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/laboratory/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/dispensing,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/dispensing,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/dispensing,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/inventory,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/inventory,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/inventory,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/safety,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/safety,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/safety,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/cost,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/cost,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/cost,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/pharmacy/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/flow,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/flow,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/flow,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/capacity,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/capacity,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/capacity,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/equipment,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/equipment,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/equipment,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/quality,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/quality,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/quality,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/icu/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/journey,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/journey,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/journey,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/complaints,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/complaints,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/complaints,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/voice,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/voice,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/voice,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/departments,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/departments,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/departments,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/patient-experience/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/rcm,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/rcm,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/rcm/eligibility,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/eligibility,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/eligibility,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/billing,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/billing,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/billing,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/claims,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/claims,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/claims,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/collections,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/collections,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/collections,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/leakage,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/leakage,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/leakage,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/rcm/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/incidents,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/incidents,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/incidents,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/infections,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/infections,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/infections,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/prevention,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/prevention,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/prevention,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/outcomes,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/outcomes,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/outcomes,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/actions,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/actions,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/actions,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/quality/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/quality/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain/inventory,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain/inventory,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain/inventory,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/supply-chain/procurement,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/procurement,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/procurement,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/suppliers,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/suppliers,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/suppliers,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/consumption,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/consumption,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/consumption,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/waste,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/waste,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/waste,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/supply-chain/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy/workforce,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/workforce,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/workforce,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/equipment,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/equipment,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/equipment,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/capacity,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/capacity,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/capacity,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/service-lines,1280,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy/service-lines,1440,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy/service-lines,1920,NOT TESTED,Remediation scope critical; browser verify deferred to Phase 15 production spot-check
+/strategy/cost-efficiency,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/cost-efficiency,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/cost-efficiency,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/expansion,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/expansion,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/expansion,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/optimization,1280,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/optimization,1440,NOT TESTED,Honest: no automated visual browser pass in this remediation run
+/strategy/optimization,1920,NOT TESTED,Honest: no automated visual browser pass in this remediation run

@@ -24,7 +24,8 @@ describe('P1-001 / P1-002 Supply Chain rate bounds and Days of Supply', () => {
           expect(view.supplyAvailability, label).toBeLessThanOrEqual(1);
           expect(view.supplierOtd, label).toBeGreaterThanOrEqual(0);
           expect(view.supplierOtd, label).toBeLessThanOrEqual(1);
-          expect(view.receiptsReceived, label).toBeGreaterThanOrEqual(view.receiptsOnTime ?? 0);
+          expect(view.identities.receivedGteOnTime, label).toBe(true);
+          expect(view.receiptsReceived, label).toBeGreaterThanOrEqual(0);
           for (const value of view.monthlyAvailability) {
             expect(value, `${label} monthlyAvailability`).toBeGreaterThanOrEqual(0);
             expect(value, `${label} monthlyAvailability`).toBeLessThanOrEqual(100);
