@@ -83,8 +83,15 @@ const TABS: { id: Tab; label: string }[] = [
 
 type DomainName = 'Emergency' | 'Beds' | 'Inpatient' | 'Outpatient' | 'Appointments' | 'Surgery' | 'Radiology' | 'Laboratory' | 'Pharmacy' | 'ICU' | 'Patient Experience' | 'Revenue Cycle';
 
-function domainCount(hospital: string, year: number, department: DomainName, statuses: Record<string, AlertStatus>): number {
-  return alertsFor(hospital, year).filter((alert) => {
+function domainCount(
+  hospital: string,
+  year: number,
+  department: DomainName,
+  statuses: Record<string, AlertStatus>,
+  period: import('./period').ReportPeriod = 'year',
+): number {
+  const usePeriod = department === 'Revenue Cycle' ? period : 'year';
+  return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (alert.department !== department || alert.severity === 'info') return false;
     const status = statuses[alert.id] ?? 'new';
     return status !== 'resolved' && status !== 'dismissed';
@@ -188,8 +195,9 @@ export function CopilotButton() {
   const store = useShowcase();
   const copilot = useCopilot();
   const location = useLocation();
+  const { period } = usePeriod();
   const { department } = domainFromPath(location.pathname);
-  const count = domainCount(store.hospital, store.year, department, store.alertStatus);
+  const count = domainCount(store.hospital, store.year, department, store.alertStatus, period);
   return (
     <button
       type="button"
@@ -218,15 +226,16 @@ export function CopilotPanel() {
   const store = useShowcase();
   const copilot = useCopilot();
   const location = useLocation();
+  const { period } = usePeriod();
   const panelRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const lang = store.lang;
   const domain = domainFromPath(location.pathname);
-  const { alerts, note } = visibleAlerts(store.hospital, store.year, 'All', domain.screenId);
+  const { alerts, note } = visibleAlerts(store.hospital, store.year, 'All', domain.screenId, period);
   const selected = alerts.find((alert) => alert.id === copilot.selectedId) ?? alerts[0] ?? null;
   const hospitalName = HOSPITALS.find((item) => item.code === store.hospital);
   const name = hospitalName?.name;
-  const count = domainCount(store.hospital, store.year, domain.department, store.alertStatus);
+  const count = domainCount(store.hospital, store.year, domain.department, store.alertStatus, period);
   const page = domain.page;
 
   useEffect(() => {

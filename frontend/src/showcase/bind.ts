@@ -218,7 +218,7 @@ function rcmMapped(key: string, hospital: string, year: number): Raw | null {
   const days = (value: number, better: Raw['better'], note: string) => duration(value, 'days', better, note);
   switch (key) {
     case 'kpi_rcm_net_patient_revenue': return money(v.netPatientRevenue, 'Gross charges − contractual allowances from the RCM Command view. Recognized net revenue, not cash.', 'up');
-    case 'kpi_rcm_net_collection_rate': return exactRate(v.cashApplied, v.netPatientRevenue, 'up', 'Cash applied ÷ net patient revenue from the RCM Command view. Applied cash, not remittance receipts alone.');
+    case 'kpi_rcm_net_collection_rate': return exactRate(v.cashApplied, v.netPatientRevenue, 'up', 'Period Cash-to-Net Revenue Ratio = period cash applied ÷ period net patient revenue. Cash may settle prior-period AR — not a cohort-adjusted / collectible net collection rate.');
     case 'kpi_rcm_gross_denial_rate': return exactRate(v.deniedClaims, v.adjudicatedClaims, 'down', 'Unique denied claims ÷ unique adjudicated claims (claim count) from the RCM Command view.');
     case 'kpi_rcm_days_in_ar': return days(v.daysInAr, 'down', 'Ending AR ÷ (net patient revenue ÷ days in period) from the RCM Command view.');
     case 'kpi_rcm_outstanding_ar': return money(v.closingAR, 'Period-end AR snapshot from the RCM Command view — not the sum of monthly balances.', 'down');

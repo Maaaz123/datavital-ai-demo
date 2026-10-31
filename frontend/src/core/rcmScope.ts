@@ -45,10 +45,10 @@ export function rcmIndicatorsFor(view: RcmView): Indicator[] {
       aggregation: 'Sum of period flows', scope, classification: 'constructed',
       limitations: 'Recognized net revenue — not cash collected.', method: m.netRevenue,
     }),
-    row('Command', 'Net Collection Rate', {
-      unit: 'rate', formula: 'Cash applied ÷ net patient revenue', cohort: 'Same eligible period',
+    row('Command', 'Period Cash-to-Net Revenue Ratio', {
+      unit: 'rate', formula: 'Period cash applied ÷ period net patient revenue', cohort: 'Same reporting period (cash may settle prior-period AR)',
       aggregation: 'Ratio of period sums', scope, classification: 'constructed',
-      limitations: 'Applied cash only — remittance receipts not yet applied are excluded.', method: m.cash,
+      limitations: 'Not a cohort-adjusted / collectible net collection rate. Applied cash only — remittance receipts not yet applied are excluded.', method: m.cash,
     }),
     row('Command', 'Gross Denial Rate (Claim Count)', {
       unit: 'rate', formula: 'Denied unique claims ÷ adjudicated unique claims', cohort: 'Adjudicated claims',

@@ -1439,6 +1439,18 @@ button.gc-assist-alert:hover { transform: translateY(-2px); box-shadow: 0 10px 2
   font-size: 11px;
   font-weight: 600;
 }
+.gc-chart svg .gc-axis-unit,
+.gc-ed .gc-chart svg .gc-axis-unit {
+  fill: #475569;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+.gc-alert-scope {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-size: 0.78em;
+}
 .gc-line-chart .gc-axis line {
   stroke: #e8eaee;
   stroke-width: 1;

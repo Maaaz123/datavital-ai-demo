@@ -562,7 +562,7 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
   const height = compact ? 148 : 240;
   const padL = CHART_PAD_L;
   const padR = pareto ? 40 : CHART_PAD_R;
-  const padT = compact ? 8 : 16;
+  const padT = compact ? 14 : 22;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
@@ -573,6 +573,7 @@ function BarChart({ figure, pareto = false, compact = false }: { figure: Figure;
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. ${note}`}>
       <title>{title}</title>
+      {figure.unit ? <text x={padL - 8} y={Math.max(10, padT - 6)} textAnchor="end" className="gc-axis-unit">{figure.unit}</text> : null}
       {ticks.map((tick, index) => {
         const y = padT + innerH - (tick / max) * innerH;
         return (
@@ -829,15 +830,16 @@ export function lineDomain(values: number[]): { min: number; max: number } {
 export const CHART_VIEW = { width: CHART_WIDTH, padL: CHART_PAD_L, padR: CHART_PAD_R, compactHeight: 148 } as const;
 
 function LineChart({ figure, area = false, compact = false }: { figure: Figure; area?: boolean; compact?: boolean }) {
-  const { categories, series, digits, title, note } = figure;
+  const { categories, series, digits, title, note, unit } = figure;
   const flat = series.flatMap((item) => item.values);
   const { min, max } = lineDomain(flat);
   const span = Math.max(max - min, 1);
   const width = CHART_WIDTH;
   const height = compact ? 148 : 240;
   const padL = CHART_PAD_L;
-  const padR = CHART_PAD_R;
-  const padT = compact ? 10 : 18;
+  // Extra right pad when many categories so the last month label (e.g. Dec) is not clipped.
+  const padR = categories.length >= 10 ? Math.max(CHART_PAD_R, 22) : CHART_PAD_R;
+  const padT = compact ? 14 : 22;
   const padB = compact ? 26 : 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
@@ -855,6 +857,7 @@ function LineChart({ figure, area = false, compact = false }: { figure: Figure; 
           </linearGradient>
         ))}
       </defs>
+      {unit ? <text x={padL - 8} y={Math.max(10, padT - 6)} textAnchor="end" className="gc-axis-unit">{unit}</text> : null}
       {[min, min + span / 2, max].map((tick, index) => (
         <g key={`${index}-${tick}`} className="gc-axis">
           <line x1={padL} x2={width - padR} y1={yOf(tick)} y2={yOf(tick)} />

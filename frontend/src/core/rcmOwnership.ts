@@ -21,7 +21,7 @@ export type RcmKpiOwner = {
 export const RCM_KPI_OWNERS: RcmKpiOwner[] = [
   // Command — executive revenue-cycle health
   { id: 'kpi_rcm_net_patient_revenue', fullName: 'Net Patient Revenue', display: 'Net Patient Revenue', screen: 'command', route: '/rcm', decision: 'Gross charges − contractual allowances for eligible billed encounters (recognized net revenue, not cash)' },
-  { id: 'kpi_rcm_net_collection_rate', fullName: 'Net Collection Rate', display: 'Net Collection Rate', screen: 'command', route: '/rcm', decision: 'Cash applied ÷ net patient revenue for the same eligible period (applied cash, not remittance receipts alone)' },
+  { id: 'kpi_rcm_net_collection_rate', fullName: 'Period Cash-to-Net Revenue Ratio', display: 'Cash-to-Net Ratio', screen: 'command', route: '/rcm', decision: 'Period cash applied ÷ period net patient revenue. Cash may settle prior-period AR — not a cohort-adjusted / A/R collectible net collection rate' },
   { id: 'kpi_rcm_gross_denial_rate', fullName: 'Gross Denial Rate (Claim Count)', display: 'Gross Denial Rate', screen: 'command', route: '/rcm', decision: 'Unique eligible claims with an adjudicated denial ÷ unique eligible adjudicated claims' },
   { id: 'kpi_rcm_days_in_ar', fullName: 'Days in Accounts Receivable', display: 'Days in AR', screen: 'command', route: '/rcm', decision: 'Ending AR ÷ (period net patient revenue ÷ days in period) — snapshot conversion speed' },
   { id: 'kpi_rcm_outstanding_ar', fullName: 'Outstanding Accounts Receivable', display: 'Outstanding AR', screen: 'command', route: '/rcm', decision: 'Year-end / period-end AR snapshot (not the sum of monthly ending balances)' },

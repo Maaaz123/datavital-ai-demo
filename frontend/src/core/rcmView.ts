@@ -1003,7 +1003,7 @@ function assemble(hospital: string, year: number, period: ReportPeriod, raw: Raw
       currency: 'Amounts are conceptually SAR but stored as plain numbers. All data is deterministic synthetic demo data.',
       netRevenue: 'Net patient revenue = gross charges − contractual allowances. It is recognized revenue, not cash.',
       arRollForward: 'Opening AR + new receivables − cash applied − approved adjustments − write-offs ± corrections = closing AR. Outstanding AR is the period-end snapshot, never a sum of monthly ending balances.',
-      cash: 'Cash received ≥ cash applied. Unapplied cash = received − applied for the period. unappliedStockYtd is the cumulative balance since 1 January.',
+      cash: 'Period Cash-to-Net Revenue Ratio = period cash applied ÷ period net patient revenue (not a cohort-adjusted net collection rate; cash may settle prior-period AR). Cash received ≥ cash applied. Unapplied cash = received − applied for the period. unappliedStockYtd is the cumulative balance since 1 January.',
       claims: 'Unique claims ≠ submission attempts: submissions include resubmissions of rejected or denied claims. Clearinghouse rejects are tracked separately from payer denials.',
       denialRate: 'Gross denial rate = denied unique claims ÷ adjudicated unique claims (claim count). Denial rate by value = denied amount ÷ adjudicated amount.',
       leakage: 'Confirmed leakage = missed charges + avoidable write-offs + underpayments with exclusive attribution. Contractual allowances are never leakage. Potential leakage is not additive to confirmed leakage.',

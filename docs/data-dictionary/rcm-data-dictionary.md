@@ -1,7 +1,7 @@
 # Revenue Cycle Management — Data Dictionary
 
 **Domain:** Domain 12 — Revenue Cycle Management Intelligence  
-**Release:** `v1-rcm` · **BUILD_ID:** `v74-rcm-domain` (production verification pending)  
+**Release:** `v1-rcm` · **BUILD_ID:** `v75-rcm-remediation`  
 **Status:** Demo Available — not Production Source Verified  
 **Scope:** Expected source-system fields → DataVital canonical columns  
 **Privacy:** Demo uses synthetic, deterministic, non-identifiable patient, payer, encounter and financial records only. No real policy numbers, claim data, MRNs or account identifiers.  
@@ -257,7 +257,7 @@ Role expectations (documentation only; not enforced in the demo): **Executives/C
 | `remittance_id` | string | Required | Partially Mapped | Cash Application → remittance_advice.`remittance_id` | Remittance advice grouping payments and claim-level adjustments from a payer |
 | `payment_received_at` | timestamp | Required | Demo Available | Payment Gateway → payment.`received_at` | Cash/remittance receipt time (cash received != cash applied) |
 | `payment_applied_at` | timestamp | Conditional | Demo Available | Cash Application → cash_application.`applied_at` | Time cash was applied to encounter/claim AR. Null = unapplied; unmatched receipts must not reduce encounter AR |
-| `paid_amount` | decimal | Required | Demo Available | Cash Application → cash_application.`applied_amount` | Cash applied to AR for a line/claim (flow, summed across months). Net collection rate uses applied cash |
+| `paid_amount` | decimal | Required | Demo Available | Cash Application → cash_application.`applied_amount` | Cash applied to AR for a line/claim (flow, summed across months). Period Cash-to-Net Revenue Ratio uses applied cash (not a cohort-adjusted net collection rate) |
 | `received_amount` | decimal | Required | Demo Available | Payment Gateway → payment / remittance.`received_amount` | Cash received on the remittance (>= applied; difference = unapplied cash) |
 | `unapplied_amount` | decimal | Conditional | Demo Available | Cash Application → unapplied_cash_ledger.`unapplied_amount` | Cash received - cash applied for the period; YTD stock reported separately; never negative |
 | `cash_application_exception_reason` | enum | Optional | Scenario Only | Cash Application → cash_application_exception.`reason_code` | Why a remittance is not applied (no match, duplicate, short-pay, missing remit) |

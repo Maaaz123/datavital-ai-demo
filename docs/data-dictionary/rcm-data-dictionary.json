@@ -2,7 +2,7 @@
   "domain": "Revenue Cycle Management Intelligence",
   "domain_number": 12,
   "version": "v1-rcm",
-  "build_id": "v74-rcm-domain",
+  "build_id": "v75-rcm-remediation",
   "status": "Demo Available — not Production Source Verified",
   "currency": {
     "demo_label": "SAR",

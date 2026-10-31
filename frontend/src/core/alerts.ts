@@ -1,5 +1,7 @@
 import { findKpi } from '@/showcase/engine';
 import { formatDelta, formatMeasure, measure } from '@/showcase/measures';
+import { buildRcmView } from './rcmView';
+import type { ReportPeriod } from './period';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'info';
 export type AlertStatus = 'new' | 'acknowledged' | 'investigating' | 'resolved' | 'dismissed';
@@ -1209,15 +1211,15 @@ const RULES: Rule[] = [
     kpi: 'kpi_rcm_net_collection_rate',
     department: 'Revenue Cycle',
     screen: 'rcm',
-    title: 'Weak net collection rate',
+    title: 'Weak period cash-to-net ratio',
     owner: 'Revenue Cycle Director',
-    investigation: 'Net Collection Rate = cash applied ÷ net patient revenue for the same period. It uses applied cash, not remittance receipts. Review Collections Trend and Unapplied Cash before ranking payers.',
-    action: 'Review payer collection gaps and cash-application exceptions with Collections; accelerate eligible aged balances under approved policy.',
-    rule: 'Critical at 90% or below, high at 93%, medium at 95% of net patient revenue.',
+    investigation: 'Period Cash-to-Net Revenue Ratio = cash applied ÷ net patient revenue in the same reporting period. Cash may settle prior-period AR — not a cohort-adjusted net collection rate. Review Collections Trend and Unapplied Cash before ranking payers.',
+    action: 'Review payer cash-application gaps and aged balances with Collections; accelerating cash is a timing shift, not new recognized revenue.',
+    rule: 'Critical at 90% or below, high at 93%, medium at 95% of period net patient revenue.',
     threshold: 'Operating target 95% · high at 93% · critical at 90%',
-    consequence: 'Low net collection leaves recognized revenue uncollected and raises AR.',
-    whyMatters: 'Net Collection Rate is the primary cash-conversion signal for the revenue cycle.',
-    followUp: 'Net Collection Rate, Days in AR, and Collection Effectiveness Index',
+    consequence: 'A weak cash-to-net ratio signals delayed conversion of recognized revenue into applied cash.',
+    whyMatters: 'Period Cash-to-Net Revenue Ratio is the primary period cash-conversion signal (not a cohort NCR).',
+    followUp: 'Period Cash-to-Net Revenue Ratio, Days in AR, and Collection Effectiveness Index',
     worse: false,
     critical: 0.9,
     high: 0.93,
@@ -1398,26 +1400,41 @@ function severityFor(value: number, rule: Rule): Severity {
   return 'info';
 }
 
-export function alertsFor(hospital: string, year: number): DemoAlert[] {
+function periodLabel(year: number, period: ReportPeriod): string {
+  return period === 'year' ? `Full year ${year}` : `${period} ${year}`;
+}
+
+/**
+ * Build demo alerts. Domains 1–11 keep full-year measure() values.
+ * Revenue Cycle alerts optionally use the selected reporting period via buildRcmView
+ * so Q1 cards and Q1 alerts share the same financial cohort.
+ */
+export function alertsFor(hospital: string, year: number, period: ReportPeriod = 'year'): DemoAlert[] {
+  const rcmView = period === 'year' ? null : buildRcmView(hospital, year, period);
+  const label = periodLabel(year, period);
   return RULES.map((rule) => {
     const kpi = findKpi(rule.kpi);
     if (!kpi) throw new Error(`Alert rule missing KPI ${rule.kpi}`);
+    const useRcmPeriod = Boolean(rcmView && rule.department === 'Revenue Cycle' && rule.kpi.startsWith('kpi_rcm_'));
     const item = measure(kpi, hospital, year, 'All');
-    const severity = severityFor(item.value, rule);
+    const value = useRcmPeriod ? Number(rcmView!.kpiValues[rule.kpi] ?? item.value) : item.value;
+    const observedItem = useRcmPeriod ? { ...item, value } : item;
+    const severity = severityFor(value, rule);
     return {
-      id: `${hospital}|${year}|${rule.kpi}`,
+      // Domains 1–11 keep the historic full-year id shape when period === 'year'.
+      id: period === 'year' ? `${hospital}|${year}|${rule.kpi}` : `${hospital}|${year}|${period}|${rule.kpi}`,
       hospital,
       department: rule.department,
       kpi: rule.kpi,
       screen: rule.screen,
-      period: `Full year ${year}`,
+      period: useRcmPeriod || period === 'year' ? label : `Full year ${year}`,
       severity,
       title: rule.title,
-      observed: formatMeasure(item, 'en'),
-      comparison: `${formatDelta(item, 'en')}. ${rule.rule}`,
+      observed: formatMeasure(observedItem, 'en'),
+      comparison: `${formatDelta(observedItem, 'en')}. ${rule.rule}`,
       rule: rule.rule,
       threshold: rule.threshold ?? rule.rule,
-      evidence: `${kpi.name}: ${formatMeasure(item, 'en')} for ${hospital}, full year ${year}. ${item.note}`,
+      evidence: `${kpi.name}: ${formatMeasure(observedItem, 'en')} for ${hospital}, ${useRcmPeriod || period === 'year' ? label : `full year ${year}`}. ${item.note}`,
       investigation: rule.investigation,
       drivers: rule.investigation,
       consequence: rule.consequence ?? 'Operational consequence depends on how long the signal stays above the review line.',
@@ -1434,22 +1451,39 @@ export function screenDepartment(screenId: string | null): string | 'all' {
   return SCREEN_DEPARTMENT[screenId] ?? 'all';
 }
 
-export function visibleAlerts(hospital: string, year: number, department: string, screenId: string | null): { alerts: DemoAlert[]; note: string } {
-  const all = alertsFor(hospital, year);
+export function visibleAlerts(
+  hospital: string,
+  year: number,
+  department: string,
+  screenId: string | null,
+  period: ReportPeriod = 'year',
+): { alerts: DemoAlert[]; note: string } {
+  const usePeriod = screenDepartment(screenId) === 'Revenue Cycle' ? period : 'year';
+  const all = alertsFor(hospital, year, usePeriod);
   const scoped = screenDepartment(screenId);
+  const scopeNote = usePeriod === 'year'
+    ? `this hospital and year`
+    : `this hospital and ${periodLabel(year, usePeriod)}`;
   if (scoped === 'all') {
     const alerts = department === 'All' ? all : all.filter((alert) => alert.department === department);
-    const note = department === 'All' ? '' : `Service scope is ${department}. Alerts are limited to that service for this hospital and year.`;
+    const note = department === 'All' ? '' : `Service scope is ${department}. Alerts are limited to that service for ${scopeNote}.`;
     return { alerts, note };
   }
-    const note = department !== 'All' && department !== scoped
-      ? `Service scope is ${department}. This workspace stays on ${scoped}. The alerts below are the ${scoped} view for this hospital and year.`
-      : '';
+  const note = department !== 'All' && department !== scoped
+    ? `Service scope is ${department}. This workspace stays on ${scoped}. The alerts below are the ${scoped} view for ${scopeNote}.`
+    : '';
   return { alerts: all.filter((alert) => alert.department === scoped), note };
 }
 
-export function badgeCount(hospital: string, year: number, department: string, statuses: Record<string, AlertStatus>): number {
-  return alertsFor(hospital, year).filter((alert) => {
+export function badgeCount(
+  hospital: string,
+  year: number,
+  department: string,
+  statuses: Record<string, AlertStatus>,
+  period: ReportPeriod = 'year',
+): number {
+  const usePeriod = department === 'Revenue Cycle' ? period : 'year';
+  return alertsFor(hospital, year, usePeriod).filter((alert) => {
     if (department !== 'All' && alert.department !== department) return false;
     if (alert.severity === 'info') return false;
     const status = statuses[alert.id] ?? 'new';

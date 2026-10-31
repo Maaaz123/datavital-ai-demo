@@ -1,6 +1,6 @@
 # RCM Source-to-Target Mapping
 
-**Target:** DataVital AI Revenue Cycle canonical model (`buildRcmView`) — `v1-rcm`, BUILD_ID `v74-rcm-domain` (production verification pending)  
+**Target:** DataVital AI Revenue Cycle canonical model (`buildRcmView`) — `v1-rcm`, BUILD_ID `v75-rcm-remediation`  
 **Note:** Source table/column names are **expected patterns**, not verified customer schemas. No field is Production Source Verified.  
 **Demo model:** One deterministic full-year monthly ledger per hospital (H1–H5) is simulated once; quarters slice the same ledger and **Hospital ALL is the exact sum of H1–H5**. Flows (revenue, cash, claims, leakage) are summed; stocks (AR, unbilled WIP, pending authorizations) are period-end snapshots. Screens, charts, alerts, Vital Assist and what-if all read the same `buildRcmView` result.  
 **Currency:** `SAR` demo label (`RCM_CURRENCY`); configurable; no FX conversion.

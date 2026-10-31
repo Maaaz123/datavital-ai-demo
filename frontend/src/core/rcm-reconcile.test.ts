@@ -323,10 +323,11 @@ describe('Revenue Cycle alerts', () => {
     }
   });
 
-  it('uses RCM targets as the review lines for denial and collection alerts', () => {
+  it('uses RCM targets as the review lines for denial and cash-to-net alerts', () => {
     const alerts = alertsFor('H1', 2026).filter((alert) => alert.department === 'Revenue Cycle');
     expect(alerts.find((alert) => alert.kpi === 'kpi_rcm_gross_denial_rate')?.threshold).toContain(`${RCM_TARGETS.grossDenialRate * 100}%`);
     expect(alerts.find((alert) => alert.kpi === 'kpi_rcm_net_collection_rate')?.threshold).toContain(`${RCM_TARGETS.netCollectionRate * 100}%`);
+    expect(alerts.find((alert) => alert.kpi === 'kpi_rcm_net_collection_rate')?.title).toMatch(/cash-to-net/i);
   });
 
   it('flags a weak hospital and keeps severities valid for ALL', () => {

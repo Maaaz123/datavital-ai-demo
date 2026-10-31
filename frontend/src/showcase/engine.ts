@@ -209,7 +209,7 @@ const ASSUMPTIONS: KpiDef[] = [
   assumption('kpi_px_priority_coverage', 'Priority action coverage', 'Patient Experience', 'ratio', 'Priority actions with owner ÷ priority opportunities from Optimization.'),
   // Revenue Cycle (Domain 12). kpi_rcm_outstanding_ar is already defined by the catalog and keeps its legacy binding.
   assumption('kpi_rcm_net_patient_revenue', 'Net Patient Revenue', 'Revenue Cycle', 'currency', 'Net Patient Revenue from the Revenue Cycle Command view. Illustrative synthetic demo data — not live financial records.'),
-  assumption('kpi_rcm_net_collection_rate', 'Net Collection Rate', 'Revenue Cycle', 'ratio', 'Net Collection Rate from the Revenue Cycle Command view. Illustrative synthetic demo data — not live financial records.'),
+  assumption('kpi_rcm_net_collection_rate', 'Period Cash-to-Net Revenue Ratio', 'Revenue Cycle', 'ratio', 'Period cash applied ÷ period net patient revenue from the RCM Command view. Not a cohort-adjusted net collection rate. Illustrative synthetic demo data.'),
   assumption('kpi_rcm_gross_denial_rate', 'Gross Denial Rate (Claim Count)', 'Revenue Cycle', 'ratio', 'Gross Denial Rate (Claim Count) from the Revenue Cycle Command view. Illustrative synthetic demo data — not live financial records.'),
   assumption('kpi_rcm_days_in_ar', 'Days in Accounts Receivable', 'Revenue Cycle', 'days', 'Days in Accounts Receivable from the Revenue Cycle Command view. Illustrative synthetic demo data — not live financial records.'),
   assumption('kpi_rcm_revenue_at_risk', 'Revenue at Risk', 'Revenue Cycle', 'currency', 'Revenue at Risk from the Revenue Cycle Command view. Illustrative exposure or modeled recovery — not collected cash.'),

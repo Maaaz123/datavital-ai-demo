@@ -1481,7 +1481,7 @@ function answerRcm(
     return pack(lang, {
       title: tx(lang, 'Outside financial operations support', 'خارج دعم العمليات المالية'),
       observation: tx(lang, 'Vital Assist does not give clinical care advice or decide whether a patient should receive treatment.', 'المساعد لا يقدم نصائح سريرية ولا يقرر تقديم العلاج.'),
-      evidence: tx(lang, `Revenue Cycle reports administrative financial signals only: net collection ${p(view.netCollectionRate)}, gross denial ${p(view.grossDenialRate)}, authorization approval ${p(view.preauthApprovalRate)} (${view.periodLabel}). Authorization queues are administrative — not care decisions.`, 'مؤشرات مالية إدارية فقط.'),
+      evidence: tx(lang, `Revenue Cycle reports administrative financial signals only: period cash-to-net ${p(view.netCollectionRate)}, gross denial ${p(view.grossDenialRate)}, authorization approval ${p(view.preauthApprovalRate)} (${view.periodLabel}). Authorization queues are administrative — not care decisions.`, 'مؤشرات مالية إدارية فقط.'),
       explanation: tx(lang, 'Clinical and coverage decisions stay with clinicians and payers. This demo uses synthetic illustrative data.', 'القرارات السريرية للأطباء والجهات الدافعة.'),
       action: tx(lang, 'Ask about denials, collections, authorization backlog, charge capture, or leakage instead.', 'اسأل عن الرفض أو التحصيل أو التفويض أو التسرب.'),
       role: tx(lang, 'Revenue cycle director', 'مدير دورة الإيراد'),
@@ -1517,7 +1517,7 @@ function answerRcm(
   if (/\bar\b|receivable|collect|cash|aging|aged|days in ar|payer pay/.test(q)) {
     return pack(lang, {
       title: tx(lang, `AR & collections · ${name} · ${view.periodLabel}`, `الذمم والتحصيل · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Observed facts: net collection rate ${p(view.netCollectionRate)} (target ${p(RCM_TARGETS.netCollectionRate)}) · days in AR ${view.daysInAr} (target ${RCM_TARGETS.daysInAr}) · ending AR ${sar(view.closingAR)} · AR over 90 days ${sar(view.arOver90)} · cash applied ${sar(view.cashApplied)} · unapplied cash ${sar(view.unappliedCash)}.`, `التحصيل الصافي ${p(view.netCollectionRate)}.`),
+      observation: tx(lang, `Observed facts: period cash-to-net ratio ${p(view.netCollectionRate)} (target ${p(RCM_TARGETS.netCollectionRate)}; not a cohort NCR) · days in AR ${view.daysInAr} (target ${RCM_TARGETS.daysInAr}) · ending AR ${sar(view.closingAR)} · AR over 90 days ${sar(view.arOver90)} · cash applied ${sar(view.cashApplied)} · unapplied cash ${sar(view.unappliedCash)}.`, `نسبة النقد إلى الإيراد الصافي ${p(view.netCollectionRate)}.`),
       evidence: tx(lang, `${view.methodology.arRollForward} AR roll-forward ${view.arRollForward.balanced ? 'balances' : 'does not balance'} (residual ${n(view.arRollForward.residual)}). Aging clock: ${view.agingClock}.`, view.methodology.arRollForward),
       explanation: tx(lang, `Potential drivers / Hypotheses (not proven): aged balances and cash-application backlog. Modeled (illustrative): aged AR acceleration ${sar(view.cashAcceleration)} is a timing shift, not new revenue. ${modeledNote}`, 'أسباب محتملة وليست مثبتة. التسريع توقيت وليس إيراداً جديداً.'),
       action: tx(lang, 'Recommendations: rank aged balances for collector follow-up and clear unapplied cash exceptions. Simulations: try the aged-AR what-if. AI does not write off balances alone.', 'رتّب الأرصدة المتقادمة للمتابعة.'),
@@ -1566,7 +1566,7 @@ function answerRcm(
     const sims = view.opportunities.slice(0, 4).map((item) => `${item.title} (~${sar(item.eligibleValue)})`).join('; ');
     return pack(lang, {
       title: tx(lang, `Revenue recovery priorities · ${name} · ${view.periodLabel}`, `أولويات استرداد الإيراد · ${name} · ${view.periodLabel}`),
-      observation: tx(lang, `Observed facts: net collection ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · confirmed leakage ${sar(view.confirmedLeakage)} · revenue at risk ${sar(view.revenueAtRisk)}. Largest modeled scenario: ${priorityOpp.title}.`, `الإيراد المعرض للخطر ${sar(view.revenueAtRisk)}.`),
+      observation: tx(lang, `Observed facts: period cash-to-net ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · confirmed leakage ${sar(view.confirmedLeakage)} · revenue at risk ${sar(view.revenueAtRisk)}. Largest modeled scenario: ${priorityOpp.title}.`, `الإيراد المعرض للخطر ${sar(view.revenueAtRisk)}.`),
       evidence: tx(lang, `${view.methodology.optimization}`, view.methodology.optimization),
       explanation: tx(lang, `Modeled (illustrative, not collected cash): recoverable opportunity ${sar(view.recoverableOpportunity)}; ${sims}. ${modeledNote}`, 'محاكاة توضيحية وليست نقداً محصلاً.'),
       action: tx(lang, `Recommendations: sequence ${priorityOpp.title.toLowerCase()} with owner ${priorityOpp.owner}; monitor the follow-up KPI after the next reporting checkpoint. AI does not submit claims or write off balances alone.`, `نفّذ الأولوية وراقب المؤشر.`),
@@ -1575,13 +1575,13 @@ function answerRcm(
     });
   }
 
-  const hot = alertsFor(hospital, year).filter((alert) => alert.department === 'Revenue Cycle' && alert.severity !== 'info');
+  const hot = alertsFor(hospital, year, period).filter((alert) => alert.department === 'Revenue Cycle' && alert.severity !== 'info');
   const topAlert = hot[0];
   return pack(lang, {
     title: tx(lang, `Revenue Cycle at ${name} · ${view.periodLabel}`, `دورة الإيراد في ${name} · ${view.periodLabel}`),
     observation: tx(lang, topAlert
-      ? `${topAlert.title}: ${topAlert.observed}`
-      : `Observed facts: net patient revenue ${sar(view.netPatientRevenue)} · net collection ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · days in AR ${view.daysInAr} · ending AR ${sar(view.closingAR)}.`, topAlert ? topAlert.title : `الإيراد الصافي ${sar(view.netPatientRevenue)}.`),
+      ? `${topAlert.title}: ${topAlert.observed} (${topAlert.period})`
+      : `Observed facts: net patient revenue ${sar(view.netPatientRevenue)} · period cash-to-net ${p(view.netCollectionRate)} · gross denial ${p(view.grossDenialRate)} · days in AR ${view.daysInAr} · ending AR ${sar(view.closingAR)}.`, topAlert ? topAlert.title : `الإيراد الصافي ${sar(view.netPatientRevenue)}.`),
     evidence: tx(lang, `${view.methodology.netRevenue} ${view.methodology.currency}`, view.methodology.netRevenue),
     explanation: tx(lang, `Potential drivers / Hypotheses (not proven): denials, aged AR, and capture gaps move together across Revenue Cycle screens. Modeled recovery (illustrative): revenue at risk ${sar(view.revenueAtRisk)} is exposure, not lost or collected cash.`, 'أسباب محتملة وليست مثبتة.'),
     action: tx(lang, topAlert?.action ?? 'Review Command health, then Claims & denials, AR & collections, and Leakage. Simulations are illustrative.', topAlert?.action ?? 'راجع القيادة ثم المطالبات والتحصيل والتسرب.'),

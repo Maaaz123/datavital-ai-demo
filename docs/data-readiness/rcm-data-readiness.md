@@ -1,7 +1,7 @@
 # RCM Data Readiness
 
 **Domain:** Domain 12 — Revenue Cycle Management Intelligence  
-**Release:** `v1-rcm` · **BUILD_ID:** `v74-rcm-domain` (production verification pending)  
+**Release:** `v1-rcm` · **BUILD_ID:** `v75-rcm-remediation`  
 **Rule:** Demo Available ≠ Production Source Verified.  
 **Currency:** `SAR` demo label; configurable; no FX conversion.
 

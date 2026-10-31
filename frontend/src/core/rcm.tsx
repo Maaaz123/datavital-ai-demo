@@ -304,7 +304,7 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
   const copilot = useCopilot();
   const view = useView();
   const { period } = usePeriod();
-  const alerts = alertsFor(store.hospital, store.year).filter((alert) => alert.department === 'Revenue Cycle' && alert.severity !== 'info');
+  const alerts = alertsFor(store.hospital, store.year, period).filter((alert) => alert.department === 'Revenue Cycle' && alert.severity !== 'info');
   return (
     <section className={`gc-panel gc-insight${packed ? '' : ' span-4'}`}>
       <h2>Priority signals</h2>
@@ -314,6 +314,7 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
             <button type="button" onClick={() => copilot.openAlert(alert, { stay: true })}>
               <span className={`gc-sev gc-sev-${alert.severity}`}>{alert.severity}</span>
               {alert.title} · {alert.observed}
+              <em className="gc-alert-scope"> · {alert.period}</em>
             </button>
           </li>
         )) : (
@@ -325,7 +326,7 @@ function Alerts({ packed = false }: { packed?: boolean } = {}) {
           </li>
         )}
       </ul>
-      {period === 'year' ? null : <p>These alerts use the full reporting year. The figures above use the selected period.</p>}
+      <p>Alert scope matches the selected reporting period ({view.periodLabel}). Period-end stocks use the period-end snapshot.</p>
       <div className="gc-next">
         <h2>Management action</h2>
         <p>
@@ -442,9 +443,9 @@ export function RcmCommandPage() {
           value: pct(view.netCollectionRate),
           delta: compare(view, prior, (item) => item.netCollectionRate, true),
           tone: high(view.netCollectionRate, RCM_TARGETS.netCollectionRate, 0.04),
-          scope: `Cash applied ${sar(view.cashApplied)} ÷ net patient revenue ${sar(view.netPatientRevenue)} · target ${pct(RCM_TARGETS.netCollectionRate)}.`,
-          formula: 'Cash applied ÷ net patient revenue',
-          limitations: view.methodology.cash,
+          scope: `Period cash applied ${sar(view.cashApplied)} ÷ period net patient revenue ${sar(view.netPatientRevenue)} · target ${pct(RCM_TARGETS.netCollectionRate)}. Cash may settle prior-period AR.`,
+          formula: 'Period cash applied ÷ period net patient revenue',
+          limitations: 'Period Cash-to-Net Revenue Ratio — not a cohort-adjusted / collectible net collection rate. ' + view.methodology.cash,
         },
         kpi_rcm_gross_denial_rate: {
           value: pct(view.grossDenialRate),
@@ -483,7 +484,7 @@ export function RcmCommandPage() {
           <Slot span={false} figure={fig('line', 'Revenue and Collections Trend', view.labels, [
             { name: 'Net revenue', values: mil(view.monthlyRevenue) },
             { name: 'Cash applied', values: mil(view.monthlyCollections) },
-          ], 'SAR M', `Monthly net patient revenue vs applied cash. Period net collection rate ${pct(view.netCollectionRate)}.`)} />
+          ], 'SAR M', `Monthly net patient revenue vs applied cash (Y-axis SAR millions). Period cash-to-net ratio ${pct(view.netCollectionRate)}.`)} />
         </div>
         <div className="gc-ed-pack-col">
           <Alerts packed />
