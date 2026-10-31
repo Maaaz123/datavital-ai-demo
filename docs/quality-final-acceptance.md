@@ -4,6 +4,8 @@
 **BUILD_ID:** `v76-quality-domain`  
 **Routes:** `/quality` (+ incidents, infections, prevention, outcomes, actions, optimization)  
 **Date:** 2026-10-30  
+**Commits:** `67c8220` (feat) · `ba124d6` (deploy) · `4de7fc9` (alert unit formatting)  
+**Production:** https://demo.datavital.io/quality  
 
 ## Status summary
 
@@ -18,7 +20,10 @@
 | Vital Assist wiring | PASS |
 | Alerts (period-scoped) | PASS |
 | Automated reconcile + page tests | PASS (19/19) |
+| RCM regression (Domain 12 preserve) | PASS (35 reconcile tests) |
 | Design freeze of Domains 1–12 | PASS (additive only) |
+| Live production `/quality` | PASS — nav “Quality & Safety”, Command KPIs and alerts visible |
+| Density alert units `/1k` | PASS after `4de7fc9` |
 | Product-owner approval | NOT RECORDED |
 
 ## Domain 12 RCM note
