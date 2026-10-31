@@ -13,6 +13,14 @@ import './i18n';
 import './styles/global.css';
 import App from './App';
 import { ThemeBootstrap } from './ThemeBootstrap';
+import { stripSensitiveParamsFromLocation } from './analytics/privacy';
+
+// Strip invite/auth tokens from the address bar before React mounts (never break demo).
+try {
+  stripSensitiveParamsFromLocation();
+} catch {
+  /* ignore */
+}
 
 if (import.meta.env.PROD) {
   void import('./pwa').then(({ registerPwaServiceWorker }) => registerPwaServiceWorker());

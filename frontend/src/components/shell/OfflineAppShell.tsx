@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Alert, Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import { EngagementBootstrap } from '@/analytics';
 import NetworkStatusBanner from '@/components/shell/NetworkStatusBanner';
 
 interface OfflineAppShellProps {
@@ -38,6 +39,8 @@ export default function OfflineAppShell({ children }: OfflineAppShellProps) {
 
   return (
     <>
+      {/* Silent — no UI; no-ops unless analytics env is explicitly enabled + consented. */}
+      <EngagementBootstrap />
       {showClinicalWarning && (
         <Box
           component="div"

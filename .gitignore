@@ -6,3 +6,9 @@ frontend/coverage
 *.local
 .env
 .env.*
+!.env.example
+!frontend/.env.example
+# Private invite registry exports — never commit plaintext tokens
+private/
+**/invite-registry.private.json
+**/invite-tokens.private.json

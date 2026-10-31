@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: DataVital Demo Client Engagement API
+  version: 0.1.0
+  description: |
+    Private server API for invite validation and admin analytics.
+    Must NOT be hosted on GitHub Pages. Requires real authentication for admin routes.
+    PostHog private / personal API keys stay server-side only.
+servers:
+  - url: https://engagement-api.example.datavital.io
+    description: Placeholder — provision only after authorization
+paths:
+  /v1/invites/validate:
+    post:
+      summary: Validate opaque invite token (public, rate-limited)
+      description: |
+        Returns validity only. Does not return client name/organization to the SPA.
+        Sets invite_verified attribution; does not prove visitor identity.
+      operationId: validateInvite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  minLength: 22
+                  maxLength: 64
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valid, invite_verified, identity_verified]
+                properties:
+                  valid:
+                    type: boolean
+                  invite_verified:
+                    type: boolean
+                  identity_verified:
+                    type: boolean
+                    enum: [false]
+                  invitation_id:
+                    type: string
+                    nullable: true
+                  country_code:
+                    type: string
+                    nullable: true
+                    description: Coarse GeoIP country of the request, if available
+        '429':
+          description: Rate limited
+  /v1/admin/invites:
+    post:
+      summary: Create invitation (admin)
+      security:
+        - bearerAuth: []
+      operationId: createInvite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization]
+              properties:
+                client_name: { type: string, nullable: true }
+                organization: { type: string }
+                country: { type: string, nullable: true, pattern: '^[A-Z]{2}$' }
+                expires_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '201':
+          description: Created — plaintext token returned once
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation_id: { type: string }
+                  token: { type: string }
+                  invitation_link: { type: string, format: uri }
+                  status: { type: string }
+    get:
+      summary: List invitations (admin)
+      security:
+        - bearerAuth: []
+      operationId: listInvites
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [draft, active, revoked, expired, deleted]
+      responses:
+        '200':
+          description: Invitation summaries (no plaintext tokens)
+  /v1/admin/invites/{invitation_id}:
+    patch:
+      summary: Update status / revoke
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: invitation_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, revoked, expired, deleted]
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Hard-delete registry row + request analytics purge
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: invitation_id
+          required: true
+          schema: { type: string }
+      responses:
+        '204':
+          description: Deleted
+  /v1/admin/analytics/clients:
+    get:
+      summary: Engagement rollup per invitation
+      security:
+        - bearerAuth: []
+      operationId: clientEngagementRollup
+      responses:
+        '200':
+          description: |
+            Joins private registry with PostHog server-side queries (private API key).
+            Columns: organization, status, visits, sessions, first/last visit, country, pages, returns, timeline.
+  /v1/admin/analytics/clients/{invitation_id}/timeline:
+    get:
+      summary: Engagement timeline for one invitation attribution
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: invitation_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Ordered events (no question text / PHI)
+  /v1/admin/retention/purge:
+    post:
+      summary: Retention / deletion control
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                invitation_id: { type: string }
+                distinct_id: { type: string, nullable: true }
+                older_than_days: { type: integer, minimum: 1 }
+      responses:
+        '202':
+          description: Purge accepted
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Real IdP / SSO. No shared password in the SPA.

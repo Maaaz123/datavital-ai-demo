@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://demo.datavital.io/schemas/invite-registry-row.json",
+  "title": "PrivateClientInvitation",
+  "description": "Server-side only. Never embed this registry in the GitHub Pages bundle.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "invitation_id",
+    "token_hash",
+    "organization",
+    "status",
+    "created_at"
+  ],
+  "properties": {
+    "invitation_id": {
+      "type": "string",
+      "pattern": "^inv_[a-f0-9]{16}$",
+      "description": "Public opaque invitation id for admin UI joins (not the raw token)."
+    },
+    "token_hash": {
+      "type": "string",
+      "minLength": 64,
+      "description": "SHA-256 (or stronger) hash of the invite token. Never store plaintext after issuance."
+    },
+    "client_name": {
+      "type": ["string", "null"],
+      "maxLength": 200
+    },
+    "organization": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "country": {
+      "type": ["string", "null"],
+      "pattern": "^[A-Z]{2}$",
+      "description": "Intended prospect country (ISO-3166 alpha-2), not visitor GeoIP."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "revoked", "expired", "deleted"]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "created_by": {
+      "type": ["string", "null"],
+      "description": "Admin operator id (server auth subject)."
+    },
+    "notes_internal": {
+      "type": ["string", "null"],
+      "maxLength": 2000,
+      "description": "Internal CRM notes — never sent to PostHog or the public SPA."
+    },
+    "retention_delete_after": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  }
+}
