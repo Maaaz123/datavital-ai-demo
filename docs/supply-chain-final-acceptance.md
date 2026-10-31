@@ -4,7 +4,9 @@
 **BUILD_ID:** `v77-supply-chain-domain`  
 **Routes:** `/supply-chain` (+ inventory, procurement, suppliers, consumption, waste, optimization)  
 **Date:** 2026-10-30  
-**Production deploy:** NOT TESTED (parent agent will deploy)  
+**Commits:** `adea554` (feat) · `98c22c5` (deploy) · *(404 shell sync + this verification follow-up)*  
+**Production:** https://demo.datavital.io/supply-chain  
+**Production deploy:** PASS — `refresh.html` BUILD_ID `v77-supply-chain-domain`; bundle `index-CYfE7ERG.js` HTTP 200; all 8 SC what-if kinds present in live JS  
 **Product-owner approval:** **NOT RECORDED**
 
 ## Status summary
@@ -24,7 +26,7 @@
 | Domain 13 Quality preserved | PASS (additive only) |
 | Domain 12 RCM preserved | PASS (additive only) |
 | Domains 1–11 layout ownership untouched | PASS (additive only) |
-| Live production `/supply-chain` | NOT TESTED |
+| Live production `/supply-chain` | PASS — SPA 404 shell serves `index-CYfE7ERG.js`; BUILD_ID `v77-supply-chain-domain` |
 | Product-owner approval | NOT RECORDED |
 
 ## Safeguards verified
@@ -47,6 +49,10 @@
 - No production source verification  
 - Fictional SAR  
 - Modeled opportunities are illustrative  
+
+## Recovery note
+
+Working tree was wiped by a failed `rsync --delete`. Domain 14 sources were **restored from Cursor agent transcript** `ecf5ad30` (full Write payloads + wiring StrReplaces) onto a clean reclone at `f65b016`, then tested, safely deployed, and pushed. Product-owner approval remains **NOT RECORDED**.
 
 ## Product-owner approval
 
