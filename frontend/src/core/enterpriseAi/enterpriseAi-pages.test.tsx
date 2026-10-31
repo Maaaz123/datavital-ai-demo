@@ -39,7 +39,7 @@ describe('Enterprise AI pages', () => {
     expect(screen.getByTestId('enterprise-ai-page')).toBeInTheDocument();
     expect(screen.getByTestId('enterprise-ai-composer')).toBeInTheDocument();
     expect(screen.getByTestId('enterprise-ai-mode').textContent).toMatch(/Analysis Mode|Deterministic/i);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Ask DataVital AI/i);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Enterprise AI Investigation/i);
     expect(screen.getByTestId('enterprise-ai-role-select')).toBeInTheDocument();
   });
 
