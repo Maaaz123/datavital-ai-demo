@@ -25,7 +25,23 @@ import { driverStatusLabel, executiveMetricLabel, resolveFocusFromQuestion } fro
 import { formatForecastPoint, formatMetricValue } from './format';
 import { rankHospitalRisks } from './riskIntelligence';
 import { roleEmphasis, type ExecutiveRole } from './executiveResponse';
+import { scenarioLabelForId } from './scenarioSelect';
 import type { GroundedAnswer, InvestigationState } from './types';
+
+function cleanRationale(text: string): string {
+  const cleaned = text
+    .replace(/OpEx constraint\.?/gi, '')
+    .replace(/Overlapping benefits not summed\.?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || 'Review this recommendation with the owning domain.';
+}
+
+function humanDecisionTitle(title: string): string {
+  const mapped = scenarioLabelForId(title);
+  if (mapped !== title) return mapped;
+  return title.replace(/^Recommended Management Action:\s*/i, '').replace(/\b[a-z]+(?:-[a-z0-9]+)+\b/g, (id) => scenarioLabelForId(id));
+}
 
 const RELATED_QUESTIONS = [
   'Why are denials rising and what intervention should finance review?',
@@ -483,22 +499,64 @@ export function EnterpriseAiPage() {
                   >
                     <span className={`gc-sev gc-sev-${r.severity === 'critical' ? 'critical' : 'medium'}`}>{r.severity}</span>
                     {r.title}
+                    <em className="gc-alert-scope"> · {periodLabel}</em>
                   </button>
                 </li>
               ))}
             </ul>
+            <p>Alert scope matches the selected reporting period ({ent.periodLabel}).</p>
+            <div className="gc-next">
+              <h2>Management action</h2>
+              <p>
+                {executive?.F_preferredOption.label
+                  ? `Review preferred option “${executive.F_preferredOption.label}” for ${periodLabel}.`
+                  : `Review hospital attention items for ${periodLabel}.`}
+              </p>
+              <button type="button" className="gc-ai-cta" onClick={() => copilot.setOpen(true)}>
+                <span className="gc-ai-orb" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 20l7.2-7.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M12.8 5.2l1.4 3.4 3.4 1.4-3.4 1.4-1.4 3.4-1.4-3.4-3.4-1.4 3.4-1.4z" fill="currentColor" />
+                    <path d="M19 4l.7 1.7L21.4 6.4 19.7 7.1 19 8.8l-.7-1.7L16.6 6.4l1.7-.7z" fill="currentColor" />
+                  </svg>
+                </span>
+                Open Vital Assist
+              </button>
+              <Link to="/enterprise-ai/decisions" className="gc-text-btn">Open the decision review</Link>
+            </div>
           </section>
+        </div>
+      </div>
 
+      <div className="gc-ed-pack">
+        <div className="gc-ed-pack-col">
+          <section className="gc-panel" data-testid="enterprise-ai-evidence">
+            <h2>Key figures</h2>
+            <p>Figures linked to this brief for {periodLabel}.</p>
+            <div className="gc-exception-list">
+              {lineage.map((m) => {
+                const value = resolveMetric(m.id, { hospital: store.hospital, year: store.year, period });
+                return (
+                  <article key={m.id} className="gc-exception gc-tone-neutral" data-testid={`lineage-${m.id}`}>
+                    <strong>{executiveMetricLabel(m.id)}</strong>
+                    <span>{m.owningDomain}</span>
+                    <span className="gc-ltr">{formatMetricValue(m.id, value)}</span>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+        <div className="gc-ed-pack-col">
           <section className="gc-panel" data-testid="enterprise-ai-decision-panel">
             <h2>Recommended decision</h2>
             {activeDecision ? (
-              <div className="gc-exception" data-testid="enterprise-ai-active-decision">
-                <strong>{activeDecision.title}</strong>
-                <span>{activeDecision.status}</span>
-                <p>{activeDecision.rationale}</p>
+              <div data-testid="enterprise-ai-active-decision">
+                <p><strong>{humanDecisionTitle(activeDecision.title)}</strong> · {activeDecision.status}</p>
+                <p>{cleanRationale(activeDecision.rationale)}</p>
                 <p>Outcome: {outcome?.observed ?? 'Not yet measured'}</p>
                 {(confirmOpen || invState?.pendingApprovalConfirm) ? (
-                  <p data-testid="enterprise-ai-approval-confirm">Confirm below — approval does not change hospital ledgers.</p>
+                  <p data-testid="enterprise-ai-approval-confirm">Confirm below — approval does not change hospital figures.</p>
                 ) : null}
                 <div className="gc-next">
                   <button
@@ -530,119 +588,98 @@ export function EnterpriseAiPage() {
                   >
                     Defer
                   </button>
+                  <Link to="/enterprise-ai/decisions" className="gc-text-btn">All decisions</Link>
                 </div>
               </div>
             ) : (
               <p>No decision ready yet for this brief.</p>
             )}
-            <div className="gc-next">
-              <Link to="/enterprise-ai/decisions" className="gc-text-btn">All decisions</Link>
-            </div>
           </section>
         </div>
       </div>
 
       <div className="gc-ed-pack">
         <div className="gc-ed-pack-col">
-          <section className="gc-panel" data-testid="enterprise-ai-evidence">
-            <h2>Key figures</h2>
-            <p>Evidence linked to this brief for {periodLabel}.</p>
-            <div className="gc-exception-list">
-              {lineage.map((m) => {
-                const value = resolveMetric(m.id, { hospital: store.hospital, year: store.year, period });
-                return (
-                  <article key={m.id} className="gc-exception gc-tone-neutral" data-testid={`lineage-${m.id}`}>
-                    <strong>{executiveMetricLabel(m.id)}</strong>
-                    <span>{m.owningDomain}</span>
-                    <span className="gc-ltr">{formatMetricValue(m.id, value)}</span>
-                  </article>
-                );
-              })}
-            </div>
+          <section className="gc-panel">
+            <h2>Leadership note</h2>
+            <p>
+              This screen prepares a hospital brief for leadership. Operational detail stays on owning domain screens.
+              {emphasis.note ? ` ${emphasis.note}` : ''}
+            </p>
           </section>
         </div>
         <div className="gc-ed-pack-col">
-          <section className="gc-panel">
-            <h2>Related questions</h2>
-            <ul className="gc-alert-list" data-testid="enterprise-ai-suggestions">
-              {RELATED_QUESTIONS.map((item) => (
-                <li key={item}>
-                  <button
-                    type="button"
-                    onClick={() => { setQuery(item); runQuery(item); }}
-                  >
-                    <span className="gc-sev gc-sev-medium">ask</span>
-                    {item.length > 70 ? `${item.slice(0, 67)}…` : item}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p>{emphasis.note}</p>
-          </section>
-        </div>
-      </div>
-
-      <section className="gc-panel span-12" data-testid="enterprise-ai-composer">
-        <h2>Ask another question</h2>
-        <p>Optional — the brief above is already prepared for leadership. Use this only to re-focus.</p>
-        <label className="gc-fit" data-testid="enterprise-ai-role">
-          <span className="gc-kicker">View as</span>
-          <select
-            data-testid="enterprise-ai-role-select"
-            value={role}
-            onChange={(e) => onRoleChange(e.target.value as ExecutiveRole)}
-          >
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </label>
-        {!askOpen ? (
-          <div className="gc-next">
-            <button type="button" className="gc-btn" onClick={() => setAskOpen(true)}>Ask a question</button>
-            <button type="button" className="gc-text-btn" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
-            <Link to="/enterprise-ai/governance" className="gc-text-btn">How we use AI</Link>
-          </div>
-        ) : (
-          <form onSubmit={onSubmit}>
-            <label className="gc-fit">
-              <span className="gc-kicker">Question</span>
-              <textarea
-                data-testid="enterprise-ai-query"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                rows={2}
-              />
-            </label>
-            <div className="gc-next">
-              <button type="submit" className="gc-btn" disabled={loading} data-testid="enterprise-ai-ask">
-                {loading ? 'Updating…' : 'Update brief'}
-              </button>
-              <button
-                type="button"
-                className="gc-text-btn"
-                data-testid="enterprise-ai-clear"
-                onClick={() => { setQuery(''); setAnswer(null); setInvState(null); writeState(null); setConfirmOpen(false); }}
+          <section className="gc-panel" data-testid="enterprise-ai-composer">
+            <h2>Ask another question</h2>
+            <p>Optional — use only to re-focus the brief.</p>
+            <label className="gc-fit" data-testid="enterprise-ai-role">
+              <span className="gc-kicker">View as</span>
+              <select
+                data-testid="enterprise-ai-role-select"
+                value={role}
+                onChange={(e) => onRoleChange(e.target.value as ExecutiveRole)}
               >
-                Clear
-              </button>
-              <button type="button" className="gc-text-btn" onClick={() => setAskOpen(false)}>Hide</button>
-            </div>
-            {history.length > 0 ? (
-              <div data-testid="enterprise-ai-history">
-                <p className="gc-kicker">Recent</p>
-                <ul className="gc-alert-list">
-                  {history.slice(0, 3).map((item) => (
+                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+            {!askOpen ? (
+              <div className="gc-next">
+                <button type="button" className="gc-btn" onClick={() => setAskOpen(true)}>Ask a question</button>
+                <ul className="gc-alert-list" data-testid="enterprise-ai-suggestions">
+                  {RELATED_QUESTIONS.slice(0, 3).map((item) => (
                     <li key={item}>
-                      <button type="button" className="gc-text-btn" onClick={() => { setQuery(item); runQuery(item); }}>
+                      <button type="button" onClick={() => { setQuery(item); runQuery(item); }}>
+                        <span className="gc-sev gc-sev-medium">ask</span>
                         {item.length > 64 ? `${item.slice(0, 61)}…` : item}
                       </button>
                     </li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-          </form>
-        )}
-      </section>
+            ) : (
+              <form onSubmit={onSubmit}>
+                <label className="gc-fit">
+                  <span className="gc-kicker">Question</span>
+                  <textarea
+                    data-testid="enterprise-ai-query"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    rows={2}
+                  />
+                </label>
+                <div className="gc-next">
+                  <button type="submit" className="gc-btn" disabled={loading} data-testid="enterprise-ai-ask">
+                    {loading ? 'Updating…' : 'Update brief'}
+                  </button>
+                  <button
+                    type="button"
+                    className="gc-text-btn"
+                    data-testid="enterprise-ai-clear"
+                    onClick={() => { setQuery(''); setAnswer(null); setInvState(null); writeState(null); setConfirmOpen(false); }}
+                  >
+                    Clear
+                  </button>
+                  <button type="button" className="gc-text-btn" onClick={() => setAskOpen(false)}>Hide</button>
+                </div>
+                {history.length > 0 ? (
+                  <div data-testid="enterprise-ai-history">
+                    <p className="gc-kicker">Recent</p>
+                    <ul className="gc-alert-list">
+                      {history.slice(0, 3).map((item) => (
+                        <li key={item}>
+                          <button type="button" className="gc-text-btn" onClick={() => { setQuery(item); runQuery(item); }}>
+                            {item.length > 64 ? `${item.slice(0, 61)}…` : item}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </form>
+            )}
+          </section>
+        </div>
+      </div>
 
       {/* Keep simulation hook for tests / deep links */}
       <section className="gc-panel span-12" data-testid="enterprise-ai-simulation" hidden>

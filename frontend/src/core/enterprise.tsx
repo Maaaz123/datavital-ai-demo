@@ -224,16 +224,43 @@ function shortIssue(issue: string): string {
   return cut.length > 64 ? `${cut.slice(0, 61)}…` : cut;
 }
 
+function shortDomain(domain: string): string {
+  const map: Record<string, string> = {
+    'Beds & Capacity': 'Beds',
+    'Revenue Cycle': 'RCM',
+    'Quality & Safety': 'Quality',
+    'Supply Chain': 'Supply',
+    'Patient Experience': 'PX',
+  };
+  return map[domain] ?? domain.split(/\s+/)[0] ?? domain;
+}
+
 function alertSeverity(severity: EnterprisePriority['severity'] | EnterpriseSeverity): 'critical' | 'high' | 'medium' {
   if (severity === 'critical') return 'critical';
   if (severity === 'warning') return 'high';
   return 'medium';
 }
 
+function AiCta({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="gc-ai-cta" onClick={onClick}>
+      <span className="gc-ai-orb" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 20l7.2-7.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M12.8 5.2l1.4 3.4 3.4 1.4-3.4 1.4-1.4 3.4-1.4-3.4-3.4-1.4 3.4-1.4z" fill="currentColor" />
+          <path d="M19 4l.7 1.7L21.4 6.4 19.7 7.1 19 8.8l-.7-1.7L16.6 6.4l1.7-.7z" fill="currentColor" />
+        </svg>
+      </span>
+      Open Vital Assist
+    </button>
+  );
+}
+
 function Alerts({ items }: { items: EnterprisePriority[] }) {
   const copilot = useCopilot();
   const view = useView();
   const top = items.slice(0, 5);
+  const lead = top[0];
   return (
     <section className="gc-panel gc-insight" data-testid="enterprise-priorities">
       <h2>Priority signals</h2>
@@ -250,14 +277,25 @@ function Alerts({ items }: { items: EnterprisePriority[] }) {
           <li>
             <button type="button" onClick={() => copilot.setOpen(true)}>
               <span className="gc-sev gc-sev-medium">review</span>
-              Hospital within leadership watch bands · open Vital Assist
+              Hospital within management thresholds · open Vital Assist
             </button>
           </li>
         )}
       </ul>
-      <p>Alert scope matches {view.hospital} · {view.periodLabel}.</p>
+      <p>Alert scope matches the selected reporting period ({view.periodLabel}).</p>
       <div className="gc-next">
-        <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
+        <h2>Management action</h2>
+        <p>
+          {lead
+            ? `Review ${shortIssue(lead.issue).toLowerCase()} (${lead.metricValue}) with ${shortDomain(lead.sourceDomain)} for ${view.periodLabel}.`
+            : `Review hospital priorities for ${view.hospital} · ${view.periodLabel}.`}
+        </p>
+        <AiCta onClick={() => copilot.setOpen(true)} />
+        {lead ? (
+          <Link to={lead.href} className="gc-text-btn">Open the decision review</Link>
+        ) : (
+          <p>No open enterprise priority for this hospital and period.</p>
+        )}
       </div>
     </section>
   );
@@ -425,11 +463,13 @@ export function ExecutiveDashboardPage() {
 function ExceptionAlerts({ items }: { items: OpsException[] }) {
   const copilot = useCopilot();
   const view = useView();
+  const top = items.slice(0, 8);
+  const lead = top[0];
   return (
     <section className="gc-panel gc-insight" data-testid="ops-exceptions">
       <h2>Priority signals</h2>
       <ul className="gc-alert-list">
-        {items.length ? items.slice(0, 8).map((item) => (
+        {top.length ? top.map((item) => (
           <li key={item.id}>
             <Link to={item.href} data-testid={`ops-${item.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
               <span className={`gc-sev gc-sev-${alertSeverity(item.severity)}`}>{item.severity}</span>
@@ -441,14 +481,25 @@ function ExceptionAlerts({ items }: { items: OpsException[] }) {
           <li>
             <button type="button" onClick={() => copilot.setOpen(true)}>
               <span className="gc-sev gc-sev-medium">review</span>
-              No threshold exceptions for this period · open Vital Assist
+              Operations within management thresholds · open Vital Assist
             </button>
           </li>
         )}
       </ul>
-      <p>Alert scope matches {view.hospital} · {view.periodLabel}.</p>
+      <p>Alert scope matches the selected reporting period ({view.periodLabel}).</p>
       <div className="gc-next">
-        <button type="button" onClick={() => copilot.setOpen(true)}>Open Vital Assist</button>
+        <h2>Management action</h2>
+        <p>
+          {lead
+            ? `Review ${lead.area.toLowerCase()} (${lead.signal}) with ${lead.owner} for ${view.periodLabel}.`
+            : `Review operations exceptions for ${view.hospital} · ${view.periodLabel}.`}
+        </p>
+        <AiCta onClick={() => copilot.setOpen(true)} />
+        {lead ? (
+          <Link to={lead.href} className="gc-text-btn">Open the decision review</Link>
+        ) : (
+          <p>No open operations exception for this hospital and period.</p>
+        )}
       </div>
     </section>
   );
@@ -542,17 +593,9 @@ export function HospitalCommandPage() {
           <section className="gc-panel">
             <h2>Leadership note</h2>
             <p>
-              Escalate the exceptions above for {view.hospital} · {view.periodLabel}.
-              Open the owning domain for detail — this screen stays at operations attention only.
+              Use specialist domain screens for theatre, ICU, lab, imaging, and supply detail.
+              This command view surfaces operations attention only for {view.hospital} · {view.periodLabel}.
             </p>
-            <div className="gc-exception-list">
-              {view.opsExceptions.slice(0, 4).map((item) => (
-                <Link key={item.id} to={item.href} className={`gc-exception gc-tone-${toneFrom(item.severity)}`} style={{ textDecoration: 'none' }}>
-                  <strong>{item.area}</strong>
-                  <span>{item.signal} · {item.owner}</span>
-                </Link>
-              ))}
-            </div>
           </section>
         </div>
       </div>
