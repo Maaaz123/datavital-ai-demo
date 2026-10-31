@@ -1,26 +1,43 @@
-# Enterprise AI — Data Dictionary (skeleton)
+# Enterprise AI — Data Dictionary
 
-**Status:** Stage 1 stub  
-**Authority:** Metric definitions live in `frontend/src/core/enterpriseAi/metricRegistry.ts`  
+**Status:** Stages 1–7  
+**Authority:** `frontend/src/core/enterpriseAi/metricRegistry.ts`  
+**Companions:** `enterprise-ai-data-dictionary.csv`, `enterprise-ai-data-dictionary.json`  
 **Rule:** Every metric `sourceFn` calls an existing `build*View` / enterprise reader — no second ledger.
 
-## Columns (to expand)
+## Data readiness legend
 
-| id | name | owningDomain | grain | numerator | denominator | unit | periodSemantics | dataReadiness | qualityNotes |
-|---|---|---|---|---|---|---|---|---|---|
-| _(see registry)_ | | | | | | | | | |
+| State | Meaning |
+|---|---|
+| Demo Available | Represented via existing domain builders |
+| Scenario Only | Explicit what-if / modeled assumption |
+| illustrative | Forecast/backtest when series too sparse |
 
-## Domains in scope (15 + Enterprise)
+## Core entities
 
-Emergency · Beds · ICU · Inpatient · OPD · Appointments · Surgery · Laboratory · Radiology · Pharmacy · Revenue Cycle · Strategy · Supply Chain · Quality & Safety · Patient Experience · (+ Enterprise mirrors)
+| Entity | Grain | Notes |
+|---|---|---|
+| MetricDefinition | metric id | Semantic registry |
+| KnowledgeEdge | edge id | Associative / operational-link only |
+| ToolExecutionRecord | toolResultId | Grounding citations |
+| InvestigationReport | investigation id | Driver statuses |
+| DecisionProposal | decision id | Demo session/local state |
+| OutcomeRecord | outcome id | Expected / simulated / observed |
+| ForecastResult | series + model version | Aggregate monthly only |
+
+## Sample metrics (see CSV/JSON for full export)
+
+| id | owningDomain | unit | periodSemantics |
+|---|---|---|---|
+| ed.wait.median_min | Emergency | minutes | period-flow |
+| beds.occupancy | Beds | ratio | period-average-stock |
+| icu.staffing_gap_hours | ICU | hours | period-flow |
+| rcm.net_patient_revenue | Revenue Cycle | SAR | period-flow |
+| st.recognized_net_revenue | Strategy | SAR | period-flow |
+| sc.critical_stockouts | Supply Chain | count | period-flow |
 
 ## Lineage notes
 
-- **Revenue:** `rcm.net_patient_revenue` → `st.recognized_net_revenue` → `ent.net_patient_revenue` (identity).
-- **ICU gap:** `icu.staffing_gap_hours` === `st.icu_staffing_gap_hours`; enterprise gap is a distinct scope.
-- **Supply rates:** `sc.supply_availability` and `sc.supplier_otd` ∈ [0, 1].
-
-## Next
-
-- Export CSV/JSON companions matching other domain dictionaries.
-- Cross-link KPI lineage docs under `docs/kpi-lineage/`.
+- Revenue: `rcm.net_patient_revenue` → `st.recognized_net_revenue` → `ent.net_patient_revenue`
+- ICU gap: `icu.staffing_gap_hours` === `st.icu_staffing_gap_hours`; enterprise gap is distinct
+- Supply rates: availability / OTD ∈ [0, 1]

@@ -1,7 +1,8 @@
 # Enterprise AI — Knowledge Graph
 
-**Status:** Stage 1  
+**Status:** Stages 1–7 (graph consumed by investigation + tools)  
 **Code:** `frontend/src/core/enterpriseAi/knowledgeGraph.ts`  
+**Consumers:** `retrieve_cross_domain_evidence`, `investigation.ts` driver statuses  
 **Causal claims allowed:** `associative` \| `operational-link` only — **never** patient-level clinical causality.
 
 ## Edge schema

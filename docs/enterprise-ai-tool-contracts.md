@@ -1,35 +1,50 @@
-# Enterprise AI — Tool Contracts (Stage 2 stub)
+# Enterprise AI — Tool Contracts
 
-**Status:** Skeleton only — Stage 2  
-**Depends on:** Stage 1 registry, knowledge graph, reconciliation gate  
-**Code (future):** tools that wrap `resolveMetric`, `listKnowledgeEdges`, `runStage1ReconciliationGate`
+**Status:** Stages 2–7 implemented  
+**Code:** `frontend/src/core/enterpriseAi/tools.ts`, `intent.ts`, `orchestrator.ts`, `gateway.ts`  
+**Depends on:** Stage 1 registry, knowledge graph, reconciliation gate
 
 ## Principles
 
-1. Tools read **only** registry / existing `build*View` values.
-2. Every numeric answer cites `metric.id`, hospital, year, period.
-3. Cross-domain answers must pass or disclose reconciliation gate results.
+1. Tools read **only** registry / existing `build*View` / what-if values — never invent numbers.
+2. Every numeric answer cites a tool result ID (`toolId#n`) plus metric id, hospital, year, period where applicable.
+3. Cross-domain answers pass or disclose reconciliation gate results.
 4. Causal language limited to graph `causalClaim` (`associative` | `operational-link`).
-5. What-if remains illustrative — never mutate historical domain ledgers.
+5. What-if remains illustrative — never mutates historical domain ledgers.
+6. Public demo mode is **deterministic tool orchestration** (explicit label). LLM mode is stubbed unless a secure backend exists. No API keys in the frontend.
 
-## Planned tools (not implemented in Stage 1)
+## Implemented tools
 
-| Tool | Intent | Inputs | Outputs |
-|---|---|---|---|
-| `lookup_metric` | Resolve one registry metric | `id`, hospital, year, period | value + definition + readiness |
-| `compare_metrics` | Same-scope comparison | ids[], scope | values + permittedComparisons check |
-| `explain_edge` | Knowledge-graph hop | edge id or from/to | evidence, confounders, causalClaim |
-| `reconcile_domains` | Run gate helpers | hospital, year, period | `{ ok, checks[] }` |
-| `list_domain_metrics` | Catalog by owningDomain | domain | metric defs |
+| Tool | Inputs | Outputs |
+|---|---|---|
+| `get_metric` | metricId, hospital, year, period | value + definition fields + readiness |
+| `get_metric_definition` | metricId | semantic definition |
+| `get_metric_trend` | metricId, scope | current vs prior year |
+| `compare_periods` | metricId, yearA, yearB | values + delta |
+| `compare_hospitals` | metricId, hospitals[] | per-hospital values |
+| `retrieve_domain_evidence` | domain, limit | metric values for owning domain |
+| `retrieve_cross_domain_evidence` | metricId | knowledge-graph hops |
+| `check_reconciliation` | hospital, year, period | Stage 1 gate `{ ok, checks[] }` |
+| `find_related_alerts` | optional department | alert catalog slice |
+| `inspect_data_quality` | optional metricId | readiness notes + gate |
+| `get_scenario_baseline` | optional opportunityId | enterprise/strategy baseline facts |
+| `run_what_if` | domain, kind, amount | existing what-if engine result |
+| `compare_interventions` | optionIds[], noAdditionalStaffingCost | ranking + overlap rejections |
+| `get_forecast` | seriesId | seasonal-naive/MA + backtest |
+| `create_decision_proposal` | title, options… | demo decision id (session/local) |
+| `get_decision_status` | optional decisionId | lifecycle + outcome |
 
-## Non-goals
+## Intent classifier (12)
 
-- No free-form SQL against a second warehouse
-- No clinical decision support / patient causality
-- No production write-back
+`kpi_explanation` · `comparison` · `trend` · `root_cause` · `cross_domain` · `risk` · `resource_allocation` · `financial` · `what_if` · `decision_prep` · `follow_up_status` · `data_quality`
 
-## Open questions for Stage 2
+Method: deterministic pattern scoring. Disclosure always states this is not unrestricted LLM reasoning.
 
-- Assist vs Copilot ownership of tool routing
-- Whether what-if scenarios register as `Scenario Only` readiness automatically
-- UI surface for gate failures (banner vs Assist refusal)
+## Refusals
+
+- Clinical diagnosis / patient-level inference
+- CapEx auto-approval
+
+## Mode disclosure (public demo)
+
+> AI mode: Deterministic tool orchestration (labeled). No unrestricted LLM reasoning in the public demo. Numeric claims cite tool results from existing domain views only.
