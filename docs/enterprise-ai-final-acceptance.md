@@ -8,7 +8,8 @@
 **Source commit (pre-Stage-8 tip):** `3ce6d19`  
 **Feat commit:** `6bdeb81`  
 **Deploy commit:** `889e0b0`  
-**Final commit:** _(filled after acceptance docs push)_  
+**Merge commit (main):** `d5ca4fa787f2e0acd3bfb6dd35ac8ef6deb33a79` (`d5ca4fa`)  
+**Final docs evidence commit:** _(this commit)_  
 **JS bundle:** `assets/index-B6hOKRJh.js`  
 **PWA helper:** `assets/pwa-b8vElP5Y.js`  
 **AI mode:** **Deterministic** (labeled tool orchestration; no unrestricted LLM in public demo)  
@@ -31,10 +32,11 @@
 | Full vitest 450/450 · `tsc -b` clean | PASS |
 | Safe selective deploy (no `rsync --delete`) | PASS |
 | Bundle `index-B6hOKRJh.js` on disk + SPA shell | PASS |
-| Production BUILD_ID `v81-enterprise-ai-domain` | _(filled after production verify)_ |
+| Production BUILD_ID `v81-enterprise-ai-domain` | PASS |
+| Deep-link SPA shells + secret-free bundle | PASS |
 | Product-owner approval | NOT RECORDED |
 
-**Technical verdict (pre-production fill):** CONDITIONAL — awaiting independent production HTTP verification.
+**Technical verdict:** **READY FOR PRODUCT-OWNER REVIEW**
 
 ---
 
@@ -48,7 +50,8 @@
 | Stage 7 | `3ce6d19` |
 | Stage 8 feat | `6bdeb81` |
 | Stage 8 deploy | `889e0b0` |
-| Stage 8 docs | _(this commit)_ |
+| Stage 8 docs | `7d789be` + evidence follow-up |
+| Merged to main | `d5ca4fa` (PR #2) |
 | BUILD_ID | `v81-enterprise-ai-domain` |
 | Bundle | `index-B6hOKRJh.js` |
 | Production | https://demo.datavital.io/enterprise-ai |
@@ -230,9 +233,9 @@ Nav screen count updated 80 → **86** after adding six Enterprise AI screens ( 
 
 | Item | Result |
 |---|---|
-| Interactive browser MCP QA this session | NOT TESTED _(filled if browser available; else HTTP/SPA verification)_ |
+| Interactive browser MCP QA this session | NOT TESTED (browser tab unavailable; HTTP/SPA used) |
 | Desktop widths 1280 / 1440 / 1920 interactive | NOT TESTED |
-| Production HTTP + SPA shell + bundle string checks | _(filled after production verify)_ |
+| Production HTTP + SPA shell + bundle string checks | PASS (2026-10-31) |
 
 ---
 
@@ -289,26 +292,36 @@ Technical acceptance ≠ product-owner approval.
 | 11 | Human decision actions work | PASS |
 | 12 | Approvals do not modify historical facts | PASS |
 | 13 | Outcomes not falsely marked achieved | PASS |
-| 14 | No AI credentials in public frontend | PASS _(bundle grep after deploy)_ |
+| 14 | No AI credentials in public frontend | PASS (live bundle secret grep clean) |
 | 15 | No real patient data | PASS (synthetic) |
 | 16 | Existing domains functional | PASS |
 | 17 | Documentation complete | PASS |
 | 18 | Automated tests pass | PASS (450/450) |
-| 19 | Browser QA | NOT TESTED / _(HTTP evidence)_ |
-| 20 | Production independently verified | _(filled after verify)_ |
+| 19 | Browser QA | NOT TESTED (interactive); HTTP/SPA PASS |
+| 20 | Production independently verified | PASS |
 
 ---
 
-## 23. Production verification evidence
+## 23. Production verification evidence (2026-10-31)
 
-_(Filled after GitHub Pages publish.)_
-
-- refresh.html BUILD_ID  
-- `/enterprise-ai` SPA shell  
-- Deep links: investigations, forecasting, optimization, decisions, governance  
-- Bundle strings  
-- Secret grep (`sk-`, `OPENAI`, `ANTHROPIC_API`)  
-- Final commit SHA  
+| Check | Result |
+|---|---|
+| `https://demo.datavital.io/refresh.html` | PASS — `BUILD_ID = 'v81-enterprise-ai-domain'` |
+| `https://demo.datavital.io/index.html` | PASS — `/assets/index-B6hOKRJh.js` |
+| `https://maaaz123.github.io/datavital-ai-demo/` mirror | PASS — same BUILD_ID + bundle |
+| GitHub Pages build | PASS — status `built` at 2026-10-31T01:38:37Z |
+| Deep link `/enterprise-ai` | PASS — HTTP 404 SPA shell → `index-B6hOKRJh.js` (GitHub Pages pattern) |
+| `/enterprise-ai/investigations` | PASS — SPA shell same bundle |
+| `/enterprise-ai/forecasting` | PASS — SPA shell same bundle |
+| `/enterprise-ai/optimization` | PASS — SPA shell same bundle |
+| `/enterprise-ai/decisions` | PASS — SPA shell same bundle |
+| `/enterprise-ai/governance` | PASS — SPA shell same bundle |
+| Live JS contents | PASS — 58× `enterprise-ai`, 29× `Enterprise AI`, Deterministic disclosure, outcome “not yet measured”, flagship `deteriorating` |
+| Secret grep (`sk-…`, `OPENAI_API_KEY`, `ANTHROPIC_API`) | PASS — clean |
+| PWA helper | PASS — `pwa-b8vElP5Y.js` embeds `v81-enterprise-ai-domain` |
+| Interactive browser flagship submit | NOT TESTED (MCP browser tab unavailable) |
+| Merge SHA on main | `d5ca4fa787f2e0acd3bfb6dd35ac8ef6deb33a79` |
+| PR | https://github.com/Maaaz123/datavital-ai-demo/pull/2 |
 
 ---
 
